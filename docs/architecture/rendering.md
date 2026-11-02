@@ -62,10 +62,168 @@ snapshot made by Extract, never the scene.
               (opaque front to back, transparent back to front)
  Graph     -> passes declare what they read and write, the graph orders them:
               shadows -> opaque -> sky -> transparent -> post-processing -> HUD
-              (+ editor passes: grid, outline; FrameData::editor goes away)
- RHI       -> one interface over OpenGL, Vulkan, D3D12
+              (+ passes the editor adds to its views: grid, outline)
+ Renderer  -> records the passes as RHI commands     engine/render
+ RHI       -> one interface over OpenGL, Vulkan, D3D12   backends/<api>
  Present
 ```
+
+## The RHI stage [planned, RHI]
+
+Done before step 5, so that shaders, materials and lights are written once
+for every graphics API. Only the OpenGL implementation is made now; Vulkan
+and D3D12 come later. The interface carries no OpenGL assumptions, but has
+only what the renderer needs today: nothing is added "for Vulkan" before
+Vulkan itself.
+
+### Where the line goes
+
+| Engine (`engine/render`) | Backend (`backends/<api>`) |
+| --- | --- |
+| `Renderer`, passes (`MeshPass`), Prepare, the render graph | `rhi::Device`, `rhi::CommandList` of the API |
+| GPU copies of resources by ID and revision (`GpuResourceCache`) | buffers, textures, samplers, pipelines of the API |
+| shaders: compiling GLSL to SPIR-V, reflection | a shader module of the API from SPIR-V |
+| what to draw and in which order | executing the commands |
+
+- The RHI knows nothing about the graph. The graph is built over the RHI and
+  turns into RHI commands, so each is tested without the other.
+- ImGui is a separate integration of the backend (`UiRenderer`), not part of
+  the RHI: it draws through the same API and device, but the RHI does not
+  depend on it. The texture of a resource for ImGui (`uiTexture`) goes
+  through this integration.
+- The renderer is created by `createDevice(api)` instead of
+  `createRenderer(api)`; there are no renderer classes per API.
+
+### Contracts
+
+- **Lifetime of GPU objects.** RHI objects are abstract classes in
+  `unique_ptr`; whoever created one owns it. Destroying an object does not
+  free it at once: the device frees it when the frames that may still use
+  it are finished (in OpenGL that is immediately, in Vulkan and D3D12 after
+  the frames in flight). Commands refer to objects by pointer, valid until
+  the end of the frame. GPU copies of resources are keyed by resource ID and
+  revision (`GpuResourceCache`), never by the address of CPU data: a new
+  revision replaces the copy, the old one is freed by the same rule.
+- **Resource states.** A texture is in one state at a time: colour target,
+  depth target, shader read, present. A change is an explicit command
+  (`transition`); the graph inserts them between passes. OpenGL ignores
+  them, Vulkan and D3D12 turn them into barriers. Only these four states for
+  now.
+- **Pipelines** are immutable after creation: shaders, vertex layout, depth
+  test and write, face culling, blending, formats of the targets, sample
+  count. A pipeline draws only into a target of the same formats and sample
+  count; a mismatch is an error (checked by the test RHI and in debug
+  builds).
+- **Shader data** goes through uniform blocks by frequency: frame (time,
+  lights), view (camera), material (step 5), object (matrices). The layout
+  is std140; the C++ structs repeat it with explicit `alignas` and are
+  checked against the reflection at shader load (size and offsets of every
+  field), not trusted to match. Per-object data lives in one buffer per
+  frame, bound with an offset aligned to the device limit
+  (`GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT` in OpenGL).
+- **One convention for clip space** across the engine: right-handed world,
+  clip depth from 0 (near) to 1 (far), NDC y up, texture rows from the top.
+  Projections are built only this way, so cameras do not know the API and
+  `DepthRange` leaves the camera code. The backend adapts: OpenGL gets its
+  vertex shaders from SPIRV-Cross with the depth remapped to -1..1
+  (`fixup_clipspace`), Vulkan will flip y with the viewport. The vertical
+  flip of render targets in OpenGL stays inside the backend (`UiTexture`
+  corners).
+- **Lost device**: the path that changes the graphics API without a restart
+  (see below) also recovers from a lost device in Vulkan and D3D12. OpenGL
+  does not lose its device, so nothing is added now.
+
+### Shaders
+
+Written once in GLSL 450 in the Vulkan style (`set`, `binding`), compiled by
+glslang to SPIR-V. SPIR-V is the intermediate form: OpenGL gets GLSL 330
+from SPIRV-Cross, Vulkan will take SPIR-V as it is, D3D12 HLSL from
+SPIRV-Cross. Portability is not automatic: the generated code and the
+profile below are checked on every target API when its backend arrives.
+
+- **Shader profile**, what every target API can do; a shader outside it is
+  rejected at compile time with a message:
+  - stages: vertex and fragment only;
+  - resources: std140 uniform blocks and combined samplers (`sampler2D`,
+    `samplerCube`); no storage buffers, images or separate samplers;
+  - sets: 0 frame, 1 view, 2 material, 3 object;
+  - vertex inputs by fixed location: 0 position, 1 normal, 2 `uv0`
+    (tangents with normal maps in step 5);
+  - limits of OpenGL 3.3: at most 16 textures per shader, a uniform block
+    at most 16 KB.
+
+  The profile has a version; a shader file of step 5 records it in its
+  `.meta`, and a new profile version is a migration (see
+  [project formats](project.md)).
+- **Reflection gives structure, not presentation.** `ShaderReflection` reads
+  from SPIR-V the uniform blocks, field names, types, offsets and sizes,
+  sets and bindings, textures. How a field is shown in the material
+  inspector (a 0..1 slider for `roughness`, a colour picker for `baseColor`,
+  a label, a group) comes from annotations next to the field in the same
+  shader file and maps onto the property attributes of
+  [reflection](reflection.md). Types and bindings are never written twice;
+  the annotation syntax is chosen in step 5.
+- **Compiling**: `#include` (relative to the file and from the engine
+  shader library), defines and compile options, errors with the source file
+  and line, results cached in memory by source, includes and defines for
+  the current run.
+- **The device takes SPIR-V**, not GLSL source. The compiler (glslang) is a
+  separate part used by the editor and the engine at start-up; the game
+  built without the editor can ship precompiled shaders and run without
+  glslang (step 9). SPIRV-Cross stays in the OpenGL backend.
+- **Built-in shaders** move from `backends/opengl/shaders` to
+  `engine/render/shaders` and go through the same path as the shaders of a
+  project in step 5.
+
+### Prepare and the render graph
+
+- **Prepare** works per view: one object can be seen in the Game window and
+  not in the Scene window. Culling by the bounds of the mesh (AABB, carried
+  by `DrawItem`) against the frustum and by the layer mask; opaque items
+  sorted front to back with grouping by pipeline and material, transparent
+  ones back to front against that view.
+- **The graph, MVP scope**: a pass declares the textures it reads and
+  writes; the graph finds the dependencies, orders the passes, creates and
+  frees the transient textures (the outline mask) within the frame, inserts
+  the state transitions, and reports a cycle or a read of a texture nobody
+  wrote. Not now: memory aliasing, async queues, parallel recording,
+  automatic barrier analysis beyond the four states. They come with Vulkan
+  and D3D12 when needed.
+- **Editor passes**: a view takes a list of additional passes from its
+  owner. The Viewport adds the grid and the selection outline to its own
+  view; the passes live in the editor and keep their own data (selected
+  nodes, colour), the engine only runs them. `FrameData::editor` goes away,
+  the engine knows nothing about the editor.
+
+### Phases (a commit per phase)
+
+1. **R.1 RHI and OpenGL.** `rhi::Device`, `rhi::CommandList`, buffers,
+   textures, samplers, pipelines, render targets, resource states, the
+   lifetime rule. The OpenGL implementation: `GlMesh`, `GlTexture`,
+   `GlRenderTarget` become RHI objects, the old passes work over them. A
+   minimal test RHI that records commands and checks pipeline and target
+   compatibility, from the first phase, so that mistakes of the interface
+   are found before the OpenGL implementation fixes them.
+2. **R.2 Shaders.** glslang and SPIRV-Cross, the profile, `ShaderReflection`,
+   includes, defines, errors with file and line, the in-memory cache, the
+   checks of std140 structs against the reflection; built-in shaders in GLSL
+   450; the clip space convention, `DepthRange` leaves the cameras.
+3. **R.3 The renderer in the engine.** `Renderer` is an engine class over
+   `rhi::Device`, `MeshPass` and `GpuResourceCache` move to `engine/render`,
+   `createDevice(api)`, ImGui as a separate integration of the backend. The
+   editor and `Application` change only where they create the renderer.
+4. **R.4 Prepare and the graph.** Culling, sorting, bounds in `DrawItem`, the
+   graph in the MVP scope, the grid and outline passes in the editor,
+   `FrameData::editor` removed.
+5. **R.5 Tests and documents.** Tests on the test RHI: pass order and graph
+   dependencies, culling, sorting, no extra draws, the textures each pass
+   uses. Small OpenGL integration tests (buffers, textures, pipelines, a
+   frame into a target) that run where an OpenGL context can be created and
+   are skipped otherwise. The marks `[planned, RHI]` in this file and in
+   [frame](frame.md) are removed.
+
+Out of the stage: the Vulkan and D3D12 backends, the render thread, shadows,
+sky and post-processing (their place in the graph is ready).
 
 ## Meshes and textures [done]
 
@@ -157,10 +315,5 @@ UiLayer             ImGui drawing for the new API
 - An API that is not built into this engine, or that the system refuses,
   leaves the current one in place with a message in the log, once.
 - Vsync is switched on the running renderer, without a rebuild.
-- The same path will recover from a lost device (Vulkan, D3D12)
-  **[planned, RHI]**.
-
-## Editor overlay
-
-The editor overlay (grid, selection outline) leaves engine frame data when
-the render hardware interface arrives, before step 5.
+- The same path will recover from a lost device (Vulkan, D3D12), see
+  [the RHI stage](#the-rhi-stage-planned-rhi) **[planned, RHI]**.
