@@ -5,8 +5,10 @@
 Contracts of the engine subsystems, one document per subsystem. Each changes
 together with the code it describes.
 
-Status marks: **[done]** implemented, **[next]** the next stage of work
-(before C++ scripts), **[planned]** later, with the step it belongs to.
+Status marks: **[done]** implemented, **[next]** the next stage of work,
+**[planned]** later, with the step it belongs to. **[temporary]** marks a
+list of fixes rather than a description: it is removed once done, and the
+documents keep only how the engine works.
 
 | Document | What it covers |
 |---|---|

@@ -516,7 +516,12 @@ only if every scene was read, as `upgradeProject` already does.
   include names that file and line; a changed include reloads the shader;
   a new shader is a copy of the template.
 
-### 5.2a Audit fixes [next]
+### 5.2a Audit fixes [next, temporary]
+
+A temporary section: a list of work, not a description of the
+architecture. Each item leaves it once done, and how things work then is
+described in the document of its subsystem; after the last item the whole
+section is removed.
 
 An audit of steps 3-5 (2026-11-02): what is costly to change later. Done
 before 5.3, a commit per group, each followed by a build and tests on
