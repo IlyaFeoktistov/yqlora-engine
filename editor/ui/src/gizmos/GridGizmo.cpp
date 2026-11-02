@@ -2,9 +2,12 @@
 
 namespace yqlora::editor {
 
-void GridGizmo::prepareFrame(FrameData& frame, const GizmoContext& /*context*/)
+void GridGizmo::prepareView(ViewData& view, const RenderContext& renderer, const GizmoContext& /*context*/)
 {
-    frame.editor.grid = true;
+    if (!m_pass) {
+        m_pass = std::make_unique<GridPass>(renderer);
+    }
+    view.passes.push_back(m_pass.get());
 }
 
 } // namespace yqlora::editor

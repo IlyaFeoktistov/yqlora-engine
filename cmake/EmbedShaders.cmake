@@ -1,6 +1,6 @@
 # Вшивает файлы шейдеров в заголовок C++: таблица kEmbeddedShaders из пар
 # (путь относительно ROOT, текст). Запускается при сборке:
-#   cmake -DOUTPUT=<header> -DROOT=<папка> -DSHADERS=<файлы через |> -P EmbedShaders.cmake
+#   cmake -DOUTPUT=<header> -DROOT=<папка> -DNAMESPACE=<пространство имён> -DSHADERS=<файлы через |> -P EmbedShaders.cmake
 # Так исходники шейдеров лежат отдельными файлами, а собранной программе они не нужны на диске.
 
 string(REPLACE "|" ";" SHADERS "${SHADERS}")
@@ -12,7 +12,7 @@ set(CONTENT "// Сгенерировано cmake/EmbedShaders.cmake из фай�
 #include <string_view>
 #include <utility>
 
-namespace yqlora::shaders {
+namespace ${NAMESPACE} {
 
 inline constexpr std::array kEmbeddedShaders{
 ")
@@ -27,7 +27,7 @@ foreach(SHADER ${SHADERS})
     string(APPEND CONTENT "    std::pair<std::string_view, std::string_view>{\"${PATH}\", R\"${DELIMITER}(${SOURCE})${DELIMITER}\"},\n")
 endforeach()
 
-string(APPEND CONTENT "};\n\n} // namespace yqlora::shaders\n")
+string(APPEND CONTENT "};\n\n} // namespace ${NAMESPACE}\n")
 
 # Пишем, только если поменялось: иначе пересобирались бы все, кто его подключает.
 if(EXISTS ${OUTPUT})

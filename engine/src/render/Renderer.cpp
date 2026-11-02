@@ -2,16 +2,19 @@
 
 #include "yqlora/render/GpuMesh.hpp"
 #include "yqlora/render/GraphicsBackend.hpp"
-#include "yqlora/render/GridPass.hpp"
 #include "yqlora/render/MeshPass.hpp"
-#include "yqlora/render/OutlinePass.hpp"
+#include "yqlora/render/Prepare.hpp"
+#include "yqlora/render/RenderGraph.hpp"
 #include "yqlora/render/ShaderData.hpp"
 #include "yqlora/render/TextureData.hpp"
 #include "yqlora/render/UniformRing.hpp"
+#include "yqlora/render/ViewPass.hpp"
 #include "yqlora/shader/ShaderCompiler.hpp"
 
 #include <span>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace yqlora {
 
@@ -55,18 +58,17 @@ Renderer::Renderer(GraphicsApi api, std::unique_ptr<rhi::Device> device, std::un
     , m_uniforms(std::make_unique<UniformRing>(*m_device))
     , m_meshes(std::make_unique<GpuMeshCache>(*m_device))
     , m_uiTextures(std::make_unique<GpuResourceCache<rhi::Texture>>())
-    , m_meshPass(std::make_unique<MeshPass>(*m_device, *m_shaders, *m_meshes, *m_uniforms))
-    , m_grid(std::make_unique<GridPass>(*m_device, *m_shaders, *m_uniforms))
-    , m_outline(std::make_unique<OutlinePass>(*m_device, *m_shaders, *m_meshes, *m_uniforms))
+    , m_transients(std::make_unique<TransientTextures>(*m_device))
+    , m_context(std::make_unique<RenderContext>(RenderContext{*m_device, *m_shaders, *m_uniforms, *m_meshes}))
+    , m_meshPass(std::make_unique<MeshPass>(*m_context))
 {
 }
 
 Renderer::~Renderer()
 {
     // Объекты устройства удаляются раньше него.
-    m_outline.reset();
-    m_grid.reset();
     m_meshPass.reset();
+    m_transients.reset();
     m_uiTextures.reset();
     m_meshes.reset();
     m_uniforms.reset();
@@ -77,13 +79,14 @@ Renderer::~Renderer()
 
 void Renderer::render(const FrameData& frame)
 {
-    drawScene(frame, m_device->backBuffer(), m_device->backBufferDepth());
+    // Задний буфер переходит в Present в present(): поверх ещё рисуется интерфейс.
+    drawScene(frame, m_device->backBuffer(), m_device->backBufferDepth(), std::nullopt);
 }
 
 void Renderer::render(const FrameData& frame, RenderTarget& target)
 {
-    drawScene(frame, target.color(), target.depth());
-    m_device->commands().transition(target.color(), rhi::ResourceState::ShaderRead);
+    // Цель рендера дальше читает интерфейс.
+    drawScene(frame, target.color(), target.depth(), rhi::ResourceState::ShaderRead);
 }
 
 std::unique_ptr<RenderTarget> Renderer::createRenderTarget(int width, int height)
@@ -115,44 +118,66 @@ UiIntegration& Renderer::ui() const
     return *m_ui;
 }
 
-void Renderer::drawScene(const FrameData& frame, rhi::Texture& color, rhi::Texture& depth)
+void Renderer::drawScene(
+    const FrameData& frame,
+    rhi::Texture& color,
+    rhi::Texture& depth,
+    std::optional<rhi::ResourceState> finalColorState
+)
 {
-    rhi::CommandList& commands = m_device->commands();
-    commands.transition(color, rhi::ResourceState::ColorTarget);
-    commands.transition(depth, rhi::ResourceState::DepthTarget);
+    RenderGraph graph(*m_transients);
+    const RenderGraph::TextureId colorId = graph.import(color, finalColorState);
+    const RenderGraph::TextureId depthId = graph.import(depth);
     if (frame.views.empty()) {
-        commands.beginRenderPass({.color = &color, .depth = &depth, .clearColor = kNoViewColor});
-        commands.endRenderPass();
+        graph.addPass({
+            .name = "no camera",
+            .color = {colorId, rhi::LoadOp::Clear},
+            .depth = RenderGraph::Target{depthId, rhi::LoadOp::Clear},
+            .clearColor = kNoViewColor,
+        });
+        graph.execute(m_device->commands());
 
         return;
     }
 
     const UniformSlice frameUniforms = m_uniforms->push(FrameUniforms{.lightDirection = kLightDirection});
-    UniformSlice viewUniforms;
+    // Списки видимого живут до execute: на них ссылаются записанные проходы.
+    std::vector<std::vector<const DrawItem*>> visible(frame.views.size());
     // Виды по очереди: следующая камера рисует поверх предыдущей.
     for (std::size_t i = 0; i < frame.views.size(); ++i) {
         const ViewData& view = frame.views[i];
-        viewUniforms = m_uniforms->push(
+        visible[i] = prepareView(frame.drawItems, view);
+        const UniformSlice viewUniforms = m_uniforms->push(
             ViewUniforms{
                 .viewProjection = view.camera.projection * view.camera.view,
                 .cameraPosition = view.camera.position,
             }
         );
-        commands.beginRenderPass({
-            .color = &color,
-            .depth = &depth,
-            .colorLoad = colorLoad(view.clear),
-            .depthLoad = depthLoad(view.clear),
+        graph.addPass({
+            .name = "view " + std::to_string(i),
+            .color = {colorId, colorLoad(view.clear)},
+            .depth = RenderGraph::Target{depthId, depthLoad(view.clear)},
             .clearColor = view.background,
+            .record = [this,
+                       items = std::span<const DrawItem* const>(visible[i]),
+                       frameUniforms,
+                       viewUniforms](rhi::CommandList& commands, const RenderGraph&) {
+                m_meshPass->draw(commands, items, frameUniforms, viewUniforms);
+            },
         });
-        m_meshPass->draw(commands, frame, view, frameUniforms, viewUniforms);
-        // Сетка полупрозрачная, поэтому рисуется после объектов сцены, в последнем виде.
-        if (frame.editor.grid && i + 1 == frame.views.size()) {
-            m_grid->draw(commands, viewUniforms);
+        const ViewPassInput input{
+            .frame = frame,
+            .view = view,
+            .visible = visible[i],
+            .viewUniforms = viewUniforms,
+            .color = colorId,
+            .depth = depthId,
+        };
+        for (ViewPass* pass : view.passes) {
+            pass->addTo(graph, input);
         }
-        commands.endRenderPass();
     }
-    m_outline->draw(commands, frame, viewUniforms, color, &depth);
+    graph.execute(m_device->commands());
 }
 
 void Renderer::present()
@@ -162,6 +187,7 @@ void Renderer::present()
     m_uniforms->reset();
     m_meshes->endFrame();
     m_uiTextures->endFrame();
+    m_transients->endFrame();
 }
 
 UiTexture Renderer::uiTexture(ResourceId id, std::uint64_t revision, const TextureData& data)

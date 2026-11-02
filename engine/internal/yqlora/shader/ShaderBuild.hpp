@@ -31,8 +31,8 @@ struct ShaderBuildResult {
 // профиль, сверка блоков с C++. Ошибки всех шагов вместе.
 YQLORA_API ShaderBuildResult buildShader(ShaderCompiler& compiler, const ShaderBuildRequest& request);
 
-// То же для шейдеров движка: их ошибка - ошибка сборки движка, поэтому
-// std::runtime_error со всеми сообщениями.
-YQLORA_API rhi::ShaderDesc buildEngineShader(ShaderCompiler& compiler, const ShaderBuildRequest& request);
+// То же для встроенных шейдеров (движка, редактора): их ошибка - ошибка
+// сборки программы, поэтому std::runtime_error со всеми сообщениями.
+YQLORA_API rhi::ShaderDesc buildBuiltinShader(ShaderCompiler& compiler, const ShaderBuildRequest& request);
 
 } // namespace yqlora

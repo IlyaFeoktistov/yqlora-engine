@@ -43,6 +43,7 @@ public:
     {
         m_view.release();
         m_preview.release();
+        m_gizmos.onRendererLost();
     }
 
     void draw(EditorContext& context) override;

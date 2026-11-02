@@ -58,11 +58,11 @@ ShaderBuildResult buildShader(ShaderCompiler& compiler, const ShaderBuildRequest
     return result;
 }
 
-rhi::ShaderDesc buildEngineShader(ShaderCompiler& compiler, const ShaderBuildRequest& request)
+rhi::ShaderDesc buildBuiltinShader(ShaderCompiler& compiler, const ShaderBuildRequest& request)
 {
     ShaderBuildResult result = buildShader(compiler, request);
     if (!result.desc) {
-        std::string text = "Engine shader '" + request.name + "' failed:";
+        std::string text = "Built-in shader '" + request.name + "' failed:";
         for (const ShaderMessage& message : result.errors) {
             text += "\n" + formatShaderMessage(message);
         }

@@ -4,6 +4,7 @@
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/MeshData.hpp"
 #include "yqlora/render/MeshRenderer.hpp"
+#include "yqlora/render/Prepare.hpp"
 #include "yqlora/render/RenderSystem.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/scene/Scene.hpp"
@@ -32,6 +33,7 @@ FrameData extractFrame(const Scene& scene, float aspect)
                 .meshId = meshId,
                 .meshRevision = mesh.revision,
                 .world = node->worldMatrix(),
+                .bounds = transformBounds(mesh.data->bounds, node->worldMatrix()),
                 .color = renderer->color(),
                 .layer = node->layer(),
                 .node = node->id(),

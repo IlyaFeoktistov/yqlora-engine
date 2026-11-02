@@ -2,6 +2,7 @@
 
 #include "yqlora/math/Math.hpp"
 #include "yqlora/render/Camera3D.hpp"
+#include "yqlora/render/MeshData.hpp"
 #include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/scene/Layers.hpp"
 #include "yqlora/scene/NodeId.hpp"
@@ -12,6 +13,7 @@
 namespace yqlora {
 
 struct MeshData;
+class ViewPass;
 
 struct CameraData {
     Mat4 view{1.0f};
@@ -25,27 +27,22 @@ struct ViewData {
     CameraClear clear = CameraClear::ColorAndDepth;
     Vec4 background{0.0f, 0.0f, 0.0f, 1.0f};
     LayerMask mask = kAllLayers;
+    // Проходы владельца вида поверх сцены, по порядку. Живут дольше кадра.
+    std::vector<ViewPass*> passes;
 };
 
 // Один меш в кадре. Данные меша живут в кэше ресурсов до конца кадра.
 struct DrawItem {
     const MeshData* mesh = nullptr;
-    // По ID и ревизии бэкенд узнаёт, что его копия меша в видеопамяти устарела.
+    // По ID и ревизии рендерер узнаёт, что его копия меша в видеопамяти устарела.
     ResourceId meshId = 0;
     std::uint64_t meshRevision = 0;
     Mat4 world{1.0f};
+    // Границы меша в мире: по ним Prepare отсекает невидимое.
+    Bounds bounds{};
     Vec4 color{1.0f};
     int layer = 0;
-    NodeId node = 0; // чей это меш: по нему рендерер узнаёт выбранный объект
-};
-
-// Вспомогательная графика редактора, которой нет в игре. Рисуется поверх
-// последнего вида кадра.
-struct EditorOverlay {
-    bool grid = false;
-    // Выбранные узлы обводятся контуром.
-    std::vector<NodeId> selected;
-    Vec4 outlineColor{1.0f, 0.6f, 0.1f, 1.0f};
+    NodeId node = 0; // чей это меш: по нему редактор узнаёт выбранный объект
 };
 
 // Всё, что рендереру нужно знать о кадре. Данные собирает extractFrame,
@@ -54,7 +51,6 @@ struct EditorOverlay {
 struct FrameData {
     std::vector<ViewData> views;
     std::vector<DrawItem> drawItems;
-    EditorOverlay editor;
 };
 
 } // namespace yqlora

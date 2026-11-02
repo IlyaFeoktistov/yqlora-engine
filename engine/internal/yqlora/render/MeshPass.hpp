@@ -2,26 +2,24 @@
 
 #include "yqlora/render/FrameData.hpp"
 #include "yqlora/render/UniformRing.hpp"
+#include "yqlora/render/ViewPass.hpp"
 #include "yqlora/rhi/Device.hpp"
 
 #include <memory>
+#include <span>
 
 namespace yqlora {
 
-class GpuMeshCache;
-class ShaderCompiler;
-
-// Непрозрачные меши кадра. Пока источников света в сцене нет, всё освещено
+// Непрозрачные меши вида. Пока источников света в сцене нет, всё освещено
 // одним фиксированным направленным светом из данных кадра.
 class MeshPass {
 public:
-    MeshPass(rhi::Device& device, ShaderCompiler& shaders, GpuMeshCache& meshes, UniformRing& uniforms);
+    explicit MeshPass(const RenderContext& context);
 
-    // Меши кадра со слоем из маски вида, в открытый проход.
+    // Меши в открытый проход, в порядке visible.
     void draw(
         rhi::CommandList& commands,
-        const FrameData& frame,
-        const ViewData& view,
+        std::span<const DrawItem* const> visible,
         const UniformSlice& frameUniforms,
         const UniformSlice& viewUniforms
     ) const;

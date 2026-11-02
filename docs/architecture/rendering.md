@@ -25,21 +25,23 @@ snapshot made by Extract, never the scene.
         v
  FrameData (snapshot, nothing points back into the scene)
    views[]      one per camera: view and projection, clear mode,
-                background, culling mask
-   drawItems[]  mesh with its ID and revision, world matrix, colour,
-                layer, node id
-   editor       grid on/off, selected nodes          (editor only)
+                background, culling mask, passes of the view's owner
+   drawItems[]  mesh with its ID and revision, world matrix, world
+                bounds, colour, layer, node id
         |
         |  Renderer::render(frame)          -> window back buffer
         |  Renderer::render(frame, target)  -> RenderTarget (a texture)
         v
- Renderer::drawScene over rhi::Device                engine/render
+ Renderer::drawScene: one RenderGraph per call       engine/render
    for each view, in camera order:
-     clear        colour and depth / depth only / nothing
-     MeshPass     draw items whose layer is in the view mask, through
-                  the view camera, one fixed directional light
-   GridPass       editor only, over the last view
-   OutlinePass    editor only, outline of the selected nodes
+     prepareView  layer mask and frustum culling, nearest first
+     view pass    clear colour and depth / depth only / nothing,
+                  MeshPass: the visible items through the view camera,
+                  one fixed directional light
+     ViewPass*    passes of the owner: the Viewport adds GridPass and
+                  OutlinePass (editor/render)
+   graph.execute  orders the passes, makes the transient textures,
+                  changes texture states, records RHI commands
         |
         v
  UiRenderer (ImGui), then present (swap buffers)
@@ -52,7 +54,7 @@ snapshot made by Extract, never the scene.
   window (Viewport, Game, the camera preview) calls `extractFrame` with its
   own aspect and renders into its own `RenderTarget` during the interface
   stage; ImGui then shows the texture. The Viewport adds the editor camera
-  view and the overlay (grid, outline).
+  view and its passes (grid, outline).
 
 ### With the RHI [planned, RHI]
 
@@ -200,19 +202,36 @@ profile below are checked on every target API when its backend arrives.
   not in the Scene window. Culling by the bounds of the mesh (AABB, carried
   by `DrawItem`) against the frustum and by the layer mask; opaque items
   sorted front to back with grouping by pipeline and material, transparent
-  ones back to front against that view.
+  ones back to front against that view. **[done]** without the grouping and
+  the transparent list: there is one pipeline and nothing transparent yet,
+  both come with materials in step 5. `prepareView` (`render/Prepare`)
+  takes the world bounds that Extract puts into `DrawItem`; the sort is
+  stable, so equal distances keep the frame order.
 - **The graph, MVP scope**: a pass declares the textures it reads and
   writes; the graph finds the dependencies, orders the passes, creates and
   frees the transient textures (the outline mask) within the frame, inserts
   the state transitions, and reports a cycle or a read of a texture nobody
   wrote. Not now: memory aliasing, async queues, parallel recording,
   automatic barrier analysis beyond the four states. They come with Vulkan
-  and D3D12 when needed.
+  and D3D12 when needed. **[done]**: `RenderGraph` lives for one
+  `Renderer::render` call. A reader goes after every pass that writes its
+  texture, passes into one texture keep the order they were added in (views
+  draw over each other). Imported textures (back buffer, render target)
+  count as written and end in the state asked for; transient ones come from
+  `TransientTextures`, reused by the next frame and freed after 60 unused
+  frames.
 - **Editor passes**: a view takes a list of additional passes from its
   owner. The Viewport adds the grid and the selection outline to its own
   view; the passes live in the editor and keep their own data (selected
   nodes, colour), the engine only runs them. `FrameData::editor` goes away,
-  the engine knows nothing about the editor.
+  the engine knows nothing about the editor. **[done]**: `ViewData::passes`
+  holds `ViewPass` objects; each adds its graph passes after the scene of
+  the view and gets what the view sees (`ViewPassInput`). The passes are
+  made over `Renderer::context()` (device, shader compiler, uniforms,
+  meshes) and are dropped with the renderer. The grid and outline live in
+  `editor/render` with their shaders in `editor/shaders`, embedded into the
+  editor library (paths `editor/...`); the outline mask is a transient
+  texture of the graph, and only visible selected items are outlined.
 
 ### Phases (a commit per phase)
 
@@ -231,7 +250,7 @@ profile below are checked on every target API when its backend arrives.
    `rhi::Device`, `MeshPass` and `GpuResourceCache` move to `engine/render`,
    `createDevice(api)`, ImGui as a separate integration of the backend. The
    editor and `Application` change only where they create the renderer.
-4. **R.4 Prepare and the graph.** Culling, sorting, bounds in `DrawItem`, the
+4. **R.4 Prepare and the graph** **[done]**. Culling, sorting, bounds in `DrawItem`, the
    graph in the MVP scope, the grid and outline passes in the editor,
    `FrameData::editor` removed.
 5. **R.5 Tests and documents.** Tests on the test RHI: pass order and graph

@@ -157,8 +157,9 @@ game's `Application`, a test) says what each stage does.
 - **The render graph**: a pass declares what it reads and writes, the graph
   orders the passes. A new effect is one more pass, not a change of the
   renderer. The editor adds its own passes (grid, selection outline) to the
-  graph, which removes `FrameData::editor`. Culling and sorting come with it
-  **[planned, RHI]**.
+  graph through `ViewData::passes`; `FrameData::editor` is gone. Culling and
+  sorting per view came with it **[done]**, see
+  [rendering](rendering.md#prepare-and-the-render-graph).
 - **The render thread** comes when it is needed; the snapshot from Extract
   already allows it **[planned, later]**.
 

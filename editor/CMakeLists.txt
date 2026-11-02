@@ -1,6 +1,32 @@
 # Логика редактора без интерфейса: проекты, сессия, история правок, выделение,
 # камера, выбор объектов. ImGui сюда не подключается, поэтому интерфейс в логику не попадёт.
+# Шейдеры редактора (сетка, контур выделения) вшиваются в его библиотеку,
+# как шейдеры движка в свою.
+set(YQLORA_EDITOR_SHADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline_mask.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline_mask.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline.frag
+)
+set(YQLORA_EDITOR_SHADERS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/EmbeddedEditorShaders.hpp)
+string(REPLACE ";" "|" YQLORA_EDITOR_SHADERS_ARG "${YQLORA_EDITOR_SHADERS}")
+add_custom_command(
+    OUTPUT ${YQLORA_EDITOR_SHADERS_HEADER}
+    COMMAND ${CMAKE_COMMAND}
+        -DOUTPUT=${YQLORA_EDITOR_SHADERS_HEADER}
+        -DROOT=${CMAKE_CURRENT_SOURCE_DIR}/shaders
+        -DNAMESPACE=yqlora::editor::shaders
+        -DSHADERS=${YQLORA_EDITOR_SHADERS_ARG}
+        -P ${PROJECT_SOURCE_DIR}/cmake/EmbedShaders.cmake
+    DEPENDS ${YQLORA_EDITOR_SHADERS} ${PROJECT_SOURCE_DIR}/cmake/EmbedShaders.cmake
+    COMMENT "Embedding editor shaders"
+    VERBATIM
+)
+
 add_library(yqlora_editor STATIC
+    ${YQLORA_EDITOR_SHADERS_HEADER}
     src/EditorCamera.cpp
     src/Picking.cpp
     src/PropertyValues.cpp
@@ -29,10 +55,13 @@ add_library(yqlora_editor STATIC
     src/ScriptToolchain.cpp
     src/ScriptBuild.cpp
     src/ModuleCopies.cpp
+    src/render/EditorShaders.cpp
+    src/render/GridPass.cpp
+    src/render/OutlinePass.cpp
 )
 add_library(yqlora::editor ALIAS yqlora_editor)
 
-target_include_directories(yqlora_editor PUBLIC include)
+target_include_directories(yqlora_editor PUBLIC include PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(yqlora_editor
     PUBLIC yqlora::internal
     PRIVATE nlohmann_json::nlohmann_json

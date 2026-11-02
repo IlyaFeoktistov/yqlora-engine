@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/render/FrameData.hpp"
+#include "yqlora/render/ViewPass.hpp"
 
 #include <imgui.h>
 
@@ -36,8 +37,14 @@ class Gizmo {
 public:
     virtual ~Gizmo() = default;
 
-    // Что гизмо добавляет в сам кадр сцены (например, сетку или контур).
-    virtual void prepareFrame(FrameData& /*frame*/, const GizmoContext& /*context*/)
+    // Что гизмо добавляет к виду сцены: свои проходы (сетка, контур),
+    // созданные на рендерере renderer.
+    virtual void prepareView(ViewData& /*view*/, const RenderContext& /*renderer*/, const GizmoContext& /*context*/)
+    {
+    }
+
+    // Рендерер пересоздают: проходы на старом больше не нужны.
+    virtual void onRendererLost()
     {
     }
 
@@ -55,7 +62,8 @@ class GizmoLayer {
 public:
     void add(std::unique_ptr<Gizmo> gizmo);
 
-    void prepareFrame(FrameData& frame, const GizmoContext& context) const;
+    void prepareView(ViewData& view, const RenderContext& renderer, const GizmoContext& context) const;
+    void onRendererLost() const;
 
     // Возвращает true, если курсор занят каким-то гизмо.
     bool draw(GizmoContext& context);

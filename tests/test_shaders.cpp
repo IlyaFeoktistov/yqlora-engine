@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include <yqlora/editor/render/EditorShaders.hpp>
+
 #include <yqlora/render/ShaderData.hpp>
 #include <yqlora/shader/EngineShaders.hpp>
 #include <yqlora/shader/ShaderBuild.hpp>
@@ -68,32 +70,33 @@ ShaderBuildResult buildWithFragment(Files& files, const std::string& fragment)
     return buildShader(compiler, {.name = "a", .vertexPath = "a.vert", .fragmentPath = "a.frag"});
 }
 
-struct EngineShader {
-    const char* name;
-    const char* vertex;
-    const char* fragment;
+struct BuiltinShader {
+    std::string name;
+    std::string vertex;
+    std::string fragment;
 };
 
-constexpr EngineShader kEngineShaders[] = {
-    {"mesh", "mesh.vert", "mesh.frag"},
-    {"grid", "grid.vert", "grid.frag"},
-    {"outline mask", "outline_mask.vert", "outline_mask.frag"},
-    {"outline", "fullscreen.vert", "outline.frag"},
+// Встроенные шейдеры движка и редактора; компилятор с readEditorShader видит оба.
+const BuiltinShader kBuiltinShaders[] = {
+    {"mesh", engineShaderPath("mesh.vert"), engineShaderPath("mesh.frag")},
+    {"grid", editor::editorShaderPath("grid.vert"), editor::editorShaderPath("grid.frag")},
+    {"outline mask", editor::editorShaderPath("outline_mask.vert"), editor::editorShaderPath("outline_mask.frag")},
+    {"outline", engineShaderPath("fullscreen.vert"), editor::editorShaderPath("outline.frag")},
 };
 
 } // namespace
 
-TEST_CASE("Shaders: every engine shader builds, fits the profile and matches the C++ blocks")
+TEST_CASE("Shaders: every built-in shader builds, fits the profile and matches the C++ blocks")
 {
-    ShaderCompiler compiler({});
-    for (const EngineShader& shader : kEngineShaders) {
+    ShaderCompiler compiler(editor::readEditorShader);
+    for (const BuiltinShader& shader : kBuiltinShaders) {
         CAPTURE(shader.name);
         const ShaderBuildResult result = buildShader(
             compiler,
             {
                 .name = shader.name,
-                .vertexPath = engineShaderPath(shader.vertex),
-                .fragmentPath = engineShaderPath(shader.fragment),
+                .vertexPath = shader.vertex,
+                .fragmentPath = shader.fragment,
                 .layouts = kEngineBlocks,
             }
         );
@@ -109,7 +112,7 @@ TEST_CASE("Shaders: every engine shader builds, fits the profile and matches the
 TEST_CASE("Shaders: reflection of the mesh shader")
 {
     ShaderCompiler compiler({});
-    const rhi::ShaderDesc desc = buildEngineShader(
+    const rhi::ShaderDesc desc = buildBuiltinShader(
         compiler,
         {.name = "mesh", .vertexPath = engineShaderPath("mesh.vert"), .fragmentPath = engineShaderPath("mesh.frag")}
     );
@@ -138,10 +141,14 @@ TEST_CASE("Shaders: reflection of the mesh shader")
 TEST_CASE("Shaders: a shader keeps only the blocks it uses")
 {
     // Шейдер сетки подключает все блоки движка, но читает только вид и свой.
-    ShaderCompiler compiler({});
-    const rhi::ShaderDesc desc = buildEngineShader(
+    ShaderCompiler compiler(editor::readEditorShader);
+    const rhi::ShaderDesc desc = buildBuiltinShader(
         compiler,
-        {.name = "grid", .vertexPath = engineShaderPath("grid.vert"), .fragmentPath = engineShaderPath("grid.frag")}
+        {
+            .name = "grid",
+            .vertexPath = editor::editorShaderPath("grid.vert"),
+            .fragmentPath = editor::editorShaderPath("grid.frag"),
+        }
     );
     CHECK(desc.reflection.find(kViewBlock.slot));
     CHECK(desc.reflection.find({kMaterialSet, 0}));
@@ -338,17 +345,17 @@ TEST_CASE("Shaders: both stages must declare a shared resource the same way")
 }
 
 #if YQLORA_HAS_OPENGL
-TEST_CASE("Shaders: engine shaders translate to GLSL 330 for OpenGL")
+TEST_CASE("Shaders: built-in shaders translate to GLSL 330 for OpenGL")
 {
-    ShaderCompiler compiler({});
-    for (const EngineShader& shader : kEngineShaders) {
+    ShaderCompiler compiler(editor::readEditorShader);
+    for (const BuiltinShader& shader : kBuiltinShaders) {
         CAPTURE(shader.name);
-        const rhi::ShaderDesc desc = buildEngineShader(
+        const rhi::ShaderDesc desc = buildBuiltinShader(
             compiler,
             {
                 .name = shader.name,
-                .vertexPath = engineShaderPath(shader.vertex),
-                .fragmentPath = engineShaderPath(shader.fragment),
+                .vertexPath = shader.vertex,
+                .fragmentPath = shader.fragment,
             }
         );
         const std::string vertex = opengl::translateToGlsl330(desc.vertex, rhi::ShaderStage::Vertex);
@@ -369,7 +376,7 @@ TEST_CASE("Shaders: engine shaders translate to GLSL 330 for OpenGL")
 TEST_CASE("Shaders: the OpenGL vertex stage maps clip depth 0..1 to -1..1")
 {
     ShaderCompiler compiler({});
-    const rhi::ShaderDesc desc = buildEngineShader(
+    const rhi::ShaderDesc desc = buildBuiltinShader(
         compiler,
         {.name = "mesh", .vertexPath = engineShaderPath("mesh.vert"), .fragmentPath = engineShaderPath("mesh.frag")}
     );

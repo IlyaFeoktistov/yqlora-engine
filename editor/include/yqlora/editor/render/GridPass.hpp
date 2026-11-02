@@ -1,23 +1,20 @@
 #pragma once
 
-#include "yqlora/render/UniformRing.hpp"
-#include "yqlora/rhi/Device.hpp"
+#include "yqlora/render/ViewPass.hpp"
 
 #include <memory>
 
-namespace yqlora {
-
-class ShaderCompiler;
+namespace yqlora::editor {
 
 // Бесконечная сетка редактора на плоскости Y = 0. Рисуется квадрат под камерой,
 // который едет вместе с ней, а линии считаются во фрагментном шейдере
 // по мировым координатам. С расстоянием сетка гаснет, поэтому края квадрата не видно.
-class GridPass {
+class GridPass final : public ViewPass {
 public:
-    GridPass(rhi::Device& device, ShaderCompiler& shaders, UniformRing& uniforms);
+    explicit GridPass(const RenderContext& context);
 
-    // Рисует в открытый проход поверх сцены: глубину читает, но не пишет.
-    void draw(rhi::CommandList& commands, const UniformSlice& viewUniforms) const;
+    // Поверх сцены вида: глубину читает, но не пишет.
+    void addTo(RenderGraph& graph, const ViewPassInput& input) override;
 
 private:
     UniformRing& m_uniforms;
@@ -26,4 +23,4 @@ private:
     std::unique_ptr<rhi::Pipeline> m_pipeline;
 };
 
-} // namespace yqlora
+} // namespace yqlora::editor

@@ -11,16 +11,17 @@
 #include "yqlora/rhi/Device.hpp"
 
 #include <memory>
+#include <optional>
 
 namespace yqlora {
 
 class GpuMeshCache;
-class GridPass;
 class MeshPass;
-class OutlinePass;
 class ShaderCompiler;
+class TransientTextures;
 class UniformRing;
 class Window;
+struct RenderContext;
 struct TextureData;
 
 // Рендерер движка: проходы над rhi::Device одного графического API. Своих
@@ -45,8 +46,15 @@ public:
         return *m_device;
     }
 
-    // Рисует кадр в окно. На экране он появится после present(): между ними
-    // поверх можно дорисовать интерфейс.
+    // Для проходов владельцев видов (ViewPass): живёт, пока жив рендерер.
+    const RenderContext& context() const
+    {
+        return *m_context;
+    }
+
+    // Рисует кадр в окно: каждый вид - Prepare, сцена и проходы вида в одном
+    // графе. На экране кадр появится после present(): между ними поверх
+    // можно дорисовать интерфейс.
     void render(const FrameData& frame);
 
     // Рисует кадр в текстуру. Камеру кадра стоит строить с соотношением сторон цели.
@@ -76,7 +84,12 @@ public:
     bool setVsync(bool enabled);
 
 private:
-    void drawScene(const FrameData& frame, rhi::Texture& color, rhi::Texture& depth);
+    void drawScene(
+        const FrameData& frame,
+        rhi::Texture& color,
+        rhi::Texture& depth,
+        std::optional<rhi::ResourceState> finalColorState
+    );
     UiIntegration& ui() const;
 
     GraphicsApi m_api;
@@ -87,9 +100,9 @@ private:
     std::unique_ptr<UniformRing> m_uniforms;
     std::unique_ptr<GpuMeshCache> m_meshes;
     std::unique_ptr<GpuResourceCache<rhi::Texture>> m_uiTextures;
+    std::unique_ptr<TransientTextures> m_transients;
+    std::unique_ptr<RenderContext> m_context;
     std::unique_ptr<MeshPass> m_meshPass;
-    std::unique_ptr<GridPass> m_grid;
-    std::unique_ptr<OutlinePass> m_outline;
 };
 
 // Рендерер для окна на бэкенде api (см. GraphicsBackend.hpp). Бросает

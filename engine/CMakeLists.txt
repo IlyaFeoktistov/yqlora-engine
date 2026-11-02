@@ -19,13 +19,7 @@ set(YQLORA_ENGINE_SHADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/vertex.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/mesh.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/mesh.frag
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.glsl
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.frag
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline_mask.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline_mask.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fullscreen.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline.frag
 )
 set(YQLORA_ENGINE_SHADERS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/EmbeddedShaders.hpp)
 # Список через "|": точку с запятой в команде разрезала бы оболочка.
@@ -35,6 +29,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND}
         -DOUTPUT=${YQLORA_ENGINE_SHADERS_HEADER}
         -DROOT=${CMAKE_CURRENT_SOURCE_DIR}/shaders
+        -DNAMESPACE=yqlora::shaders
         -DSHADERS=${YQLORA_ENGINE_SHADERS_ARG}
         -P ${PROJECT_SOURCE_DIR}/cmake/EmbedShaders.cmake
     DEPENDS ${YQLORA_ENGINE_SHADERS} ${PROJECT_SOURCE_DIR}/cmake/EmbedShaders.cmake
@@ -113,9 +108,9 @@ add_library(yqlora SHARED
     src/render/FrameBuilder.cpp
     src/render/GpuMesh.cpp
     src/render/GraphicsBackend.cpp
-    src/render/GridPass.cpp
     src/render/MeshPass.cpp
-    src/render/OutlinePass.cpp
+    src/render/Prepare.cpp
+    src/render/RenderGraph.cpp
     src/render/Renderer.cpp
     src/render/RenderTarget.cpp
     src/render/GraphicsSettings.cpp

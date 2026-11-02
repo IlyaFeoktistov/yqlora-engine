@@ -8,11 +8,14 @@
 
 namespace yqlora::editor {
 
-void SelectionGizmo::prepareFrame(FrameData& frame, const GizmoContext& context)
+void SelectionGizmo::prepareView(ViewData& view, const RenderContext& renderer, const GizmoContext& context)
 {
+    if (!m_outline) {
+        m_outline = std::make_unique<OutlinePass>(renderer);
+    }
     const auto selected = context.session.selection().nodes();
-    frame.editor.selected.assign(selected.begin(), selected.end());
-    frame.editor.outlineColor = context.theme.colors().selectionOutline;
+    m_outline->setSelection({selected.begin(), selected.end()}, context.theme.colors().selectionOutline);
+    view.passes.push_back(m_outline.get());
 }
 
 bool SelectionGizmo::draw(GizmoContext& context)

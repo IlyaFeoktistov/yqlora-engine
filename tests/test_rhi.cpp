@@ -1,10 +1,14 @@
 #include "RecordingDevice.hpp"
 
+#include <yqlora/editor/render/GridPass.hpp>
+#include <yqlora/editor/render/OutlinePass.hpp>
+
 #include <doctest/doctest.h>
 
 #include <yqlora/render/FrameData.hpp>
 #include <yqlora/render/GpuMesh.hpp>
 #include <yqlora/render/MeshData.hpp>
+#include <yqlora/render/Prepare.hpp>
 #include <yqlora/render/PrimitiveMeshes.hpp>
 #include <yqlora/render/Renderer.hpp>
 #include <yqlora/render/ShaderData.hpp>
@@ -40,6 +44,13 @@ std::unique_ptr<rhi::Shader> meshShader(rhi::Device& device)
 {
     return device.createShader({.name = "mesh", .reflection = {.bindings = {block(kViewBlock), block(kObjectBlock)}}});
 }
+
+// Камера в (0, 0, 5) смотрит на начало координат по -Z.
+const CameraData kTestCamera{
+    .view = glm::lookAt(Vec3(0.0f, 0.0f, 5.0f), Vec3(0.0f), Vec3(0.0f, 1.0f, 0.0f)),
+    .projection = math::perspective(glm::radians(60.0f), 1.0f, 0.1f, 100.0f),
+    .position = Vec3(0.0f, 0.0f, 5.0f),
+};
 
 // Проход в задний буфер с его глубиной.
 void beginWindowPass(rhi::Device& device)
@@ -262,19 +273,21 @@ TEST_CASE("GpuMeshCache: a new revision replaces the copy")
     CHECK(cache.get(item).indexCount == 6);
 }
 
-TEST_CASE("Renderer: a frame with the editor overlay goes through the RHI contracts")
+TEST_CASE("Renderer: a frame with the editor passes goes through the RHI contracts")
 {
     // Рендерер не знает API: на тестовом устройстве он проходит все его проверки
     // (состояния целей, форматы конвейеров, ресурсы шейдеров перед draw).
     auto owned = std::make_unique<RecordingDevice>();
     RecordingDevice& device = *owned;
     Renderer renderer(GraphicsApi::OpenGL, std::move(owned), nullptr);
+    editor::GridPass grid(renderer.context());
+    editor::OutlinePass outline(renderer.context());
+    outline.setSelection({7}, Vec4(1.0f));
 
     const MeshData cube = makeCube();
     FrameData frame;
-    frame.views.push_back({});
-    frame.drawItems.push_back({.mesh = &cube, .meshId = 1, .node = 7});
-    frame.editor = {.grid = true, .selected = {7}};
+    frame.views.push_back({.camera = kTestCamera, .passes = {&grid, &outline}});
+    frame.drawItems.push_back({.mesh = &cube, .meshId = 1, .bounds = cube.bounds, .node = 7});
 
     auto target = renderer.createRenderTarget(32, 32);
     CHECK_NOTHROW(renderer.render(frame, *target));
@@ -283,8 +296,39 @@ TEST_CASE("Renderer: a frame with the editor overlay goes through the RHI contra
     CHECK_NOTHROW(renderer.present());
 
     const std::vector<CommandKind> kinds = device.kinds();
-    CHECK(std::ranges::count(kinds, CommandKind::DrawIndexed) == 4); // меш и маска контура, дважды
+    // Меш и маска контура, в цель и в окно.
+    CHECK(std::ranges::count(kinds, CommandKind::DrawIndexed) == 4);
+    // Сетка и полноэкранный контур.
+    CHECK(std::ranges::count(kinds, CommandKind::Draw) == 4);
     CHECK(std::ranges::count(kinds, CommandKind::Present) == 1);
     // Без связки с интерфейсом текстуры для него нет.
     CHECK_THROWS_AS(target->uiTexture(), std::logic_error);
+}
+
+TEST_CASE("Renderer: what a view does not see is not drawn")
+{
+    auto owned = std::make_unique<RecordingDevice>();
+    RecordingDevice& device = *owned;
+    Renderer renderer(GraphicsApi::OpenGL, std::move(owned), nullptr);
+    editor::OutlinePass outline(renderer.context());
+    outline.setSelection({7}, Vec4(1.0f));
+
+    // Выбранный куб за спиной камеры: ни меша, ни маски, ни контура.
+    const MeshData cube = makeCube();
+    const Mat4 behind = glm::translate(Mat4(1.0f), Vec3(0.0f, 0.0f, 20.0f));
+    FrameData frame;
+    frame.views.push_back({.camera = kTestCamera, .passes = {&outline}});
+    frame.drawItems.push_back({
+        .mesh = &cube,
+        .meshId = 1,
+        .world = behind,
+        .bounds = transformBounds(cube.bounds, behind),
+        .node = 7,
+    });
+    renderer.render(frame);
+
+    const std::vector<CommandKind> kinds = device.kinds();
+    CHECK(std::ranges::count(kinds, CommandKind::DrawIndexed) == 0);
+    CHECK(std::ranges::count(kinds, CommandKind::Draw) == 0);
+    CHECK(std::ranges::count(kinds, CommandKind::BeginPass) == 1);
 }

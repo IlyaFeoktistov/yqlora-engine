@@ -19,6 +19,7 @@
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/FrameBuilder.hpp"
+#include "yqlora/render/Renderer.hpp"
 #include "yqlora/scene/Scene.hpp"
 
 #include <imgui.h>
@@ -44,12 +45,14 @@ constexpr float kToggleMargin = 8.0f;
 
 ViewportPanel::ViewportPanel()
 {
-    // Порядок - приоритет мыши: манипулятор и оси раньше выбора кликом.
+    // Порядок - приоритет мыши: манипулятор и оси раньше выбора кликом. Он же
+    // порядок проходов вида: сетка мышь не берёт и стоит перед выбором,
+    // чтобы контур выделения рисовался поверх неё.
     m_gizmos.add(std::make_unique<ManipulatorGizmo>());
     m_gizmos.add(std::make_unique<AxisGizmo>());
     m_gizmos.add(std::make_unique<CameraGizmo>());
-    m_gizmos.add(std::make_unique<SelectionGizmo>());
     m_gizmos.add(std::make_unique<GridGizmo>());
+    m_gizmos.add(std::make_unique<SelectionGizmo>());
 }
 
 void ViewportPanel::onProjectOpened(EditorContext& /*context*/)
@@ -130,7 +133,7 @@ void ViewportPanel::renderScene(EditorContext& context, float aspect, const Gizm
         .camera = m_camera.cameraData(aspect),
         .background = context.theme.colors().viewportBackground,
     }};
-    m_gizmos.prepareFrame(frame, gizmoContext);
+    m_gizmos.prepareView(frame.views.front(), host.renderer().context(), gizmoContext);
     m_view.render(host.renderer(), frame);
 }
 
