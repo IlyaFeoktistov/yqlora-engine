@@ -7,11 +7,9 @@
 #include <memory>
 
 namespace yqlora {
+
 class GpuMeshCache;
 class ShaderCompiler;
-} // namespace yqlora
-
-namespace yqlora::opengl {
 
 // Непрозрачные меши кадра. Пока источников света в сцене нет, всё освещено
 // одним фиксированным направленным светом из данных кадра.
@@ -35,4 +33,4 @@ private:
     std::unique_ptr<rhi::Pipeline> m_pipeline;
 };
 
-} // namespace yqlora::opengl
+} // namespace yqlora

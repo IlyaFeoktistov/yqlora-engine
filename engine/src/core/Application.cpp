@@ -17,6 +17,7 @@
 #include "yqlora/platform/InputFeeder.hpp"
 #include "yqlora/platform/Platform.hpp"
 #include "yqlora/platform/Window.hpp"
+#include "yqlora/render/GraphicsBackend.hpp"
 #include "yqlora/render/GraphicsSettings.hpp"
 #include "yqlora/render/Renderer.hpp"
 #include "yqlora/runtime/GameRuntime.hpp"

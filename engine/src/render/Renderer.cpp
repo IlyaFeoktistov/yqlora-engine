@@ -1,23 +1,19 @@
-#include "yqlora/opengl/OpenGLRenderer.hpp"
+#include "yqlora/render/Renderer.hpp"
 
-#include "yqlora/opengl/GlDevice.hpp"
-#include "yqlora/opengl/GlRenderTarget.hpp"
-#include "yqlora/opengl/GlTexture.hpp"
-#include "yqlora/opengl/GlUiRenderer.hpp"
-#include "yqlora/opengl/GridPass.hpp"
-#include "yqlora/opengl/MeshPass.hpp"
-#include "yqlora/opengl/OutlinePass.hpp"
-
-#include "yqlora/platform/Window.hpp"
 #include "yqlora/render/GpuMesh.hpp"
+#include "yqlora/render/GraphicsBackend.hpp"
+#include "yqlora/render/GridPass.hpp"
+#include "yqlora/render/MeshPass.hpp"
+#include "yqlora/render/OutlinePass.hpp"
 #include "yqlora/render/ShaderData.hpp"
 #include "yqlora/render/TextureData.hpp"
 #include "yqlora/render/UniformRing.hpp"
 #include "yqlora/shader/ShaderCompiler.hpp"
 
 #include <span>
+#include <stdexcept>
 
-namespace yqlora::opengl {
+namespace yqlora {
 
 namespace {
 
@@ -50,9 +46,10 @@ rhi::SamplerDesc samplerDesc(const TextureSampling& sampling)
 
 } // namespace
 
-OpenGLRenderer::OpenGLRenderer(Window& window)
-    : m_window(window)
-    , m_device(std::make_unique<GlDevice>(window))
+Renderer::Renderer(GraphicsApi api, std::unique_ptr<rhi::Device> device, std::unique_ptr<UiIntegration> ui)
+    : m_api(api)
+    , m_device(std::move(device))
+    , m_ui(std::move(ui))
     // Шейдеры движка вшиты, файлов проекта рендереру читать не нужно.
     , m_shaders(std::make_unique<ShaderCompiler>(ShaderFileReader{}))
     , m_uniforms(std::make_unique<UniformRing>(*m_device))
@@ -64,7 +61,7 @@ OpenGLRenderer::OpenGLRenderer(Window& window)
 {
 }
 
-OpenGLRenderer::~OpenGLRenderer()
+Renderer::~Renderer()
 {
     // Объекты устройства удаляются раньше него.
     m_outline.reset();
@@ -74,28 +71,27 @@ OpenGLRenderer::~OpenGLRenderer()
     m_meshes.reset();
     m_uniforms.reset();
     m_shaders.reset();
+    m_ui.reset();
     m_device.reset();
 }
 
-void OpenGLRenderer::render(const FrameData& frame)
+void Renderer::render(const FrameData& frame)
 {
     drawScene(frame, m_device->backBuffer(), m_device->backBufferDepth());
 }
 
-void OpenGLRenderer::render(const FrameData& frame, RenderTarget& target)
+void Renderer::render(const FrameData& frame, RenderTarget& target)
 {
-    // Цели создаёт только этот рендерер, так что тип известен.
-    auto& glTarget = static_cast<GlRenderTarget&>(target);
-    drawScene(frame, glTarget.color(), glTarget.depth());
-    m_device->commands().transition(glTarget.color(), rhi::ResourceState::ShaderRead);
+    drawScene(frame, target.color(), target.depth());
+    m_device->commands().transition(target.color(), rhi::ResourceState::ShaderRead);
 }
 
-std::unique_ptr<RenderTarget> OpenGLRenderer::createRenderTarget(int width, int height)
+std::unique_ptr<RenderTarget> Renderer::createRenderTarget(int width, int height)
 {
-    return std::make_unique<GlRenderTarget>(*m_device, width, height);
+    return std::make_unique<RenderTarget>(*m_device, m_ui.get(), width, height);
 }
 
-void OpenGLRenderer::clearWindow(const Vec4& color)
+void Renderer::clearWindow(const Vec4& color)
 {
     rhi::CommandList& commands = m_device->commands();
     commands.transition(m_device->backBuffer(), rhi::ResourceState::ColorTarget);
@@ -105,12 +101,21 @@ void OpenGLRenderer::clearWindow(const Vec4& color)
     commands.endRenderPass();
 }
 
-std::unique_ptr<UiRenderer> OpenGLRenderer::createUiRenderer()
+std::unique_ptr<UiRenderer> Renderer::createUiRenderer()
 {
-    return std::make_unique<GlUiRenderer>(m_window.sdlWindow(), m_device->context());
+    return ui().createUiRenderer();
 }
 
-void OpenGLRenderer::drawScene(const FrameData& frame, rhi::Texture& color, rhi::Texture& depth)
+UiIntegration& Renderer::ui() const
+{
+    if (!m_ui) {
+        throw std::logic_error("Renderer: created without an interface");
+    }
+
+    return *m_ui;
+}
+
+void Renderer::drawScene(const FrameData& frame, rhi::Texture& color, rhi::Texture& depth)
 {
     rhi::CommandList& commands = m_device->commands();
     commands.transition(color, rhi::ResourceState::ColorTarget);
@@ -150,7 +155,7 @@ void OpenGLRenderer::drawScene(const FrameData& frame, rhi::Texture& color, rhi:
     m_outline->draw(commands, frame, viewUniforms, color, &depth);
 }
 
-void OpenGLRenderer::present()
+void Renderer::present()
 {
     m_device->commands().transition(m_device->backBuffer(), rhi::ResourceState::Present);
     m_device->present();
@@ -159,34 +164,38 @@ void OpenGLRenderer::present()
     m_uiTextures->endFrame();
 }
 
-UiTexture OpenGLRenderer::uiTexture(ResourceId id, std::uint64_t revision, const TextureData& data)
+UiTexture Renderer::uiTexture(ResourceId id, std::uint64_t revision, const TextureData& data)
 {
-    const rhi::Texture& texture = m_uiTextures->get(id, revision, [&] {
+    rhi::Texture& texture = m_uiTextures->get(id, revision, [&] {
         // Цвета как в файле, без перевода из sRGB: ImGui рисует в обычный буфер.
-        auto created = m_device->createTexture(
+        return m_device->createTexture(
             {.width = data.width,
              .height = data.height,
              .format = rhi::Format::Rgba8,
              .mipmaps = data.sampling.mipmaps},
             std::as_bytes(std::span(data.pixels))
         );
-        static_cast<GlTexture&>(*created).setOwnSampling(samplerDesc(data.sampling));
-
-        return created;
     });
 
-    // Первая строка картинки лежит в текстуре при v = 0 (см. GlTexture).
-    return {static_cast<const GlTexture&>(texture).id(), {0.0f, 0.0f}, {1.0f, 1.0f}};
+    return ui().texture(texture, samplerDesc(data.sampling));
 }
 
-bool OpenGLRenderer::setVsync(bool enabled)
+bool Renderer::setVsync(bool enabled)
 {
     return m_device->setVsync(enabled);
 }
 
-void OpenGLRenderer::resize(int width, int height)
+void Renderer::resize(int width, int height)
 {
     m_device->resizeBackBuffer(width, height);
 }
 
-} // namespace yqlora::opengl
+std::unique_ptr<Renderer> createRenderer(GraphicsApi api, Window& window)
+{
+    std::unique_ptr<rhi::Device> device = createDevice(api, window);
+    std::unique_ptr<UiIntegration> ui = createUiIntegration(api, window, *device);
+
+    return std::make_unique<Renderer>(api, std::move(device), std::move(ui));
+}
+
+} // namespace yqlora

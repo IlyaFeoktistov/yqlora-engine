@@ -33,7 +33,7 @@ snapshot made by Extract, never the scene.
         |  Renderer::render(frame)          -> window back buffer
         |  Renderer::render(frame, target)  -> RenderTarget (a texture)
         v
- OpenGLRenderer::drawScene                           backends/opengl
+ Renderer::drawScene over rhi::Device                engine/render
    for each view, in camera order:
      clear        colour and depth / depth only / nothing
      MeshPass     draw items whose layer is in the view mask, through
@@ -87,12 +87,18 @@ Vulkan itself.
 
 - The RHI knows nothing about the graph. The graph is built over the RHI and
   turns into RHI commands, so each is tested without the other.
-- ImGui is a separate integration of the backend (`UiRenderer`), not part of
-  the RHI: it draws through the same API and device, but the RHI does not
-  depend on it. The texture of a resource for ImGui (`uiTexture`) goes
-  through this integration.
-- The renderer is created by `createDevice(api)` instead of
-  `createRenderer(api)`; there are no renderer classes per API.
+- ImGui is a separate integration of the backend (`UiIntegration`), not
+  part of the RHI: it draws through the same API and device, but the RHI
+  does not depend on it. It makes the `UiRenderer` and turns a texture of
+  the device into a `UiTexture` for `ImGui::Image` (`Renderer::uiTexture`,
+  `RenderTarget::uiTexture`); the OpenGL flip of rendered textures lives
+  there. **[done]**
+- A backend gives only `createDevice(api, window)` and
+  `createUiIntegration(api, window, device)` (`render/GraphicsBackend.hpp`).
+  `Renderer` and `RenderTarget` are engine classes over them;
+  `createRenderer(api, window)` puts them together, so the editor and
+  `Application` did not change. A renderer can be made over the test RHI
+  without an interface. **[done]**
 
 ### Contracts
 
@@ -221,7 +227,7 @@ profile below are checked on every target API when its backend arrives.
    includes, defines, errors with file and line, the in-memory cache, the
    checks of std140 structs against the reflection; built-in shaders in GLSL
    450; the clip space convention, `DepthRange` leaves the cameras.
-3. **R.3 The renderer in the engine.** `Renderer` is an engine class over
+3. **R.3 The renderer in the engine** **[done]**. `Renderer` is an engine class over
    `rhi::Device`, `MeshPass` and `GpuResourceCache` move to `engine/render`,
    `createDevice(api)`, ImGui as a separate integration of the backend. The
    editor and `Application` change only where they create the renderer.

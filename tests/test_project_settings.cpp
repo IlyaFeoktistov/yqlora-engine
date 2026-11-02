@@ -11,8 +11,8 @@
 #include <yqlora/input/InputSettings.hpp>
 #include <yqlora/project/GeneralSettings.hpp>
 #include <yqlora/project/Project.hpp>
+#include <yqlora/render/GraphicsBackend.hpp>
 #include <yqlora/render/GraphicsSettings.hpp>
-#include <yqlora/render/Renderer.hpp>
 #include <yqlora/scene/ExecutionOrder.hpp>
 #include <yqlora/scene/ExecutionOrderSettings.hpp>
 #include <yqlora/scene/LayerSettings.hpp>

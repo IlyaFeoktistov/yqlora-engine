@@ -37,8 +37,9 @@
 редактора (`editor/include/yqlora/editor/`, `editor/src/`), интерфейс
 редактора (`editor/ui/include/yqlora/editor/ui/`, `editor/ui/src/`) и бэкенд
 OpenGL (`backends/opengl/internal/yqlora/opengl/`, `backends/opengl/src/`,
-пространство имён `yqlora::opengl`, чтобы проходы будущих бэкендов Vulkan и
-D3D12 не совпали по именам).
+пространство имён `yqlora::opengl`, чтобы классы будущих бэкендов Vulkan и
+D3D12 не совпали по именам; в бэкенде только устройство RHI и интеграция
+ImGui).
 Заголовки подключаются всегда как `"yqlora/<часть>/X.hpp"`.
 
 ```

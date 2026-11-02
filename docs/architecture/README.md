@@ -37,8 +37,9 @@ in `include/`, headers for the engine and the editor only in `internal/`,
 logic (`editor/include/yqlora/editor/`, `editor/src/`), the editor interface
 (`editor/ui/include/yqlora/editor/ui/`, `editor/ui/src/`) and the OpenGL
 backend (`backends/opengl/internal/yqlora/opengl/`, `backends/opengl/src/`,
-namespace `yqlora::opengl`, so the passes of the future Vulkan and D3D12
-backends do not clash by name).
+namespace `yqlora::opengl`, so the classes of the future Vulkan and D3D12
+backends do not clash by name; a backend holds only the RHI device and the
+ImGui integration).
 Headers are always included as `"yqlora/<part>/X.hpp"`.
 
 ```

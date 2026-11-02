@@ -5,9 +5,12 @@
 #include <yqlora/render/FrameData.hpp>
 #include <yqlora/render/GpuMesh.hpp>
 #include <yqlora/render/MeshData.hpp>
+#include <yqlora/render/PrimitiveMeshes.hpp>
+#include <yqlora/render/Renderer.hpp>
 #include <yqlora/render/ShaderData.hpp>
 #include <yqlora/render/UniformRing.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <stdexcept>
@@ -257,4 +260,31 @@ TEST_CASE("GpuMeshCache: a new revision replaces the copy")
     mesh.indices = {0, 0, 0, 0, 0, 0};
     item.meshRevision = 2;
     CHECK(cache.get(item).indexCount == 6);
+}
+
+TEST_CASE("Renderer: a frame with the editor overlay goes through the RHI contracts")
+{
+    // Рендерер не знает API: на тестовом устройстве он проходит все его проверки
+    // (состояния целей, форматы конвейеров, ресурсы шейдеров перед draw).
+    auto owned = std::make_unique<RecordingDevice>();
+    RecordingDevice& device = *owned;
+    Renderer renderer(GraphicsApi::OpenGL, std::move(owned), nullptr);
+
+    const MeshData cube = makeCube();
+    FrameData frame;
+    frame.views.push_back({});
+    frame.drawItems.push_back({.mesh = &cube, .meshId = 1, .node = 7});
+    frame.editor = {.grid = true, .selected = {7}};
+
+    auto target = renderer.createRenderTarget(32, 32);
+    CHECK_NOTHROW(renderer.render(frame, *target));
+    CHECK(target->color().state() == rhi::ResourceState::ShaderRead);
+    CHECK_NOTHROW(renderer.render(frame));
+    CHECK_NOTHROW(renderer.present());
+
+    const std::vector<CommandKind> kinds = device.kinds();
+    CHECK(std::ranges::count(kinds, CommandKind::DrawIndexed) == 4); // меш и маска контура, дважды
+    CHECK(std::ranges::count(kinds, CommandKind::Present) == 1);
+    // Без связки с интерфейсом текстуры для него нет.
+    CHECK_THROWS_AS(target->uiTexture(), std::logic_error);
 }

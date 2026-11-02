@@ -7,11 +7,9 @@
 #include <memory>
 
 namespace yqlora {
+
 class GpuMeshCache;
 class ShaderCompiler;
-} // namespace yqlora
-
-namespace yqlora::opengl {
 
 // Контур выбранного узла в редакторе. Сначала узел рисуется белым в маску
 // размером с цель, затем полноэкранный проход закрашивает пиксели рядом
@@ -44,4 +42,4 @@ private:
     std::unique_ptr<rhi::Pipeline> m_outlinePipeline;
 };
 
-} // namespace yqlora::opengl
+} // namespace yqlora

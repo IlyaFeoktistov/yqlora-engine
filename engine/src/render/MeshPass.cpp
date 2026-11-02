@@ -1,11 +1,11 @@
-#include "yqlora/opengl/MeshPass.hpp"
+#include "yqlora/render/MeshPass.hpp"
 
 #include "yqlora/render/GpuMesh.hpp"
 #include "yqlora/render/ShaderData.hpp"
 #include "yqlora/shader/EngineShaders.hpp"
 #include "yqlora/shader/ShaderBuild.hpp"
 
-namespace yqlora::opengl {
+namespace yqlora {
 
 MeshPass::MeshPass(rhi::Device& device, ShaderCompiler& shaders, GpuMeshCache& meshes, UniformRing& uniforms)
     : m_meshes(meshes)
@@ -53,4 +53,4 @@ void MeshPass::draw(
     }
 }
 
-} // namespace yqlora::opengl
+} // namespace yqlora

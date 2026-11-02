@@ -1,32 +1,53 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
-#include "yqlora/math/Math.hpp"
+#include "yqlora/render/UiIntegration.hpp"
+#include "yqlora/rhi/Device.hpp"
 
-#include <cstdint>
+#include <memory>
 
 namespace yqlora {
 
-// Текстура для показа в интерфейсе (ImGui::Image). uv0 и uv1 задают углы:
-// у OpenGL картинка в текстуре перевёрнута по вертикали, у других API нет.
-struct UiTexture {
-    std::uint64_t id = 0;
-    Vec2 uv0{0.0f, 0.0f};
-    Vec2 uv1{1.0f, 1.0f};
-};
-
-// Текстура, в которую рисуется кадр вместо окна. Например, окно сцены в редакторе.
+// Текстура, в которую рисуется кадр вместо окна: цвет и своя глубина.
+// Например, окно сцены в редакторе. После отрисовки цвет в состоянии
+// ShaderRead: его читает интерфейс.
 class YQLORA_API RenderTarget {
 public:
-    virtual ~RenderTarget() = default;
+    // ui - связка с интерфейсом; без неё uiTexture() недоступна.
+    RenderTarget(rhi::Device& device, UiIntegration* ui, int width, int height);
 
-    virtual int width() const = 0;
-    virtual int height() const = 0;
+    int width() const
+    {
+        return m_color->desc().width;
+    }
+
+    int height() const
+    {
+        return m_color->desc().height;
+    }
 
     // Размер в пикселях. Если он не изменился, ничего не делает.
-    virtual void resize(int width, int height) = 0;
+    void resize(int width, int height);
 
-    virtual UiTexture uiTexture() const = 0;
+    UiTexture uiTexture();
+
+    rhi::Texture& color() const
+    {
+        return *m_color;
+    }
+
+    rhi::Texture& depth() const
+    {
+        return *m_depth;
+    }
+
+private:
+    void allocate(int width, int height);
+
+    rhi::Device& m_device;
+    UiIntegration* m_ui = nullptr;
+    std::unique_ptr<rhi::Texture> m_color;
+    std::unique_ptr<rhi::Texture> m_depth;
 };
 
 } // namespace yqlora

@@ -6,10 +6,8 @@
 #include <memory>
 
 namespace yqlora {
-class ShaderCompiler;
-}
 
-namespace yqlora::opengl {
+class ShaderCompiler;
 
 // Бесконечная сетка редактора на плоскости Y = 0. Рисуется квадрат под камерой,
 // который едет вместе с ней, а линии считаются во фрагментном шейдере
@@ -28,4 +26,4 @@ private:
     std::unique_ptr<rhi::Pipeline> m_pipeline;
 };
 
-} // namespace yqlora::opengl
+} // namespace yqlora

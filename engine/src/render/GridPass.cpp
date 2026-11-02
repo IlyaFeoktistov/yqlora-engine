@@ -1,4 +1,4 @@
-#include "yqlora/opengl/GridPass.hpp"
+#include "yqlora/render/GridPass.hpp"
 
 #include "yqlora/render/ShaderData.hpp"
 #include "yqlora/shader/EngineShaders.hpp"
@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <span>
 
-namespace yqlora::opengl {
+namespace yqlora {
 
 namespace {
 
@@ -83,4 +83,4 @@ void GridPass::draw(rhi::CommandList& commands, const UniformSlice& viewUniforms
     commands.draw(kCornerCount);
 }
 
-} // namespace yqlora::opengl
+} // namespace yqlora

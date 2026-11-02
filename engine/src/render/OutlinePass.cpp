@@ -1,4 +1,4 @@
-#include "yqlora/opengl/OutlinePass.hpp"
+#include "yqlora/render/OutlinePass.hpp"
 
 #include "yqlora/render/GpuMesh.hpp"
 #include "yqlora/render/ShaderData.hpp"
@@ -7,7 +7,7 @@
 
 #include <algorithm>
 
-namespace yqlora::opengl {
+namespace yqlora {
 
 namespace {
 
@@ -134,4 +134,4 @@ void OutlinePass::resizeMask(int width, int height)
     });
 }
 
-} // namespace yqlora::opengl
+} // namespace yqlora

@@ -33,7 +33,7 @@
         |  Renderer::render(frame)          -> задний буфер окна
         |  Renderer::render(frame, target)  -> RenderTarget (текстура)
         v
- OpenGLRenderer::drawScene                           backends/opengl
+ Renderer::drawScene поверх rhi::Device               engine/render
    для каждого вида, в порядке камер:
      очистка      цвет и глубина / только глубина / ничего
      MeshPass     элементы, чей слой есть в маске вида, через камеру
@@ -86,11 +86,17 @@ Vulkan.
 
 - RHI ничего не знает о графе. Граф строится поверх RHI и превращается в
   его команды, поэтому каждый проверяется без другого.
-- ImGui - отдельная интеграция бэкенда (`UiRenderer`), а не часть RHI:
-  рисует через тот же API и устройство, но RHI от неё не зависит. Текстура
-  ресурса для ImGui (`uiTexture`) идёт через эту интеграцию.
-- Рендер создаётся через `createDevice(api)` вместо `createRenderer(api)`;
-  классов рендерера по API больше нет.
+- ImGui - отдельная интеграция бэкенда (`UiIntegration`), а не часть RHI:
+  рисует через тот же API и устройство, но RHI от неё не зависит. Она
+  создаёт `UiRenderer` и превращает текстуру устройства в `UiTexture` для
+  `ImGui::Image` (`Renderer::uiTexture`, `RenderTarget::uiTexture`);
+  переворот нарисованных текстур в OpenGL живёт там. **[done]**
+- Бэкенд даёт только `createDevice(api, window)` и
+  `createUiIntegration(api, window, device)` (`render/GraphicsBackend.hpp`).
+  `Renderer` и `RenderTarget` - классы движка поверх них;
+  `createRenderer(api, window)` собирает их вместе, поэтому редактор и
+  `Application` не изменились. Рендерер можно создать над тестовым RHI без
+  интерфейса. **[done]**
 
 ### Контракты
 
@@ -217,7 +223,7 @@ HLSL от SPIRV-Cross. Переносимость не автоматическ�
    include, defines, ошибки с файлом и строкой, кэш в памяти, сверка
    структур std140 с отражением; встроенные шейдеры на GLSL 450;
    соглашение о clip space, `DepthRange` уходит из камер.
-3. **R.3 Рендерер в движке.** `Renderer` - класс движка поверх
+3. **R.3 Рендерер в движке** **[done]**. `Renderer` - класс движка поверх
    `rhi::Device`, `MeshPass` и `GpuResourceCache` переезжают в
    `engine/render`, `createDevice(api)`, ImGui отдельной интеграцией
    бэкенда. Редактор и `Application` меняются только там, где создают
