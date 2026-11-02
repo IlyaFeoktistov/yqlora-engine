@@ -516,6 +516,75 @@ only if every scene was read, as `upgradeProject` already does.
   include names that file and line; a changed include reloads the shader;
   a new shader is a copy of the template.
 
+### 5.2a Audit fixes [next]
+
+An audit of steps 3-5 (2026-11-02): what is costly to change later. Done
+before 5.3, a commit per group, each followed by a build and tests on
+Linux and Windows.
+
+1. **Resources in the editor** (before materials: they hit this at once):
+   - a resource reference is one hint `PropertyHint::Resource` with the
+     resource kind in the property attributes (from `T::kResourceKind`)
+     instead of a hint per kind (`Mesh`, `Texture`, `Scene`) and a `switch`
+     in `fieldKind`;
+   - choosing a resource in a field: built-ins come from the shared table
+     of built-in resources (its entry gets a name), not `builtinMeshes()`;
+     nested ones by the kind in their key (`mesh:`, later `material:`,
+     `texture:`), not only the meshes of a model;
+   - names of enum values are one table next to the enum, used by the
+     registry (`enumNames`) and by `.meta` JSON, instead of lists in the
+     registration (`CameraClear`), `kGraphicsApiNames` and `NamedValue`;
+   - a new kind of created resource is one table row (creation, extension,
+     icon), not five places (enum, `createX`, `switch` in the panel, file
+     name, icon);
+   - a resource inspector per kind instead of one `ResourceInspection`
+     struct holding all kinds at once.
+2. **Rendering**:
+   - `Renderer` owns the device and the frame (present, size, vsync,
+     interface); building the frame graph (`drawScene`: views, output,
+     owner passes) is a separate `SceneRenderer`;
+   - `extractFrame` is made of parts by responsibility: views, lights,
+     meshes, environment;
+   - `samplerDesc(TextureSampling)` moves out of `Renderer.cpp` to a shared
+     place (materials need it);
+   - the final target formats (`Rgba8`, `Depth24Stencil8`) become named
+     constants, like `kHdrColorFormat`;
+   - light kinds are told apart one way (`kind()`), not `kind()` here and
+     `dynamic_cast` there;
+   - the block check also compares the fields inside structs of arrays
+     (lights), not only the element stride.
+3. **Resources and formats**:
+   - loading does not write `.meta`: nested IDs and the profile version are
+     written on import in the editor, loading only reads (a built game in
+     step 9 does not change its files);
+   - `ResourceDatabase` is the "ID and path" index; reading and writing the
+     `.meta` format is separate;
+   - `.meta` is written atomically (`platform::writeFileAtomically` comes
+     here from 5.3);
+   - external `.bin` files of a glTF model go into
+     `LoadResult::dependencies`, so a changed buffer reloads the model;
+   - `GltfLoader.cpp` is split into files (meshes, nodes) before glTF
+     materials.
+4. **Clean code**:
+   - reading a whole file is one platform function instead of five
+     (images, glTF, shaders, the script template, the build record);
+   - ASCII lowercase is one function instead of five;
+   - the vertex count of a triangle is one constant in `MeshData` instead
+     of three;
+   - a world point on the screen is one editor function (`Picking` and the
+     gizmos);
+   - test helpers (writing and rewriting a file) go into a shared test
+     header;
+   - the life of the game library (copies, load, unload, reload) moves out
+     of `EditorSession` into its own class;
+   - `ScriptBuild::buildOnce` is split into steps (paths, configure
+     arguments, running);
+   - `PropertyEditor.cpp` is split into a file per widget (before the
+     material fields of 5.4);
+   - node icons are a table by type, not a chain of `if`;
+   - small ones: trimming the selection to existing nodes is one function;
+     `LogFilter::levels` is filled by `kLogLevelCount`.
+
 ### 5.3 Materials
 
 - **`MaterialData`** (resource kind `material`, format `material` version
@@ -590,6 +659,9 @@ only if every scene was read, as `upgradeProject` already does.
 
 ### 5.5 Sky and environment
 
+- **RHI for the sky**: a depth compare op in the pipeline (`<=`: the sky
+  lies at depth 1, and the comparison is always `<` now), a cube texture
+  and its binding in OpenGL (any texture is bound as 2D now).
 - **`<yqlora/sky.glsl>`**: the stages of a sky shader around
   `sky(direction)` (a full screen triangle at depth 1, the direction from
   the inverse view projection) and the `YQLORA_SKY_AMBIENT` variant for the
@@ -621,7 +693,10 @@ only if every scene was read, as `upgradeProject` already does.
 
 - **RHI**: `rhi::Format::Depth32Float` readable by shaders, a comparison
   sampler (`SamplerDesc::compare`), `sampler2DShadow` in the profile and
-  the reflection; the OpenGL backend.
+  the reflection; depth-only passes (the colour target becomes optional in
+  `RenderPassDesc`, `RenderGraph::Pass` and the test device); depth bias in
+  the pipeline; a viewport over part of the target (2 x 2 cascades, atlas
+  tiles); the OpenGL backend.
 - **Properties**: `shadows`, `shadowStrength`, `shadowBias`,
   `shadowNormalBias` on `Light3D`; `castShadows`, `receiveShadows` on
   `MeshRenderer`; distance, cascades and map sizes in `LightingSettings`.
