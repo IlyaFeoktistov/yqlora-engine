@@ -12,8 +12,14 @@
 
 namespace yqlora {
 
+// Определения, которые получает каждая стадия: по ним одна стадия файла
+// .yshader отличается от другой (#ifdef YQLORA_VERTEX).
+inline constexpr char kVertexStageDefine[] = "YQLORA_VERTEX";
+inline constexpr char kFragmentStageDefine[] = "YQLORA_FRAGMENT";
+
 struct ShaderBuildRequest {
     std::string name{};
+    // У файла .yshader оба пути одинаковые.
     std::string vertexPath{};
     std::string fragmentPath{};
     std::vector<ShaderDefine> defines{};

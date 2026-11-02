@@ -74,6 +74,7 @@ rhi::ShaderBinding uniformBlock(const spirv_cross::Compiler& compiler, const spi
             .offset = compiler.type_struct_member_offset(type, i),
             .size = static_cast<std::uint32_t>(compiler.get_declared_struct_member_size(type, i)),
             .arraySize = member.array.empty() ? 0U : member.array.front(),
+            .arrayStride = member.array.empty() ? 0U : compiler.type_struct_member_array_stride(type, i),
         });
     }
 
@@ -159,7 +160,7 @@ bool sameResource(const rhi::ShaderBinding& a, const rhi::ShaderBinding& b)
 
     return std::ranges::equal(a.fields, b.fields, [](const rhi::UniformField& x, const rhi::UniformField& y) {
         return x.name == y.name && x.type == y.type && x.offset == y.offset && x.size == y.size
-               && x.arraySize == y.arraySize;
+               && x.arraySize == y.arraySize && x.arrayStride == y.arrayStride;
     });
 }
 

@@ -3,6 +3,7 @@
 #include "yqlora/render/GpuMesh.hpp"
 #include "yqlora/render/GraphicsBackend.hpp"
 #include "yqlora/render/MeshPass.hpp"
+#include "yqlora/render/OutputPass.hpp"
 #include "yqlora/render/Prepare.hpp"
 #include "yqlora/render/RenderGraph.hpp"
 #include "yqlora/render/ShaderData.hpp"
@@ -22,9 +23,6 @@ namespace {
 
 // Кадр без единого вида (в сцене нет активной камеры).
 const Vec4 kNoViewColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-// Свет падает сверху, немного сбоку и спереди.
-const Vec3 kLightDirection = glm::normalize(Vec3(-0.4f, -1.0f, -0.3f));
 
 rhi::LoadOp colorLoad(CameraClear clear)
 {
@@ -61,12 +59,14 @@ Renderer::Renderer(GraphicsApi api, std::unique_ptr<rhi::Device> device, std::un
     , m_transients(std::make_unique<TransientTextures>(*m_device))
     , m_context(std::make_unique<RenderContext>(RenderContext{*m_device, *m_shaders, *m_uniforms, *m_meshes}))
     , m_meshPass(std::make_unique<MeshPass>(*m_context))
+    , m_outputPass(std::make_unique<OutputPass>(*m_context))
 {
 }
 
 Renderer::~Renderer()
 {
     // Объекты устройства удаляются раньше него.
+    m_outputPass.reset();
     m_meshPass.reset();
     m_transients.reset();
     m_uiTextures.reset();
@@ -140,14 +140,23 @@ void Renderer::drawScene(
         return;
     }
 
-    const UniformSlice frameUniforms = m_uniforms->push(FrameUniforms{.lightDirection = kLightDirection});
+    // Свет и смешивание прозрачного считаются в линейном RGB, поэтому сцена
+    // идёт в HDR-цель с глубиной итоговой цели.
+    const RenderGraph::TextureId hdrId = graph.create({
+        .width = color.desc().width,
+        .height = color.desc().height,
+        .format = kHdrColorFormat,
+        .usage = rhi::kColorTarget | rhi::kSampled,
+    });
+    const UniformSlice frameUniforms = m_uniforms->push(yqlora::frameUniforms(frame));
     // Списки видимого живут до execute: на них ссылаются записанные проходы.
     std::vector<std::vector<const DrawItem*>> visible(frame.views.size());
+    std::vector<UniformSlice> viewUniforms(frame.views.size());
     // Виды по очереди: следующая камера рисует поверх предыдущей.
     for (std::size_t i = 0; i < frame.views.size(); ++i) {
         const ViewData& view = frame.views[i];
         visible[i] = prepareView(frame.drawItems, view);
-        const UniformSlice viewUniforms = m_uniforms->push(
+        viewUniforms[i] = m_uniforms->push(
             ViewUniforms{
                 .viewProjection = view.camera.projection * view.camera.view,
                 .cameraPosition = view.camera.position,
@@ -155,21 +164,29 @@ void Renderer::drawScene(
         );
         graph.addPass({
             .name = "view " + std::to_string(i),
-            .color = {colorId, colorLoad(view.clear)},
+            .color = {hdrId, colorLoad(view.clear)},
             .depth = RenderGraph::Target{depthId, depthLoad(view.clear)},
             .clearColor = view.background,
             .record = [this,
                        items = std::span<const DrawItem* const>(visible[i]),
                        frameUniforms,
-                       viewUniforms](rhi::CommandList& commands, const RenderGraph&) {
-                m_meshPass->draw(commands, items, frameUniforms, viewUniforms);
+                       slice = viewUniforms[i]](rhi::CommandList& commands, const RenderGraph&) {
+                m_meshPass->draw(commands, items, frameUniforms, slice);
             },
         });
+    }
+    m_outputPass->addTo(graph, hdrId, colorId);
+    // Проходы владельцев видов рисуют поверх итогового кадра, в sRGB, и
+    // проверяют глубину сцены. В кадре из нескольких видов глубина - уже
+    // общая, поэтому проходы владельца ставят виду, который рисуется один
+    // (окно сцены в редакторе).
+    for (std::size_t i = 0; i < frame.views.size(); ++i) {
+        const ViewData& view = frame.views[i];
         const ViewPassInput input{
             .frame = frame,
             .view = view,
             .visible = visible[i],
-            .viewUniforms = viewUniforms,
+            .viewUniforms = viewUniforms[i],
             .color = colorId,
             .depth = depthId,
         };

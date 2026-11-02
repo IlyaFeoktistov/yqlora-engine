@@ -77,8 +77,11 @@ struct BuiltinShader {
 };
 
 // Встроенные шейдеры движка и редактора; компилятор с readEditorShader видит оба.
+const std::string kStandardPath = engineShaderPath("standard.yshader");
+
 const BuiltinShader kBuiltinShaders[] = {
-    {"mesh", engineShaderPath("mesh.vert"), engineShaderPath("mesh.frag")},
+    {"Standard", kStandardPath, kStandardPath},
+    {"output", engineShaderPath("fullscreen.vert"), engineShaderPath("output.frag")},
     {"grid", editor::editorShaderPath("grid.vert"), editor::editorShaderPath("grid.frag")},
     {"outline mask", editor::editorShaderPath("outline_mask.vert"), editor::editorShaderPath("outline_mask.frag")},
     {"outline", engineShaderPath("fullscreen.vert"), editor::editorShaderPath("outline.frag")},
@@ -109,12 +112,12 @@ TEST_CASE("Shaders: every built-in shader builds, fits the profile and matches t
     }
 }
 
-TEST_CASE("Shaders: reflection of the mesh shader")
+TEST_CASE("Shaders: reflection of the Standard shader")
 {
     ShaderCompiler compiler({});
     const rhi::ShaderDesc desc = buildBuiltinShader(
         compiler,
-        {.name = "mesh", .vertexPath = engineShaderPath("mesh.vert"), .fragmentPath = engineShaderPath("mesh.frag")}
+        {.name = "Standard", .vertexPath = kStandardPath, .fragmentPath = kStandardPath}
     );
     const rhi::ShaderReflection& reflection = desc.reflection;
 
@@ -122,20 +125,103 @@ TEST_CASE("Shaders: reflection of the mesh shader")
     REQUIRE(object);
     CHECK(object->name == "Object");
     CHECK(object->kind == rhi::BindingKind::UniformBlock);
-    CHECK(object->stages == (rhi::stageBit(rhi::ShaderStage::Vertex) | rhi::stageBit(rhi::ShaderStage::Fragment)));
-    REQUIRE(object->fields.size() == 3);
-    CHECK(object->fields[2].name == "color");
-    CHECK(object->fields[2].type == rhi::ValueType::Vec4);
-    CHECK(object->fields[2].offset == offsetof(ObjectUniforms, color));
+    CHECK(object->stages == rhi::stageBit(rhi::ShaderStage::Vertex));
+    REQUIRE(object->fields.size() == 2);
+    CHECK(object->fields[1].name == "normalMatrix");
+
+    const rhi::ShaderBinding* material = reflection.find({kMaterialSet, 0});
+    REQUIRE(material);
+    CHECK(material->name == "Material");
+    CHECK(material->stages == rhi::stageBit(rhi::ShaderStage::Fragment));
 
     const rhi::ShaderBinding* frame = reflection.find(kFrameBlock.slot);
     REQUIRE(frame);
     CHECK(frame->stages == rhi::stageBit(rhi::ShaderStage::Fragment));
 
-    REQUIRE(reflection.vertexInputs.size() == 2);
+    REQUIRE(reflection.vertexInputs.size() == 3);
     const auto normal = std::ranges::find(reflection.vertexInputs, kNormalLocation, &rhi::VertexInput::location);
     REQUIRE(normal != reflection.vertexInputs.end());
     CHECK(normal->type == rhi::ValueType::Vec3);
+}
+
+TEST_CASE("Shaders: the frame block matches FrameUniforms, light arrays included")
+{
+    ShaderCompiler compiler({});
+    const rhi::ShaderDesc desc = buildBuiltinShader(
+        compiler,
+        {.name = "Standard", .vertexPath = kStandardPath, .fragmentPath = kStandardPath, .layouts = kEngineBlocks}
+    );
+    const rhi::ShaderBinding* frame = desc.reflection.find(kFrameBlock.slot);
+    REQUIRE(frame);
+    CHECK(frame->size == sizeof(FrameUniforms));
+    const auto field = [&](std::string_view name) {
+        const auto it = std::ranges::find(frame->fields, name, &rhi::UniformField::name);
+        REQUIRE(it != frame->fields.end());
+
+        return *it;
+    };
+    CHECK(field("directionalLights").arraySize == kMaxDirectionalLights);
+    CHECK(field("directionalLights").arrayStride == sizeof(DirectionalLightUniforms));
+    CHECK(field("punctualLights").arraySize == kMaxPunctualLights);
+    CHECK(field("punctualLights").arrayStride == sizeof(PunctualLightUniforms));
+    CHECK(field("punctualLights").offset == offsetof(FrameUniforms, punctualLights));
+}
+
+TEST_CASE("Shaders: an array with another element stride than in C++ is rejected")
+{
+    // Массив float в C++ плотный, а в std140 у каждого элемента 16 байт.
+    struct alignas(16) Pair {
+        float values[4]{};
+    };
+    const UniformLayout pair{"Pair", {kMaterialSet, 0}, sizeof(Pair), {YQLORA_UNIFORM_MEMBER(Pair, values)}};
+    const UniformLayout* const layouts[] = {&pair};
+
+    Files files;
+    files.files["a.vert"] = kPlainVertex;
+    files.files["a.frag"] = "#version 450\nlayout(set = 2, binding = 0, std140) uniform Pair { float values[4]; } p;\n"
+                            "layout(location = 0) out vec4 c;\nvoid main() { c = vec4(p.values[1]); }\n";
+    ShaderCompiler compiler(files.reader());
+    const ShaderBuildResult result = buildShader(
+        compiler,
+        {.name = "a", .vertexPath = "a.vert", .fragmentPath = "a.frag", .layouts = layouts}
+    );
+    CHECK_FALSE(result.desc);
+    CHECK(hasError(result.errors, "array stride"));
+}
+
+TEST_CASE("Shaders: one file holds both stages, an error keeps its line in the file")
+{
+    Files files;
+    files.files["a.yshader"] = "#version 450\n"
+                               "#ifdef YQLORA_VERTEX\n"
+                               "void main() { gl_Position = vec4(0.0); }\n"
+                               "#endif\n"
+                               "#ifdef YQLORA_FRAGMENT\n"
+                               "layout(location = 0) out vec4 c;\n"
+                               "void main() { c = vec4(1.0); }\n"
+                               "#endif\n";
+    ShaderCompiler compiler(files.reader());
+    const ShaderBuildRequest request{.name = "a", .vertexPath = "a.yshader", .fragmentPath = "a.yshader"};
+    const ShaderBuildResult built = buildShader(compiler, request);
+    for (const ShaderMessage& error : built.errors) {
+        MESSAGE(formatShaderMessage(error));
+    }
+    REQUIRE(built.desc);
+    CHECK_FALSE(built.desc->vertex.empty());
+    CHECK_FALSE(built.desc->fragment.empty());
+
+    files.files["a.yshader"] = "#version 450\n"
+                               "#ifdef YQLORA_VERTEX\n"
+                               "void main() { gl_Position = vec4(0.0); }\n"
+                               "#endif\n"
+                               "#ifdef YQLORA_FRAGMENT\n"
+                               "layout(location = 0) out vec4 c;\n"
+                               "void main() { c = undefinedName; }\n"
+                               "#endif\n";
+    const ShaderBuildResult broken = buildShader(compiler, request);
+    REQUIRE_FALSE(broken.desc);
+    CHECK(broken.errors.front().file == "a.yshader");
+    CHECK(broken.errors.front().line == 7);
 }
 
 TEST_CASE("Shaders: a shader keeps only the blocks it uses")
@@ -192,7 +278,7 @@ TEST_CASE("Shaders: the engine library is included with angle brackets")
 {
     Files files;
     files.files["a.frag"] = "#version 450\n#include <yqlora/uniforms.glsl>\n"
-                            "layout(location = 0) out vec4 c;\nvoid main() { c = object.color; }\n";
+                            "layout(location = 0) out vec4 c;\nvoid main() { c = vec4(frame.ambient, 1.0); }\n";
     ShaderCompiler compiler(files.reader());
     CHECK(compiler.compile({.path = "a.frag", .stage = rhi::ShaderStage::Fragment}).ok());
 }
@@ -378,7 +464,7 @@ TEST_CASE("Shaders: the OpenGL vertex stage maps clip depth 0..1 to -1..1")
     ShaderCompiler compiler({});
     const rhi::ShaderDesc desc = buildBuiltinShader(
         compiler,
-        {.name = "mesh", .vertexPath = engineShaderPath("mesh.vert"), .fragmentPath = engineShaderPath("mesh.frag")}
+        {.name = "Standard", .vertexPath = kStandardPath, .fragmentPath = kStandardPath}
     );
     const std::string vertex = opengl::translateToGlsl330(desc.vertex, rhi::ShaderStage::Vertex);
     CHECK(vertex.find("gl_Position.z = 2.0 * gl_Position.z - gl_Position.w") != std::string::npos);

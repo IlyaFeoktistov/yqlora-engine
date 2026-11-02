@@ -18,6 +18,22 @@ Status marks: see [README](README.md).
 - **Lighting is PBR metallic-roughness**, as in glTF and the Standard shader
   of Unity: base colour, metallic, roughness, normal map, emission. glTF
   materials come in without loss.
+- **Maps of `Standard`** (each optional; a missing one is a default texture
+  and the result is as without it):
+  - `baseColorMap` (sRGB, alpha is opacity) times `baseColor`;
+  - `ormMap`, a packed map as in glTF and Unreal: R occlusion, G roughness,
+    B metallic; factors `roughness`, `metallic`, `occlusionStrength`;
+  - `normalMap` (tangent space, +Y up, as in glTF) with strength
+    `normalScale`;
+  - `heightMap`, a height map for parallax (parallax occlusion mapping:
+    steps along the view ray in tangent space, the step count by angle),
+    depth `heightScale`; at 0 parallax is off and costs nothing;
+  - `emissionMap` (sRGB) times `emission` (a linear HDR colour, may exceed
+    1, like `KHR_materials_emissive_strength`).
+  Occlusion darkens only the ambient light, not direct lights (as in glTF).
+  Separate metallic and roughness maps are packed into one on import
+  later; detail maps, anisotropy, clear coat and subsurface scattering come
+  after the MVP with photorealism.
 - **Colour lives in the material.** `MeshRenderer` loses its colour; an
   upgrade of the project turns every distinct colour into a material file
   (see "Upgrading old scenes").
@@ -25,8 +41,13 @@ Status marks: see [README](README.md).
   pressing "Save"; the edit history of the scene does not hold them. Undo
   for materials can come later; assigning a material in the scene is a
   scene edit and is undone as one.
-- **Forward rendering, every light per pixel**, no shadows: shadows, sky and
+- **Forward rendering, every light per pixel**, no shadows: shadows and
   post-processing come after the MVP (their place in the graph is ready).
+- **Sky and sun as in Unity**: the sky is a material with a sky shader
+  (the built-in `Procedural` and `Panoramic` or your own), the sun is a
+  directional light; a camera with the `Sky` clear draws the sky as its
+  background, and the ambient light can come from the sky (see "Sky and
+  environment").
 - **Linear colour, one output pass.** Lighting and blending of transparent
   surfaces happen in linear RGB:
   1. colour textures (base colour, emission) are sampled as sRGB and
@@ -224,15 +245,67 @@ renderer.overrides(0).clear();
   window to zero at the range, as in glTF `KHR_lights_punctual`:
   `intensity / max(d², ε) * saturate(1 - (d / range)⁴)²`; a spot also fades
   smoothly between the inner and outer angle.
-- **Ambient light**: a colour and intensity in the Lighting section of the
-  project settings, until environment settings per scene appear. It is a
-  separate constant term (diffuse only), not image-based lighting; it does
-  not replace direct lights, and environment maps and IBL are outside step
-  5.
+- **Ambient light**: in the Lighting section of the project settings,
+  until environment settings per scene appear. It is a separate diffuse
+  term, not image-based lighting: it does not replace direct lights, and
+  sky reflections on metals and IBL are outside step 5. Phase 5.1 gives a
+  constant colour and intensity, phase 5.5 adds the sky and a gradient (see
+  "Sky and environment").
 - **A new scene** has a camera and a directional light, as in Unity and
   Godot, so a new object is lit at once.
 - **The editor** draws light icons and their range or direction in the
   viewport, as it does for cameras.
+
+## Sky and environment [planned, step 5]
+
+As in Unity: the sky is a material, the sun is a directional light, the
+ambient light comes from the sky, a gradient or a colour.
+
+- **A sky material** is an ordinary `.ymat` with a sky shader. A sky shader
+  includes `<yqlora/sky.glsl>` and defines one function
+  `vec3 sky(vec3 direction)`: the linear colour of the sky in a direction
+  from the camera (world axes). The library gives everything else (`main`
+  of both stages, a full screen triangle on the far plane, the direction of
+  the pixel), so your own sky is just this function and a `Material` block
+  with annotations, as for any material.
+- **Built-in sky shaders** with fixed IDs, like `Standard`:
+  - `Procedural`, like `Skybox/Procedural` in Unity: the sun (none, simple,
+    high quality), sun size, its convergence (edge softness), atmosphere
+    thickness, sky tint, ground colour, exposure. The sky follows a
+    simplified atmospheric scattering, so sunrise and sunset change its
+    colour by themselves, from the height of the sun;
+  - `Panoramic`: a panorama image (equirectangular, an sRGB texture), a
+    rotation around the vertical, a tint, exposure.
+  The built-in `Default Sky` material is `Procedural` with its defaults.
+- **The sun** is the directional light with the `sun` flag (like Sun Source
+  in Unity); when no enabled light has the flag, the brightest directional
+  light is the sun. The frame block gets `sunDirection`, `sunColor` and
+  `hasSun`, so any shader (sky, water, your own material) knows where the
+  sun is. The sun lights the scene as an ordinary directional light and
+  stays in its array.
+- **The `Sky` camera clear** (`CameraClear::Sky`), like Skybox on a Unity
+  camera: the sky pass draws the sky material of the settings after the
+  opaque pass (depth test on the far plane, no write), so the sky fills
+  only the pixels where nothing is. A new camera gets `Sky`.
+- **The Lighting section** (`LightingSettings`): the sky material
+  (`skybox`, only materials with a sky shader; empty: no sky, a `Sky`
+  camera clears to black), the ambient source `ambientSource` (`Sky`,
+  `Gradient`, `Color`), its multiplier `ambientIntensity`, the gradient
+  colours (sky, equator, ground) and the colour for `Color`.
+- **Ambient light from the sky** is second order spherical harmonics (9
+  coefficients), as in Unity: the ambient pass calls `sky(direction)` of
+  the same shader over a set of directions (a shader variant with the
+  `YQLORA_SKY_AMBIENT` define) and writes the coefficients into a small
+  texture. It runs only when the sky material, its shader or the sun
+  changed, fully on the GPU with no read back to the CPU, so a day and
+  night cycle does not stall the frame. `Gradient` and `Color` need no
+  pass. `lighting.glsl` takes the ambient light along the normal
+  (`ambientLight(normal)`) the same way for all three sources.
+- **Editor**: the viewport has its own sky toggle, as in Unity; the
+  material preview draws the sky behind the sphere; a sky shader shows the
+  same fields in the material inspector as any other.
+- Sky reflections on metals (environment maps, IBL), clouds and fog come
+  after the MVP.
 
 ## Upgrading old scenes [planned, step 5]
 
@@ -293,12 +366,15 @@ only if every scene was read, as `upgradeProject` already does.
 
 ## Phases of step 5 (a commit per phase) [planned, step 5]
 
-### 5.1 Lights and PBR
+### 5.1 Lights and PBR [done]
 
-- **Light nodes** in `engine/include/yqlora/render/`: `Light3D` (colour,
-  intensity) and `DirectionalLight3D`, `PointLight3D` (range), `SpotLight3D`
-  (range, inner and outer angle), registered in `registerRenderTypes`, with
-  icons in the tree and in "Add node".
+- **Light nodes** in `engine/include/yqlora/render/`, a file per class:
+  `Light3D` (a `Vec3` colour in sRGB, intensity; not created by itself)
+  and `DirectionalLight3D`, `PointLight3D` (range), `SpotLight3D`, a point
+  light in a cone, so it derives from `PointLight3D` (inner and outer angle
+  from the axis); registered in `registerRenderTypes`, with icons in the
+  tree and in "Add node". A `Vec3` colour property is a colour picker
+  without alpha in the inspector.
 - **`RenderSystem`** keeps the active lights of the scene, as it keeps the
   cameras (enter and exit of the scene, active and enabled).
 - **`FrameData::lights`** and `FrameData::ambient`: Extract writes world
@@ -310,12 +386,15 @@ only if every scene was read, as `upgradeProject` already does.
 - **The frame block** (`FrameUniforms`) gets the ambient light, the light
   arrays and their counts; `checkUniformLayout` compares the size and the
   offset of every field, and for arrays also the element stride.
-- **HDR target and output pass**: `rhi::Format::Rgba16Float`; the scene of
-  every view goes into a transient HDR texture, `OutputPass` encodes it to
-  sRGB into the final target, the passes of a view's owner come after it.
-- **One file, two stages**: `buildShaderFile` compiles one file with
-  `YQLORA_VERTEX` and then `YQLORA_FRAGMENT`; errors keep the line of the
-  file.
+- **HDR target and output pass**: `rhi::Format::Rgba16Float`; the scenes
+  of all views of a frame go in turn into one transient HDR texture with
+  the depth of the final target (a later camera draws over an earlier one,
+  as before), `OutputPass` encodes it to sRGB into the final target once,
+  then the passes of the view owners follow. The camera background in
+  `ViewData` is already linear.
+- **One file, two stages**: `buildShader` gives every stage the
+  `YQLORA_VERTEX` or `YQLORA_FRAGMENT` define, so both paths of the request
+  are the same for a `.yshader` file; errors keep the line of the file.
 - **Shader library** in `engine/shaders/include/yqlora/`: `lighting.glsl`
   (`Surface`, `defaultSurface`, `shade`: GGX specular, Smith geometry,
   Schlick Fresnel, Lambert diffuse, point and spot falloff by range),
@@ -326,11 +405,14 @@ only if every scene was read, as `upgradeProject` already does.
   `uv0`; the tangent joins in phase 2. Until phase 3 `MeshPass` fills its
   material block from the colour of `MeshRenderer` (metallic 0, roughness
   0.5).
-- **A new scene** gets a camera and a `DirectionalLight3D` turned down and
-  to the side, through the same `ProjectFiles::createScene` that makes new
-  scenes now.
-- **Editor** (in `editor/ui`, not in the renderer): `LightGizmo` draws the icon of every light and, for the
-  selected one, its direction, range sphere or cone.
+- **A new scene** gets a root named after the scene, a camera and a
+  `DirectionalLight3D` "Sun" turned down and to the side (`buildNewScene`
+  in the editor); the starter scene of a new project begins with it too.
+- **Editor** (in `editor/ui`, not in the renderer): `LightGizmo` draws the
+  icon of every light and, for the selected one, its rays, range sphere or
+  cone; projecting a point to the screen is shared by all gizmos
+  (`GizmoDrawing`). A light is picked by a click on a sphere around it, as
+  a camera is.
 - **Tests**: lights in the frame (disabled ones skipped, limits, the
   nearest kept); the frame block matches its struct; one-file build with
   errors on the right line; on OpenGL: the side of a cube facing a
@@ -357,7 +439,7 @@ only if every scene was read, as `upgradeProject` already does.
   include recompiles the shaders that use it.
 - **Tangents in the profile**: location 3, `vec4`; `Vertex` gets
   `tangent`, `meshVertexLayout` passes it, glTF `TANGENT` is read when
-  present (computing them is phase 5).
+  present (computing them is phase 5.6).
 - **`.meta` of a shader** records the profile version.
 - **Built-in resources** `Standard` and `Error` (`builtin::kStandardShader`,
   `builtin::kErrorShader`), loaded from `engine:` like the built-in meshes.
@@ -387,6 +469,9 @@ only if every scene was read, as `upgradeProject` already does.
   ID and revision.
 - **sRGB textures**: a texture imported as sRGB becomes `Rgba8Srgb` on the
   GPU, so sampling decodes it.
+- **Maps of `Standard`** (see "Decisions"): `baseColorMap`, `ormMap`,
+  `normalMap`, `heightMap`, `emissionMap` and their factors; parallax from
+  the height map and ambient occlusion in `lighting.glsl`.
 - **Pipeline cache** (`engine/render/PipelineCache`): by shader and its
   revision, blend, cull, target formats; old revisions are released with the
   GPU cache rule.
@@ -440,14 +525,46 @@ only if every scene was read, as `upgradeProject` already does.
   undone; an edit in the inspector updates the material at once and writes
   the file when the edit ends, not on every frame of a drag.
 
-### 5.5 glTF materials
+### 5.5 Sky and environment
+
+- **`<yqlora/sky.glsl>`**: the stages of a sky shader around
+  `sky(direction)` (a full screen triangle at depth 1, the direction from
+  the inverse view projection) and the `YQLORA_SKY_AMBIENT` variant for the
+  ambient pass. A sky shader is told by its reflection (no vertex inputs,
+  has `sky`), and a sky material takes only such a shader.
+- **Built-in `Procedural` and `Panoramic`** (`builtin::kProceduralSkyShader`,
+  `builtin::kPanoramicSkyShader`) and the `Default Sky` material.
+- **The sun**: the `sun` flag on `DirectionalLight3D`, the sun chosen in
+  Extract (flagged, otherwise the brightest), `sunDirection`, `sunColor`,
+  `hasSun` in the frame block.
+- **`CameraClear::Sky`**, the default of a new camera; `SkyPass` after the
+  opaque pass in the same view.
+- **`LightingSettings`**: `skybox`, `ambientSource`, `ambientIntensity`,
+  the gradient colours and the colour; `ambientLight(normal)` for shaders.
+- **`AmbientPass`**: 9 coefficients into a 9 x 1 `Rgba16Float` texture,
+  keyed by the revisions of the sky material and its shader and by the sun;
+  the coefficients are read in `lighting.glsl`.
+- **Editor**: the sky toggle of the viewport, the sky in the material
+  preview, "Create resource > Sky shader" from `assets/templates/sky`.
+- **Tests**: Extract picks the flagged sun, without a flag the brightest;
+  the sky template compiles, a shader without `sky` is refused as a sky
+  material; on OpenGL: a `Sky` camera draws the sky only where there are no
+  objects, the harmonics of a constant sky give its colour along any
+  normal, `Procedural` near the horizon is redder at sunset than at noon;
+  `Gradient` lights the top of a cube with the sky colour and the bottom
+  with the ground colour.
+
+### 5.6 glTF materials
 
 - **Images of a model** become nested textures (`texture:Name`), from a
   file next to the model or from a buffer of the GLB, with the colour space
   taken from their use (base colour and emission sRGB, the rest linear).
 - **Materials of a model** become nested materials (`material:Name`) of the
   `Standard` shader: base colour factor and texture, metallic and roughness
-  factors and texture, normal texture and scale, emission, `alphaMode`
+  factors and texture (into `ormMap`), occlusion texture and strength (the
+  R of the same `ormMap` when it is one image, as is usual in glTF;
+  otherwise the images are packed into one on import), normal texture and
+  scale, emission with `KHR_materials_emissive_strength`, `alphaMode`
   (`BLEND`: transparent; `MASK`: opaque with the `alphaCutoff` field of
   `Standard`, which discards fragments below it, a real alpha test, not a
   silent substitution), `doubleSided` (cull none, back faces lit with the
@@ -465,10 +582,10 @@ only if every scene was read, as `upgradeProject` already does.
   none; `MASK` gives `alphaCutoff`, not plain opaque; a re-export keeps the
   nested IDs; dropping fills the slots; the copy holds the same values.
 
-### 5.6 Documents
+### 5.7 Documents
 
 This file, rendering (lighting, sRGB, Prepare with materials), resources
 (shaders, materials, dependencies), scene (light nodes, `MeshRenderer`
 slots and overrides), project (formats of `.yshader`, `.ymat`, scene 2,
 project upgrade steps), project settings (Lighting), editor, the guide
-"Your own shader and material", README. After this phase step 5 is closed.
+"Your own shader, material and sky", README. After this phase step 5 is closed.

@@ -9,10 +9,11 @@
 namespace yqlora {
 
 class Camera3D;
+class Light3D;
 
-// Камеры сцены, через которые её видно. Рисуются по очереди, каждая со своей
-// очисткой и маской слоёв; снимок кадра для рендерера собирает Extract
-// (extractFrame во внутреннем API рендера).
+// Камеры сцены, через которые её видно, и источники света. Камеры рисуются
+// по очереди, каждая со своей очисткой и маской слоёв; снимок кадра для
+// рендерера собирает Extract (extractFrame во внутреннем API рендера).
 class YQLORA_API RenderSystem final : public SceneSystem {
 public:
     YQLORA_TYPE(RenderSystem, SceneSystem)
@@ -27,13 +28,27 @@ public:
     // nullptr, если активных камер нет.
     const Camera3D* mainCamera() const;
 
+    // Источники с активным узлом, в порядке входа в сцену.
+    std::vector<const Light3D*> lights() const;
+
+    // Extract сообщает о лишних источниках один раз на сцену, а не каждый
+    // кадр: true только при первом вызове.
+    bool takeLightLimitReport() const;
+
 private:
     // Камера сама входит в список, когда входит в сцену, и уходит вместе с ней.
     friend class Camera3D;
     void addCamera(const Camera3D& camera);
     void removeCamera(const Camera3D& camera);
 
+    friend class Light3D;
+    void addLight(const Light3D& light);
+    void removeLight(const Light3D& light);
+
     std::vector<const Camera3D*> m_cameras;
+    std::vector<const Light3D*> m_lights;
+    // Снимок кадра читает сцену только для чтения, а сообщение - не состояние сцены.
+    mutable bool m_lightLimitReported = false;
 };
 
 // Порядок, с которым camera станет главной: на единицу меньше, чем у первой

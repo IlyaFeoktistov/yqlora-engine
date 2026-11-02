@@ -1,5 +1,6 @@
 #include "yqlora/editor/ui/gizmos/ManipulatorGizmo.hpp"
 
+#include "yqlora/editor/ui/gizmos/GizmoDrawing.hpp"
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 
@@ -55,16 +56,9 @@ Vec2 mouseInView(const GizmoContext& context)
 
 void drawMarker(const GizmoContext& context, const Vec3& world, ImU32 color)
 {
-    const Vec4 clip = context.view.projection * context.view.view * Vec4(world, 1.0f);
-    if (clip.w <= 0.0f) {
-        return;
+    if (const auto screen = worldToScreen(context, world)) {
+        ImGui::GetWindowDrawList()->AddCircle(*screen, kVertexMarkerRadius, color, 0, 2.0f);
     }
-    const Vec2 ndc = Vec2(clip) / clip.w;
-    const ImVec2 screen(
-        context.origin.x + (ndc.x * 0.5f + 0.5f) * context.size.x,
-        context.origin.y + (0.5f - ndc.y * 0.5f) * context.size.y
-    );
-    ImGui::GetWindowDrawList()->AddCircle(screen, kVertexMarkerRadius, color, 0, 2.0f);
 }
 
 // Мировая матрица узла с другим положением в мире.

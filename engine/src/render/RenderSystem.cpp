@@ -1,9 +1,11 @@
 #include "yqlora/render/RenderSystem.hpp"
 
 #include "yqlora/render/Camera3D.hpp"
+#include "yqlora/render/Light3D.hpp"
 
 #include <algorithm>
 #include <limits>
+#include <utility>
 
 namespace yqlora {
 
@@ -25,6 +27,21 @@ const Camera3D* RenderSystem::mainCamera() const
     return active.empty() ? nullptr : active.front();
 }
 
+std::vector<const Light3D*> RenderSystem::lights() const
+{
+    std::vector<const Light3D*> result;
+    std::ranges::copy_if(m_lights, std::back_inserter(result), [](const Light3D* light) {
+        return light->activeInHierarchy();
+    });
+
+    return result;
+}
+
+bool RenderSystem::takeLightLimitReport() const
+{
+    return !std::exchange(m_lightLimitReported, true);
+}
+
 std::optional<int> orderToBecomeMain(const RenderSystem& render, const Camera3D& camera)
 {
     const Camera3D* main = render.mainCamera();
@@ -43,6 +60,16 @@ void RenderSystem::addCamera(const Camera3D& camera)
 void RenderSystem::removeCamera(const Camera3D& camera)
 {
     std::erase(m_cameras, &camera);
+}
+
+void RenderSystem::addLight(const Light3D& light)
+{
+    m_lights.push_back(&light);
+}
+
+void RenderSystem::removeLight(const Light3D& light)
+{
+    std::erase(m_lights, &light);
 }
 
 } // namespace yqlora

@@ -586,7 +586,12 @@ void valueField(
         vectorFields(&std::get<Vec2>(value).x, Vec2::length(), speed, context.colors, result);
         break;
     case PropertyType::Vector3:
-        vectorFields(&std::get<Vec3>(value).x, Vec3::length(), speed, context.colors, result);
+        if (property.hint() == PropertyHint::Color) {
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            result.changed = ImGui::ColorEdit3("##value", &std::get<Vec3>(value).x) || result.changed;
+        } else {
+            vectorFields(&std::get<Vec3>(value).x, Vec3::length(), speed, context.colors, result);
+        }
         break;
     case PropertyType::Vector4:
         if (property.hint() == PropertyHint::Color) {

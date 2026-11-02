@@ -1,0 +1,29 @@
+#version 450
+
+// Освещённый шейдер, с которого начинается каждый новый материал.
+#include <yqlora/standard.glsl>
+
+layout(set = 2, binding = 0, std140) uniform Material {
+    vec4 baseColor;  //@ color default(1, 1, 1, 1)
+    float metallic;  //@ range(0, 1) default(0)
+    float roughness; //@ range(0, 1) default(0.5)
+} material;
+
+#ifdef YQLORA_VERTEX
+void main()
+{
+    standardVertex();
+}
+#endif
+
+#ifdef YQLORA_FRAGMENT
+void main()
+{
+    Surface surface = defaultSurface();
+    surface.baseColor = material.baseColor.rgb;
+    surface.alpha = material.baseColor.a;
+    surface.metallic = material.metallic;
+    surface.roughness = material.roughness;
+    fragColor = shade(surface);
+}
+#endif

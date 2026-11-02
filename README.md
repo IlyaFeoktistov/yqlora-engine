@@ -21,14 +21,16 @@ MVP: everything needed to build a small game prototype.
 - [x] C++ scripts on nodes ([first script](docs/guide/first-script.md))
 - [x] Building scripts from the editor, hot reload
 - [x] Meshes from files (glTF) and textures ([importing a model](docs/guide/import-model.md))
-- [ ] Materials, custom shaders, lights
+- [ ] Materials, custom shaders, lights, sky and sun
 - [ ] Physics and collisions
 - [ ] Audio
 - [ ] Game UI
 - [ ] Running a game without the editor
 - [ ] Documentation: public API, engine internals, editor user guide
 
-After the MVP: Luau scripts, then 2D, then visual scripting (blocks and links
+After the MVP: a photorealistic picture by default, as in Unreal Engine
+([post-processing and photorealism](docs/architecture/rendering.md#photorealism-by-default-planned-after-the-mvp)),
+then Luau scripts, then 2D, then visual scripting (blocks and links
 instead of code, attached to a node like any other script).
 
 Architecture: [overview and documents by subsystem](docs/architecture/README.md).

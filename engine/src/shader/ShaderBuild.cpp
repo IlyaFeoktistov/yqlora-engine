@@ -15,6 +15,14 @@ void append(std::vector<ShaderMessage>& errors, const std::vector<std::string>& 
     }
 }
 
+std::vector<ShaderDefine> withStage(const std::vector<ShaderDefine>& defines, const char* stage)
+{
+    std::vector<ShaderDefine> result = defines;
+    result.push_back({.name = stage});
+
+    return result;
+}
+
 } // namespace
 
 ShaderBuildResult buildShader(ShaderCompiler& compiler, const ShaderBuildRequest& request)
@@ -23,12 +31,12 @@ ShaderBuildResult buildShader(ShaderCompiler& compiler, const ShaderBuildRequest
     ShaderCompileResult vertex = compiler.compile({
         .path = request.vertexPath,
         .stage = rhi::ShaderStage::Vertex,
-        .defines = request.defines,
+        .defines = withStage(request.defines, kVertexStageDefine),
     });
     ShaderCompileResult fragment = compiler.compile({
         .path = request.fragmentPath,
         .stage = rhi::ShaderStage::Fragment,
-        .defines = request.defines,
+        .defines = withStage(request.defines, kFragmentStageDefine),
     });
     result.errors = vertex.errors;
     result.errors.insert(result.errors.end(), fragment.errors.begin(), fragment.errors.end());

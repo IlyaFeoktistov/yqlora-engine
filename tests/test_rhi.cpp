@@ -202,7 +202,7 @@ TEST_CASE("UniformRing: slices are aligned and survive growth until reset")
     UniformRing ring(device, 2 * alignment);
 
     const UniformSlice first = ring.push(ViewUniforms{.cameraPosition = Vec3(1.0f, 2.0f, 3.0f)});
-    const UniformSlice second = ring.push(FrameUniforms{});
+    const UniformSlice second = ring.push(ObjectUniforms{});
     CHECK(first.offset == 0);
     CHECK(first.size == sizeof(ViewUniforms));
     CHECK(second.offset == alignment);
@@ -218,7 +218,7 @@ TEST_CASE("UniformRing: slices are aligned and survive growth until reset")
     CHECK(stored.cameraPosition == Vec3(1.0f, 2.0f, 3.0f));
 
     ring.reset();
-    CHECK(ring.push(FrameUniforms{}).offset == 0);
+    CHECK(ring.push(ObjectUniforms{}).offset == 0);
 }
 
 TEST_CASE("GpuMesh: a mesh goes to buffers and draws all its indices")
@@ -298,8 +298,8 @@ TEST_CASE("Renderer: a frame with the editor passes goes through the RHI contrac
     const std::vector<CommandKind> kinds = device.kinds();
     // Меш и маска контура, в цель и в окно.
     CHECK(std::ranges::count(kinds, CommandKind::DrawIndexed) == 4);
-    // Сетка и полноэкранный контур.
-    CHECK(std::ranges::count(kinds, CommandKind::Draw) == 4);
+    // Проход вывода, сетка и полноэкранный контур, в цель и в окно.
+    CHECK(std::ranges::count(kinds, CommandKind::Draw) == 6);
     CHECK(std::ranges::count(kinds, CommandKind::Present) == 1);
     // Без связки с интерфейсом текстуры для него нет.
     CHECK_THROWS_AS(target->uiTexture(), std::logic_error);
@@ -329,6 +329,7 @@ TEST_CASE("Renderer: what a view does not see is not drawn")
 
     const std::vector<CommandKind> kinds = device.kinds();
     CHECK(std::ranges::count(kinds, CommandKind::DrawIndexed) == 0);
-    CHECK(std::ranges::count(kinds, CommandKind::Draw) == 0);
-    CHECK(std::ranges::count(kinds, CommandKind::BeginPass) == 1);
+    // Остаются только сцена вида (пустая) и проход вывода.
+    CHECK(std::ranges::count(kinds, CommandKind::Draw) == 1);
+    CHECK(std::ranges::count(kinds, CommandKind::BeginPass) == 2);
 }

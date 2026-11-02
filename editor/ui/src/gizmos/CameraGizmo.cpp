@@ -1,5 +1,6 @@
 #include "yqlora/editor/ui/gizmos/CameraGizmo.hpp"
 
+#include "yqlora/editor/ui/gizmos/GizmoDrawing.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 
 #include "yqlora/editor/EditorSession.hpp"
@@ -8,57 +9,17 @@
 
 #include <array>
 #include <cmath>
-#include <optional>
 
 namespace yqlora::editor {
 
 namespace {
 
-// Точки ближе к плоскости камеры не проецируются: деление на почти ноль.
-constexpr float kMinClipW = 0.01f;
-constexpr float kLineThickness = 1.5f;
 // Треугольник "верх камеры" в долях половины кадра: ширина, низ и вершина.
 constexpr float kUpMarkerWidth = 0.5f;
 constexpr float kUpMarkerBase = 1.1f;
 constexpr float kUpMarkerTop = 1.6f;
 
-// Точка мира на экране. nullopt, если она за камерой: такой отрезок не рисуем.
-std::optional<ImVec2> project(const Mat4& viewProjection, const Vec3& point, const ImVec2& origin, const ImVec2& size)
-{
-    const Vec4 clip = viewProjection * Vec4(point, 1.0f);
-    if (clip.w <= kMinClipW) {
-        return std::nullopt;
-    }
-    const Vec2 ndc = Vec2(clip.x, clip.y) / clip.w;
-
-    return ImVec2(origin.x + (ndc.x * 0.5f + 0.5f) * size.x, origin.y + (0.5f - ndc.y * 0.5f) * size.y);
-}
-
-void line(
-    ImDrawList& list,
-    const Mat4& viewProjection,
-    const Vec3& a,
-    const Vec3& b,
-    const ImVec2& origin,
-    const ImVec2& size,
-    ImU32 color
-)
-{
-    const auto screenA = project(viewProjection, a, origin, size);
-    const auto screenB = project(viewProjection, b, origin, size);
-    if (screenA && screenB) {
-        list.AddLine(*screenA, *screenB, color, kLineThickness);
-    }
-}
-
-void drawCamera(
-    ImDrawList& list,
-    const Camera3D& camera,
-    ImU32 color,
-    const Mat4& viewProjection,
-    const ImVec2& origin,
-    const ImVec2& size
-)
+void drawCamera(ImDrawList& list, const GizmoContext& context, const Camera3D& camera, ImU32 color)
 {
     // Пирамида глубиной в полметра, пропорции экрана 16:9.
     constexpr float kDepth = 0.5f;
@@ -79,34 +40,27 @@ void drawCamera(
     };
 
     for (std::size_t i = 0; i < corners.size(); ++i) {
-        line(list, viewProjection, apex, corners[i], origin, size, color);
-        line(list, viewProjection, corners[i], corners[(i + 1) % corners.size()], origin, size, color);
+        drawWorldLine(list, context, apex, corners[i], color);
+        drawWorldLine(list, context, corners[i], corners[(i + 1) % corners.size()], color);
     }
     // Треугольник над верхней гранью показывает, где у камеры верх.
     const Vec3 left = toWorld(-halfWidth * kUpMarkerWidth, halfHeight * kUpMarkerBase, -kDepth);
     const Vec3 right = toWorld(halfWidth * kUpMarkerWidth, halfHeight * kUpMarkerBase, -kDepth);
     const Vec3 top = toWorld(0.0f, halfHeight * kUpMarkerTop, -kDepth);
-    line(list, viewProjection, left, right, origin, size, color);
-    line(list, viewProjection, right, top, origin, size, color);
-    line(list, viewProjection, top, left, origin, size, color);
+    drawWorldLine(list, context, left, right, color);
+    drawWorldLine(list, context, right, top, color);
+    drawWorldLine(list, context, top, left, color);
 }
 
-void drawCamerasRecursive(
-    ImDrawList& list,
-    const Node& node,
-    NodeId selected,
-    const EditorColors& colors,
-    const Mat4& viewProjection,
-    const ImVec2& origin,
-    const ImVec2& size
-)
+void drawCamerasRecursive(ImDrawList& list, const GizmoContext& context, const Node& node, NodeId selected)
 {
     if (const auto* camera = dynamic_cast<const Camera3D*>(&node)) {
+        const EditorColors& colors = context.theme.colors();
         const ImU32 color = toImU32(node.id() == selected ? colors.selectionOutline : colors.cameraGizmo);
-        drawCamera(list, *camera, color, viewProjection, origin, size);
+        drawCamera(list, context, *camera, color);
     }
     for (const auto& child : node.children()) {
-        drawCamerasRecursive(list, *child, selected, colors, viewProjection, origin, size);
+        drawCamerasRecursive(list, context, *child, selected);
     }
 }
 
@@ -122,15 +76,7 @@ bool CameraGizmo::draw(GizmoContext& context)
     const ImVec2& size = context.size;
     ImDrawList& list = *ImGui::GetWindowDrawList();
     list.PushClipRect(origin, ImVec2(origin.x + size.x, origin.y + size.y), true);
-    drawCamerasRecursive(
-        list,
-        *root,
-        context.session.selection().selected(),
-        context.theme.colors(),
-        context.view.projection * context.view.view,
-        origin,
-        size
-    );
+    drawCamerasRecursive(list, context, *root, context.session.selection().selected());
     list.PopClipRect();
 
     return false;

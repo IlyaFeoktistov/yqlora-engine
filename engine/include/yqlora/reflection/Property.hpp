@@ -248,7 +248,7 @@ YQLORA_API PropertyValue defaultPropertyValue(PropertyType type);
 // Как показывать свойство в инспекторе, если обычного поля для его типа мало.
 enum class PropertyHint {
     None,
-    Color,         // Vec4 как цвет RGBA с палитрой
+    Color,         // Vec3 или Vec4 как цвет RGB или RGBA с палитрой
     Mesh,          // ссылка на ресурс меша: выбор из доступных мешей
     Angle,         // градусы: при перетаскивании значение меняется медленнее
     Layer,         // int: один слой узла из списка

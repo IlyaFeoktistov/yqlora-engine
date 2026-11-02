@@ -8,6 +8,8 @@
 #include <yqlora/input/Input.hpp>
 #include <yqlora/project/Project.hpp>
 #include <yqlora/reflection/TypeRegistry.hpp>
+#include <yqlora/render/Camera3D.hpp>
+#include <yqlora/render/DirectionalLight3D.hpp>
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
 #include <yqlora/scripting/GameModule.hpp>
@@ -92,14 +94,20 @@ TEST_CASE_FIXTURE(Fixture, "ProjectFiles: a new scene can be opened")
     REQUIRE(session.openScene(*second));
     CHECK(session.document().id() == project.resources().id(*second));
     CHECK(session.scenePath() == *second);
-    CHECK(scene.empty());
+    // Новая сцена уже с камерой и светом, корень назван по сцене.
+    REQUIRE(scene.root());
+    CHECK(scene.root()->name() == "Level");
+    CHECK(dynamic_cast<Camera3D*>(scene.root()->findChild("Camera")) != nullptr);
+    CHECK(dynamic_cast<DirectionalLight3D*>(scene.root()->findChild("Sun")) != nullptr);
+    const std::size_t nodes = scene.root()->children().size();
 
     // Сохраняется в открытую сцену, а не в главную.
-    session.editing().createNode(*registry.find("Node3D"), nullptr);
+    session.editing().createNode(*registry.find("Node3D"), scene.root());
     REQUIRE(session.save());
     Scene check{EngineServices::none()};
     REQUIRE(serializer.load(check, project.directory() / *second));
-    CHECK_FALSE(check.empty());
+    REQUIRE(check.root());
+    CHECK(check.root()->children().size() == nodes + 1);
 }
 
 TEST_CASE_FIXTURE(Fixture, "ProjectFiles: nothing outside the project can be touched")

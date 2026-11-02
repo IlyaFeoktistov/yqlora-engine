@@ -2,6 +2,7 @@
 
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/render/Camera3D.hpp"
+#include "yqlora/render/Light3D.hpp"
 #include "yqlora/render/MeshData.hpp"
 #include "yqlora/render/MeshRenderer.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
@@ -103,7 +104,7 @@ bool hitsBounds(const Ray& ray, const Bounds& bounds)
 struct Hit {
     NodeId node = 0;
     float t = 0.0f;
-    // Нормаль поверхности в мире; у камеры - нулевая.
+    // Нормаль поверхности в мире; у камеры и света - нулевая.
     Vec3 normal{0.0f};
 };
 
@@ -114,18 +115,19 @@ void keepNearest(std::optional<Hit>& best, NodeId node, std::optional<float> t, 
     }
 }
 
-// Камеры - узлы, а не компоненты, поэтому их ищем по дереву.
-void pickCameras(const Node& node, const Ray& worldRay, std::optional<Hit>& best)
+// Камеры и свет - узлы, а не компоненты, поэтому их ищем по дереву.
+void pickHandles(const Node& node, const Ray& worldRay, std::optional<Hit>& best)
 {
     // Неактивную ветку не видно, и выбрать её можно только в дереве.
     if (!node.activeInHierarchy()) {
         return;
     }
-    if (const auto* camera = dynamic_cast<const Camera3D*>(&node)) {
-        keepNearest(best, camera->id(), intersectSphere(worldRay, camera->worldPosition(), kCameraPickRadius));
+    const auto* handle = dynamic_cast<const Node3D*>(&node);
+    if (handle && (dynamic_cast<const Camera3D*>(handle) || dynamic_cast<const Light3D*>(handle))) {
+        keepNearest(best, handle->id(), intersectSphere(worldRay, handle->worldPosition(), kHandlePickRadius));
     }
     for (const auto& child : node.children()) {
-        pickCameras(*child, worldRay, best);
+        pickHandles(*child, worldRay, best);
     }
 }
 
@@ -178,7 +180,7 @@ NodeId pickNode(const Scene& scene, const Ray& ray)
         return 0;
     }
     std::optional<Hit> best;
-    pickCameras(*scene.root(), ray, best);
+    pickHandles(*scene.root(), ray, best);
     forEachMesh(scene, [&](const Node3D& node, const MeshData& mesh) {
         pickMesh(node, mesh, ray, best);
     });

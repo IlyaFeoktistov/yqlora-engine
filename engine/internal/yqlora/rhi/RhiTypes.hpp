@@ -11,6 +11,7 @@ enum class Format {
     None, // нет вложения: проход без глубины
     Rgba8,
     Rgba8Srgb,
+    Rgba16Float, // линейный HDR-цвет кадра
     R8,
     Depth24Stencil8,
 };

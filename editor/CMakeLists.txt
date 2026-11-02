@@ -44,6 +44,7 @@ add_library(yqlora_editor STATIC
     src/Snapping.cpp
     src/SettingsCommands.cpp
     src/SettingsEditing.cpp
+    src/NewScene.cpp
     src/ProjectSetup.cpp
     src/ProjectFiles.cpp
     src/ProjectList.cpp
@@ -81,7 +82,9 @@ add_library(yqlora_editor_ui STATIC
     ui/src/dialogs/UnsavedChangesDialog.cpp
     ui/src/gizmos/AxisGizmo.cpp
     ui/src/gizmos/CameraGizmo.cpp
+    ui/src/gizmos/GizmoDrawing.cpp
     ui/src/gizmos/GizmoLayer.cpp
+    ui/src/gizmos/LightGizmo.cpp
     ui/src/gizmos/GridGizmo.cpp
     ui/src/gizmos/ManipulatorGizmo.cpp
     ui/src/gizmos/SelectionGizmo.cpp

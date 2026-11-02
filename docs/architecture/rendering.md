@@ -16,7 +16,8 @@ snapshot made by Extract, never the scene.
 
 ```
  SCENE (simulated, world matrices ready)
-   RenderSystem: active cameras sorted by order
+   RenderSystem: active cameras sorted by order, active lights
+   LightingSettings: ambient light
    MeshRenderer: enabled components, their mesh (from ResourceCache),
                  colour, node layer
    Node3D: world matrices
@@ -25,21 +26,25 @@ snapshot made by Extract, never the scene.
         v
  FrameData (snapshot, nothing points back into the scene)
    views[]      one per camera: view and projection, clear mode,
-                background, culling mask, passes of the view's owner
+                background (linear), culling mask, passes of the owner
    drawItems[]  mesh with its ID and revision, world matrix, world
                 bounds, colour, layer, node id
+   lights[]     up to 4 directional and 32 point and spot lights: world,
+                linear colour times intensity, range, cone
+   ambient      ambient light, linear
         |
         |  Renderer::render(frame)          -> window back buffer
         |  Renderer::render(frame, target)  -> RenderTarget (a texture)
         v
  Renderer::drawScene: one RenderGraph per call       engine/render
-   for each view, in camera order:
+   for each view, in camera order, into the HDR target (Rgba16Float):
      prepareView  layer mask and frustum culling, nearest first
      view pass    clear colour and depth / depth only / nothing,
-                  MeshPass: the visible items through the view camera,
-                  one fixed directional light
-     ViewPass*    passes of the owner: the Viewport adds GridPass and
-                  OutlinePass (editor/render)
+                  MeshPass: the visible items through the view camera
+                  with the Standard shader (PBR, all lights of the frame)
+   OutputPass     the HDR target from linear to sRGB into the final target
+   ViewPass*      passes of the view owners over the final target: the
+                  Viewport adds GridPass and OutlinePass (editor/render)
    graph.execute  orders the passes, makes the transient textures,
                   changes texture states, records RHI commands
         |
@@ -58,8 +63,8 @@ snapshot made by Extract, never the scene.
 
 ### What the stages will hold [planned]
 
-The stages above stay; later steps fill them: lights and materials in
-step 5, shadows, sky, transparency and post-processing after the MVP,
+The stages above stay; later steps fill them: lights, materials, sky and
+transparency in step 5, shadows and post-processing after the MVP,
 Vulkan and D3D12 as new backends.
 
 ```
@@ -73,6 +78,36 @@ Vulkan and D3D12 as new backends.
  RHI       -> one interface over OpenGL, Vulkan, D3D12   backends/<api>
  Present
 ```
+
+## Photorealism by default [planned, after the MVP]
+
+The goal, as in Unreal Engine: the defaults are chosen so that the picture
+looks like a photograph at once. Everything stays tunable: each effect has
+its own parameters, which can be changed or turned off for a style of
+one's own. It is a large stage after the MVP; the decisions of step 5 leave
+room for it:
+
+- **Post-processing** in and before the output pass: tone mapping (a
+  filmic curve), camera exposure and auto exposure, bloom, temporal
+  anti-aliasing (TAA), then depth of field, motion blur, colour grading.
+  The HDR target and the single output pass of step 5 are where they go.
+- **Physical light units** (lux for a directional light, lumens or candela
+  for point and spot lights) and a physical camera (exposure in EV) come
+  together with exposure: without it a 100000 lux sun burns out. Until
+  then intensity is relative (see [lights](materials.md#lights-planned-step-5)),
+  and changing the units is a scene migration.
+- **Image-based lighting**: reflections of the sky and environment maps on
+  metals (IBL), ambient occlusion (SSAO), then global illumination.
+- **Area lights**: a rectangle and a disc (computed with LTC), like Rect
+  Light in Unreal; directional, point and spot lights exist from step 5,
+  and so does the sun, a directional light with a flag.
+- **Shadows**: cascaded for the directional light, their own maps for
+  point and spot lights.
+- **A physical sky** (atmospheric scattering, like Sky Atmosphere in
+  Unreal) is one more sky shader: the sky is already a material (see
+  [sky](materials.md#sky-and-environment-planned-step-5)).
+
+The content and order of the stage are agreed separately, before it starts.
 
 ## The RHI stage [done]
 
@@ -189,7 +224,7 @@ profile below are checked on every target API when its backend arrives.
   library (`<yqlora/uniforms.glsl>`) and keep only what it reads.
 - **Built-in shaders** **[done]** live in `engine/shaders` and are embedded
   into the engine library. Their path in the compiler starts with
-  `engine:` (`engine:mesh.vert`); errors show the same path.
+  `engine:` (`engine:standard.yshader`); errors show the same path.
   `#include <yqlora/...>` takes a file from `engine/shaders/include`, so the
   shaders of a project in step 5 include the same library.
 - **Where it lives** **[done]**: `engine/internal/yqlora/shader` -
@@ -268,8 +303,9 @@ profile below are checked on every target API when its backend arrives.
    an uploaded texture sampled the right way up, a frame with a mesh, the
    grid and the outline, the depth test with clip depth 0..1.
 
-Out of the stage: the Vulkan and D3D12 backends, the render thread, shadows,
-sky and post-processing (their place in the graph is ready).
+Out of the stage: the Vulkan and D3D12 backends, the render thread, shadows
+and post-processing (their place in the graph is ready); the sky is in
+[step 5](materials.md#sky-and-environment-planned-step-5).
 
 ## Meshes and textures [done]
 

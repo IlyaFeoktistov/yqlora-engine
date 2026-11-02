@@ -15,6 +15,18 @@
         "Camera3D": {
             "description": "Perspective camera. Cameras draw in order, the first one is the main."
         },
+        "Light3D": {
+            "description": "Base of light sources: colour and intensity. Shines along the -Z axis of the node."
+        },
+        "DirectionalLight3D": {
+            "description": "Light from far away, the same across the scene, like the sun. Only the rotation matters."
+        },
+        "PointLight3D": {
+            "description": "Light from a point in all directions; fades with distance and goes out at the range."
+        },
+        "SpotLight3D": {
+            "description": "A spot: a point light in a cone along -Z, with a soft edge between the inner and outer angle."
+        },
         "Component": {
             "description": "Base of all components. A disabled component takes no part in the game."
         },
@@ -50,6 +62,9 @@
         },
         "GraphicsSettings": {
             "description": "Graphics API per system and vsync. Changing the API rebuilds only the renderer, no restart."
+        },
+        "LightingSettings": {
+            "description": "Ambient light of the scene: colour and intensity of diffuse light from all sides."
         },
         "ScriptsSettings": {
             "description": "Building the game module from the scripts/ folder: Debug or Release."
@@ -230,6 +245,7 @@
             "clearLayer": "Clear name",
             "ExecutionOrderSettings": "Execution Order",
             "GraphicsSettings": "Graphics",
+            "LightingSettings": "Lighting",
             "ScriptsSettings": "Scripts",
             "InputSettings": "Input"
         },
@@ -353,6 +369,12 @@
         "actions": "Actions",
         "kind": "Kind",
         "bindings": "Bindings",
-        "control": "Control"
+        "control": "Control",
+        "intensity": "Intensity",
+        "range": "Range",
+        "innerAngle": "Inner angle",
+        "outerAngle": "Outer angle",
+        "ambientColor": "Ambient colour",
+        "ambientIntensity": "Ambient intensity"
     }
 }

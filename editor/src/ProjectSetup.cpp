@@ -3,11 +3,12 @@
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/core/Log.hpp"
 #include "yqlora/core/Utf8Path.hpp"
+#include "yqlora/editor/NewScene.hpp"
 #include "yqlora/editor/ProjectFiles.hpp"
 #include "yqlora/project/GeneralSettings.hpp"
-#include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/MeshRenderer.hpp"
 #include "yqlora/resource/BuiltinResources.hpp"
+#include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/Scene.hpp"
 #include "yqlora/scene/SceneSerializer.hpp"
 
@@ -22,23 +23,17 @@ constexpr const char* kMainSceneName = "main";
 constexpr const char* kScenesFolder = "scenes";
 // Стартовые папки нового проекта; стартовая сцена - в kScenesFolder.
 constexpr std::array<const char*, 3> kStarterFolders{kScenesFolder, "scripts", "assets"};
-// Куб стоит на сетке, камера смотрит на него спереди и сверху.
-const Vec3 kStarterCubePosition(0.0f, 0.5f, 0.0f);
-const Vec3 kStarterCameraPosition(0.0f, 2.0f, 5.0f);
 constexpr std::size_t kMaxFileNameLength = 64;
 // Запрещены в именах файлов на Windows, а "/" - везде.
 constexpr std::string_view kForbiddenFileNameChars = "/\\:*?\"<>|";
 
-// Чтобы новый проект сразу что-то показывал: камера и куб на сетке.
+// Чтобы новый проект сразу что-то показывал: новая сцена и куб на сетке
+// там, куда смотрит её камера.
 void buildStarterScene(Scene& scene)
 {
-    auto& root = scene.createRoot<Node3D>("Main");
-    auto& camera = root.addChild<Camera3D>("Camera");
-    camera.transform().setPosition(kStarterCameraPosition);
-    camera.transform().lookAt(kStarterCubePosition);
-
-    auto& cube = root.addChild<Node3D>("Cube");
-    cube.transform().setPosition(kStarterCubePosition);
+    buildNewScene(scene, "Main");
+    auto& cube = scene.root()->addChild<Node3D>("Cube");
+    cube.transform().setPosition(kNewSceneFocus);
     cube.addComponent<MeshRenderer>().setMesh(ResourceRef{builtin::kCubeMesh});
 }
 

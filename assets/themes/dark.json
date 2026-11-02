@@ -83,6 +83,7 @@
         "warningText": "#E5C07B",
         "selectionOutline": "#FF9A1A",
         "cameraGizmo": "#C8CDD6",
+        "lightGizmo": "#F2D16B",
         "viewportBackground": "#14171F",
         "playMode": "#5FB878",
         "axisX": "#E5534B",

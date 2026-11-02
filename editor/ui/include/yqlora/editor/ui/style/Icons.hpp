@@ -1,5 +1,11 @@
 #pragma once
 
+#include "yqlora/render/Camera3D.hpp"
+#include "yqlora/render/DirectionalLight3D.hpp"
+#include "yqlora/render/PointLight3D.hpp"
+#include "yqlora/render/SpotLight3D.hpp"
+#include "yqlora/scene/Node3D.hpp"
+
 #include <string_view>
 
 // Иконки из шрифта Lucide (assets/fonts/lucide.ttf, пакет lucide-static 1.54.0).
@@ -26,9 +32,12 @@ inline constexpr const char* kPause = "\uE12E"; // pause
 inline constexpr const char* kStop = "\uE167";  // square
 
 // Типы узлов в дереве сцены.
-inline constexpr const char* kNode = "\uE345";     // circle-dot
-inline constexpr const char* kNode3D = "\uE2FE";   // axis-3d
-inline constexpr const char* kCamera3D = "\uE1A5"; // video
+inline constexpr const char* kNode = "\uE345";               // circle-dot
+inline constexpr const char* kNode3D = "\uE2FE";             // axis-3d
+inline constexpr const char* kCamera3D = "\uE1A5";           // video
+inline constexpr const char* kDirectionalLight3D = "\uE178"; // sun
+inline constexpr const char* kPointLight3D = "\uE1C2";       // lightbulb
+inline constexpr const char* kSpotLight3D = "\uE0D3";        // flashlight
 
 // Файлы и действия.
 inline constexpr const char* kFolder = "\uE0D7";     // folder
@@ -62,10 +71,19 @@ inline constexpr const char* kError = "\uE084";   // circle-x
 // Иконка для типа узла; для неизвестного типа - иконка простого Node.
 inline const char* forNodeType(std::string_view type)
 {
-    if (type == "Camera3D") {
+    if (type == Camera3D::staticTypeName()) {
         return kCamera3D;
     }
-    if (type == "Node3D") {
+    if (type == DirectionalLight3D::staticTypeName()) {
+        return kDirectionalLight3D;
+    }
+    if (type == PointLight3D::staticTypeName()) {
+        return kPointLight3D;
+    }
+    if (type == SpotLight3D::staticTypeName()) {
+        return kSpotLight3D;
+    }
+    if (type == Node3D::staticTypeName()) {
         return kNode3D;
     }
 

@@ -17,6 +17,7 @@ namespace yqlora {
 
 class GpuMeshCache;
 class MeshPass;
+class OutputPass;
 class ShaderCompiler;
 class TransientTextures;
 class UniformRing;
@@ -52,8 +53,8 @@ public:
         return *m_context;
     }
 
-    // Рисует кадр в окно: каждый вид - Prepare, сцена и проходы вида в одном
-    // графе. На экране кадр появится после present(): между ними поверх
+    // Рисует кадр в окно одним графом: сцены всех видов по очереди в
+    // линейную HDR-цель, проход вывода в окно, затем проходы владельцев видов. На экране кадр появится после present(): между ними поверх
     // можно дорисовать интерфейс.
     void render(const FrameData& frame);
 
@@ -103,6 +104,7 @@ private:
     std::unique_ptr<TransientTextures> m_transients;
     std::unique_ptr<RenderContext> m_context;
     std::unique_ptr<MeshPass> m_meshPass;
+    std::unique_ptr<OutputPass> m_outputPass;
 };
 
 // Рендерер для окна на бэкенде api (см. GraphicsBackend.hpp). Бросает

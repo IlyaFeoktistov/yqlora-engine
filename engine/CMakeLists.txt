@@ -15,10 +15,13 @@ target_compile_definitions(yqlora_engine_code INTERFACE
 
 # Шейдеры движка лежат файлами в shaders/ и вшиваются в библиотеку при сборке.
 set(YQLORA_ENGINE_SHADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/lighting.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/output.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/standard.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/uniforms.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/vertex.glsl
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/mesh.vert
-    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/mesh.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/standard.yshader
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/output.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fullscreen.vert
 )
 set(YQLORA_ENGINE_SHADERS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/EmbeddedShaders.hpp)
@@ -105,6 +108,13 @@ add_library(yqlora SHARED
     src/reflection/TypeInfo.cpp
     src/reflection/TypeRegistry.cpp
     src/render/Camera3D.cpp
+    src/render/DirectionalLight3D.cpp
+    src/render/Light3D.cpp
+    src/render/LightingSettings.cpp
+    src/render/OutputPass.cpp
+    src/render/PointLight3D.cpp
+    src/render/ShaderData.cpp
+    src/render/SpotLight3D.cpp
     src/render/FrameBuilder.cpp
     src/render/GpuMesh.cpp
     src/render/GraphicsBackend.cpp

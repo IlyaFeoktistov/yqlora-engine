@@ -3,6 +3,7 @@
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/core/Log.hpp"
 #include "yqlora/core/Utf8Path.hpp"
+#include "yqlora/editor/NewScene.hpp"
 #include "yqlora/editor/ProjectSetup.hpp"
 #include "yqlora/project/Project.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
@@ -182,7 +183,9 @@ std::optional<fs::path> ProjectFiles::createScene(
     if (fs::exists(file, ec)) {
         return std::nullopt;
     }
-    if (!serializer.save(Scene(EngineServices::none()), file)) {
+    Scene scene(EngineServices::none());
+    buildNewScene(scene, std::string(name));
+    if (!serializer.save(scene, file)) {
         return std::nullopt;
     }
     m_project.resources().add(relative);

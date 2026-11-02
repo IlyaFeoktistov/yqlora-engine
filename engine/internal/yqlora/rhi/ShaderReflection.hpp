@@ -52,6 +52,8 @@ struct UniformField {
     std::uint32_t size = 0;
     // 0 - не массив.
     std::uint32_t arraySize = 0;
+    // Байт от элемента до элемента массива; 0 - не массив.
+    std::uint32_t arrayStride = 0;
 };
 
 enum class BindingKind {

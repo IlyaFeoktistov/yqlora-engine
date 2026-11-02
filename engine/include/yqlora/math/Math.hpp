@@ -9,6 +9,8 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
+#include <cmath>
+
 namespace yqlora {
 
 // Математика движка - это glm, и она часть публичного API: движок и игры
@@ -44,6 +46,32 @@ template <glm::length_t Size>
 bool nearlyEqual(const glm::vec<Size, float>& a, const glm::vec<Size, float>& b, float epsilon = kEpsilon)
 {
     return glm::all(glm::epsilonEqual(a, b, epsilon));
+}
+
+// Цвет из sRGB, в котором его выбирает человек, в линейный RGB, в котором
+// считается свет. Точная кривая sRGB (IEC 61966-2-1), а не степень 2.2.
+inline float srgbToLinear(float value)
+{
+    constexpr float kLinearSegmentEnd = 0.04045f;
+    constexpr float kLinearSlope = 12.92f;
+    constexpr float kOffset = 0.055f;
+    constexpr float kGamma = 2.4f;
+    if (value <= kLinearSegmentEnd) {
+        return value / kLinearSlope;
+    }
+
+    return std::pow((value + kOffset) / (1.0f + kOffset), kGamma);
+}
+
+inline Vec3 srgbToLinear(const Vec3& color)
+{
+    return {srgbToLinear(color.r), srgbToLinear(color.g), srgbToLinear(color.b)};
+}
+
+// Альфа не цвет и не меняется.
+inline Vec4 srgbToLinear(const Vec4& color)
+{
+    return {srgbToLinear(Vec3(color)), color.a};
 }
 
 } // namespace math

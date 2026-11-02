@@ -4,6 +4,7 @@
 #include "yqlora/editor/ui/gizmos/AxisGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/CameraGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/GridGizmo.hpp"
+#include "yqlora/editor/ui/gizmos/LightGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/ManipulatorGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/SelectionGizmo.hpp"
 #include "yqlora/editor/ui/style/Icons.hpp"
@@ -51,6 +52,7 @@ ViewportPanel::ViewportPanel()
     m_gizmos.add(std::make_unique<ManipulatorGizmo>());
     m_gizmos.add(std::make_unique<AxisGizmo>());
     m_gizmos.add(std::make_unique<CameraGizmo>());
+    m_gizmos.add(std::make_unique<LightGizmo>());
     m_gizmos.add(std::make_unique<GridGizmo>());
     m_gizmos.add(std::make_unique<SelectionGizmo>());
 }

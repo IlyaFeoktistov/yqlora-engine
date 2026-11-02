@@ -10,8 +10,7 @@
 
 namespace yqlora {
 
-// Непрозрачные меши вида. Пока источников света в сцене нет, всё освещено
-// одним фиксированным направленным светом из данных кадра.
+// Непрозрачные меши вида шейдером Standard, в HDR-цель кадра.
 class MeshPass {
 public:
     explicit MeshPass(const RenderContext& context);

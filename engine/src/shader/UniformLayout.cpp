@@ -34,6 +34,12 @@ std::vector<std::string> checkUniformLayout(const rhi::ShaderReflection& reflect
                 + std::to_string(member->offset) + " in C++"
             );
         }
+        if (member->arrayStride != field.arrayStride) {
+            errors.push_back(
+                where + ": field '" + field.name + "' has an array stride of " + std::to_string(field.arrayStride)
+                + " bytes in the shader, " + std::to_string(member->arrayStride) + " in C++"
+            );
+        }
         if (member->size != field.size) {
             errors.push_back(
                 where + ": field '" + field.name + "' is " + std::to_string(field.size) + " bytes in the shader, "
