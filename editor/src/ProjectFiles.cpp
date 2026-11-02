@@ -9,6 +9,7 @@
 #include "yqlora/resource/ResourceDatabase.hpp"
 #include "yqlora/scene/Scene.hpp"
 #include "yqlora/scene/SceneSerializer.hpp"
+#include "yqlora/shader/ShaderData.hpp"
 
 #include <algorithm>
 #include <array>
@@ -24,16 +25,18 @@ namespace fs = std::filesystem;
 
 constexpr const char* kTemplatesFolder = "templates";
 constexpr const char* kCppScriptTemplate = "cpp-script";
+constexpr const char* kShaderTemplate = "shader/Shader.yshader";
 // Файлы шаблона и метка имени класса в них; так же их читает tests/sdk/BuildTemplate.cmake.
 constexpr const char* kTemplateFileName = "Script";
 constexpr std::array<std::string_view, 2> kScriptExtensions{".hpp", ".cpp"};
 constexpr std::string_view kNamePlaceholder = "$SCRIPT_NAME$";
 constexpr std::size_t kMaxScriptNameLength = 64;
 
-constexpr std::array<NewResourceType, 3> kNewResourceTypes{{
+constexpr std::array<NewResourceType, 4> kNewResourceTypes{{
     {NewResourceKind::Folder, "editor.files.newFolder", "New Folder"},
     {NewResourceKind::Scene, "editor.files.newScene", "New Scene"},
     {NewResourceKind::CppScript, "editor.files.newCppScript", "NewScript"},
+    {NewResourceKind::Shader, "editor.files.newShader", "New Shader"},
 }};
 
 // "New Scene 2", "New Scene 3"...: первая копия имени получает номер 2.
@@ -51,6 +54,7 @@ std::string occupiedFileName(NewResourceKind kind, std::string_view name)
     case NewResourceKind::Folder: return std::string(name);
     case NewResourceKind::Scene: return std::string(name) + std::string(SceneSerializer::fileExtension());
     case NewResourceKind::CppScript: return std::string(name) + std::string(kScriptExtensions.back());
+    case NewResourceKind::Shader: return std::string(name) + std::string(kShaderFileExtension);
     }
 
     return std::string(name);
@@ -94,6 +98,11 @@ std::span<const NewResourceType> newResourceTypes()
 fs::path cppScriptTemplateDirectory(const fs::path& assets)
 {
     return assets / kTemplatesFolder / kCppScriptTemplate;
+}
+
+fs::path shaderTemplateFile(const fs::path& assets)
+{
+    return assets / kTemplatesFolder / kShaderTemplate;
 }
 
 bool isValidScriptName(std::string_view name)
@@ -254,6 +263,30 @@ std::optional<fs::path> ProjectFiles::createScript(
     }
 
     return folder / fromUtf8(std::string(name) + std::string(kScriptExtensions.back()));
+}
+
+std::optional<fs::path> ProjectFiles::createShader(
+    const fs::path& folder,
+    std::string_view name,
+    const fs::path& templateFile
+)
+{
+    const fs::path relative = folder / fromUtf8(occupiedFileName(NewResourceKind::Shader, name));
+    if (!isValidResourceName(NewResourceKind::Shader, name) || !canModify(relative)) {
+        return std::nullopt;
+    }
+    std::error_code ec;
+    if (fs::exists(m_project.directory() / relative, ec)) {
+        return std::nullopt;
+    }
+    if (!fs::copy_file(templateFile, m_project.directory() / relative, ec)) {
+        log::error("Cannot create shader '{}' from '{}': {}", name, toUtf8(templateFile), ec.message());
+
+        return std::nullopt;
+    }
+    m_project.resources().add(relative);
+
+    return relative;
 }
 
 std::optional<fs::path> ProjectFiles::rename(const fs::path& path, const std::string& newName)

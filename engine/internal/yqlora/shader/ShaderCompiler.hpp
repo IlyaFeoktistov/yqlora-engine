@@ -33,6 +33,9 @@ YQLORA_API std::string formatShaderMessage(const ShaderMessage& message);
 struct ShaderCompileResult {
     std::vector<std::uint32_t> spirv{};
     std::vector<ShaderMessage> errors{};
+    // Пути подключённых файлов в порядке подключения, и при ошибке тоже:
+    // изменился любой из них - шейдер компилируется заново.
+    std::vector<std::string> includes{};
 
     bool ok() const
     {
@@ -65,6 +68,10 @@ public:
     ShaderCompiler& operator=(const ShaderCompiler&) = delete;
 
     ShaderCompileResult compile(const ShaderCompileRequest& request);
+
+    // Текст файла тем же путём, что видит компиляция: engine: - из
+    // библиотеки движка, остальное - через reader. nullopt - файла нет.
+    std::optional<std::string> read(const std::string& path) const;
 
     // Сколько раз дело дошло до glslang: для проверки кэша.
     std::size_t compilations() const

@@ -14,6 +14,10 @@ struct Vertex {
     Vec3 position;
     Vec3 normal;
     Vec2 uv0{0.0f};
+    // Как TANGENT в glTF: xyz - направление роста u, w - знак бинормали
+    // (cross(normal, tangent.xyz) * w смотрит вверх по картинке), поэтому
+    // работают и зеркальные развёртки.
+    Vec4 tangent{1.0f, 0.0f, 0.0f, 1.0f};
 };
 
 // Часть меша со своим материалом. Индекс подмеша в MeshData::submeshes -

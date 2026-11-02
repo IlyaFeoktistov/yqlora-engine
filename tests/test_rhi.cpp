@@ -5,13 +5,13 @@
 
 #include <doctest/doctest.h>
 
+#include <yqlora/render/EngineUniforms.hpp>
 #include <yqlora/render/FrameData.hpp>
 #include <yqlora/render/GpuMesh.hpp>
 #include <yqlora/render/MeshData.hpp>
 #include <yqlora/render/Prepare.hpp>
 #include <yqlora/render/PrimitiveMeshes.hpp>
 #include <yqlora/render/Renderer.hpp>
-#include <yqlora/render/ShaderData.hpp>
 #include <yqlora/render/UniformRing.hpp>
 
 #include <algorithm>
@@ -234,7 +234,7 @@ TEST_CASE("GpuMesh: a mesh goes to buffers and draws all its indices")
 
     const rhi::VertexLayout layout = meshVertexLayout();
     CHECK(layout.stride == sizeof(Vertex));
-    CHECK(layout.attributes.size() == 3);
+    CHECK(layout.attributes.size() == 4);
 
     auto shader = device.createShader({.name = "plain"});
     auto pipeline = device.createPipeline({.shader = shader.get(), .vertexLayout = layout});

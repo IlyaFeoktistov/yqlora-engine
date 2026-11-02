@@ -31,6 +31,8 @@ struct ShaderBuildRequest {
 struct ShaderBuildResult {
     std::optional<rhi::ShaderDesc> desc{};
     std::vector<ShaderMessage> errors{};
+    // Подключённые файлы обеих стадий, каждый один раз.
+    std::vector<std::string> includes{};
 };
 
 // Весь путь шейдера до устройства: компиляция обеих стадий, отражение,

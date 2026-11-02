@@ -23,6 +23,7 @@ enum class NewResourceKind {
     Folder,
     Scene,
     CppScript,
+    Shader,
 };
 
 struct NewResourceType {
@@ -37,6 +38,9 @@ std::span<const NewResourceType> newResourceTypes();
 
 // Шаблон C++-скрипта среди ресурсов редактора (assets).
 std::filesystem::path cppScriptTemplateDirectory(const std::filesystem::path& assets);
+
+// Шаблон нового шейдера среди ресурсов редактора (assets).
+std::filesystem::path shaderTemplateFile(const std::filesystem::path& assets);
 
 // Годится как имя класса C++-скрипта: латиница, цифры и "_", не с цифры.
 bool isValidScriptName(std::string_view name);
@@ -88,6 +92,14 @@ public:
         const std::filesystem::path& folder,
         std::string_view name,
         const std::filesystem::path& templateDirectory
+    );
+
+    // Шейдер name.yshader в папке folder, копия шаблона templateFile.
+    // nullopt, если имя не годится, занято или шаблона нет (причина в логе).
+    std::optional<std::filesystem::path> createShader(
+        const std::filesystem::path& folder,
+        std::string_view name,
+        const std::filesystem::path& templateFile
     );
 
     // Переименовывает файл или папку в той же папке. Возвращает новый путь;

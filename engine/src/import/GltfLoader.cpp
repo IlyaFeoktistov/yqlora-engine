@@ -152,8 +152,10 @@ std::string addPrimitive(const cgltf_data& data, const cgltf_primitive& primitiv
     const std::size_t count = positions->count;
     const cgltf_accessor* normals = findAttribute(primitive, cgltf_attribute_type_normal);
     const cgltf_accessor* uvs = findAttribute(primitive, cgltf_attribute_type_texcoord);
+    const cgltf_accessor* tangents = findAttribute(primitive, cgltf_attribute_type_tangent);
     if ((normals && (normals->count != count || normals->type != cgltf_type_vec3))
-        || (uvs && (uvs->count != count || uvs->type != cgltf_type_vec2))) {
+        || (uvs && (uvs->count != count || uvs->type != cgltf_type_vec2))
+        || (tangents && (tangents->count != count || tangents->type != cgltf_type_vec4))) {
         return "the attributes of a primitive differ in size";
     }
 
@@ -172,6 +174,14 @@ std::string addPrimitive(const cgltf_data& data, const cgltf_primitive& primitiv
         const std::vector<float> uv = unpackFloats(*uvs);
         for (std::size_t i = 0; i < count; ++i) {
             vertices[i].uv0 = glm::make_vec2(&uv[i * Vec2::length()]);
+        }
+    }
+    // Без TANGENT касательные остаются по умолчанию; вычисляются они для
+    // карт нормалей вместе с материалами модели.
+    if (tangents) {
+        const std::vector<float> tangent = unpackFloats(*tangents);
+        for (std::size_t i = 0; i < count; ++i) {
+            vertices[i].tangent = glm::make_vec4(&tangent[i * Vec4::length()]);
         }
     }
 

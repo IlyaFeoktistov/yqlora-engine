@@ -247,6 +247,11 @@ const ShaderCompiler::CacheEntry* ShaderCompiler::findCached(
     return nullptr;
 }
 
+std::optional<std::string> ShaderCompiler::read(const std::string& path) const
+{
+    return readShaderFile(m_reader, path);
+}
+
 ShaderCompileResult ShaderCompiler::compile(const ShaderCompileRequest& request)
 {
     const std::optional<std::string> source = readShaderFile(m_reader, request.path);
@@ -291,6 +296,9 @@ ShaderCompileResult ShaderCompiler::compile(const ShaderCompileRequest& request)
         }
     }
     entry->includes = includer.included();
+    for (const IncludedFile& file : entry->includes) {
+        entry->result.includes.push_back(file.path);
+    }
     m_cache.push_back(std::move(entry));
 
     return m_cache.back()->result;

@@ -235,10 +235,10 @@ std::vector<std::string> checkShaderProfile(const rhi::ShaderReflection& reflect
         );
     }
     for (const rhi::VertexInput& input : reflection.vertexInputs) {
-        if (input.location > kUv0Location) {
+        if (input.location > kTangentLocation) {
             errors.push_back(
                 "vertex input '" + input.name + "': location " + std::to_string(input.location)
-                + " is outside the shader profile (0 position, 1 normal, 2 uv0)"
+                + " is outside the shader profile (0 position, 1 normal, 2 uv0, 3 tangent)"
             );
         }
     }

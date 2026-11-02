@@ -1,0 +1,34 @@
+#version 450
+
+// Освещённый шейдер: цвет и текстура, металличность и шероховатость.
+// Поля блока Material и текстуры набора 2 видны в инспекторе материала;
+// пометки //@ задают, как именно (см. docs/architecture/materials.md).
+#include <yqlora/standard.glsl>
+
+layout(set = 2, binding = 0, std140) uniform Material {
+    vec4 baseColor;  //@ color default(1, 1, 1, 1)
+    float metallic;  //@ range(0, 1) default(0)
+    float roughness; //@ range(0, 1) default(0.5)
+} material;
+
+layout(set = 2, binding = 1) uniform sampler2D baseColorMap; //@ default(white)
+
+#ifdef YQLORA_VERTEX
+void main()
+{
+    standardVertex();
+}
+#endif
+
+#ifdef YQLORA_FRAGMENT
+void main()
+{
+    vec4 color = material.baseColor * texture(baseColorMap, vUv0);
+    Surface surface = defaultSurface();
+    surface.baseColor = color.rgb;
+    surface.alpha = color.a;
+    surface.metallic = material.metallic;
+    surface.roughness = material.roughness;
+    fragColor = shade(surface);
+}
+#endif

@@ -1,5 +1,5 @@
 // Блоки движка по частоте смены: кадр, вид, объект. Раскладка std140
-// повторяет структуры C++ (engine/internal/yqlora/render/ShaderData.hpp) и
+// повторяет структуры C++ (engine/internal/yqlora/render/EngineUniforms.hpp) и
 // сверяется с ними при загрузке шейдера: имена полей и размеры массивов те же.
 #ifndef YQLORA_UNIFORMS_GLSL
 #define YQLORA_UNIFORMS_GLSL

@@ -2,6 +2,7 @@
 
 #include "yqlora/shader/ShaderProfile.hpp"
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace yqlora {
@@ -40,6 +41,13 @@ ShaderBuildResult buildShader(ShaderCompiler& compiler, const ShaderBuildRequest
     });
     result.errors = vertex.errors;
     result.errors.insert(result.errors.end(), fragment.errors.begin(), fragment.errors.end());
+    for (const std::vector<std::string>* list : {&vertex.includes, &fragment.includes}) {
+        for (const std::string& path : *list) {
+            if (std::ranges::find(result.includes, path) == result.includes.end()) {
+                result.includes.push_back(path);
+            }
+        }
+    }
     if (!result.errors.empty()) {
         return result;
     }

@@ -49,6 +49,7 @@ add_executable(yqlora_tests
     test_script_build.cpp
     test_rhi.cpp
     test_shaders.cpp
+    test_shader_resources.cpp
     test_render_graph.cpp
     test_opengl.cpp
     RecordingDevice.cpp
@@ -57,6 +58,7 @@ target_link_libraries(yqlora_tests PRIVATE yqlora::internal yqlora::editor docte
 target_compile_definitions(yqlora_tests PRIVATE
     YQLORA_LOCALES_DIR="${PROJECT_SOURCE_DIR}/assets/locales"
     YQLORA_SCRIPT_TEMPLATE_DIR="${PROJECT_SOURCE_DIR}/assets/templates/cpp-script"
+    YQLORA_ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets"
     YQLORA_CMAKE_COMMAND="${CMAKE_COMMAND}"
     YQLORA_SDK_DIR="$<TARGET_FILE_DIR:yqlora>/sdk"
     YQLORA_TEST_GAME_MODULE="$<TARGET_FILE:yqlora_test_game>"

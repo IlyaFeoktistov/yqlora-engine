@@ -15,6 +15,7 @@
 #include "yqlora/render/TextureData.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
+#include "yqlora/shader/ShaderData.hpp"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -42,6 +43,9 @@ const char* iconFor(const ProjectFiles::Entry& entry, bool open, std::string_vie
     }
     if (kind == TextureData::kResourceKind) {
         return icons::kImageFile;
+    }
+    if (kind == ShaderData::kResourceKind) {
+        return icons::kShaderFile;
     }
 
     return Project::isSource(entry.path) ? icons::kCodeFile : icons::kFile;
@@ -77,6 +81,7 @@ const char* iconFor(NewResourceKind kind)
     case NewResourceKind::Folder: return icons::kAddFolder;
     case NewResourceKind::Scene: return icons::kScene;
     case NewResourceKind::CppScript: return icons::kCodeFile;
+    case NewResourceKind::Shader: return icons::kShaderFile;
     }
 
     return icons::kFile;
@@ -331,6 +336,9 @@ void FileSystemPanel::drawCreateDialog(
         case NewResourceKind::Scene: created = files.createScene(m_createFolder, m_createName, serializer); break;
         case NewResourceKind::CppScript:
             created = files.createScript(m_createFolder, m_createName, cppScriptTemplateDirectory(assetsDirectory()));
+            break;
+        case NewResourceKind::Shader:
+            created = files.createShader(m_createFolder, m_createName, shaderTemplateFile(assetsDirectory()));
             break;
         }
         if (created) {

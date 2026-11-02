@@ -41,8 +41,9 @@ Status marks: see [README](README.md).
   pressing "Save"; the edit history of the scene does not hold them. Undo
   for materials can come later; assigning a material in the scene is a
   scene edit and is undone as one.
-- **Forward rendering, every light per pixel**, no shadows: shadows and
-  post-processing come after the MVP (their place in the graph is ready).
+- **Forward rendering, every light per pixel**, with shadows from the
+  sun, spot and point lights (see "Shadows"); post-processing comes after
+  the MVP (its place in the graph is ready).
 - **Sky and sun as in Unity**: the sky is a material with a sky shader
   (the built-in `Procedural` and `Panoramic` or your own), the sun is a
   directional light; a camera with the `Sky` clear draws the sky as its
@@ -110,8 +111,8 @@ void main()
   reflection, never written twice.
 - **Annotations** for the material inspector. Grammar: a line comment that
   starts with `//@`, then annotations separated by spaces; an annotation is
-  a word with optional arguments in brackets (numbers, or one string in
-  quotes). Annotations on their own lines apply to the next declaration in
+  a word with optional arguments in brackets, separated by commas (numbers,
+  words or a string in quotes). Annotations on their own lines apply to the next declaration in
   the `Material` block or the next texture of set 2; a trailing `//@` on the
   line of a declaration applies to it too. A `//@` line not followed by such
   a declaration is an error.
@@ -307,6 +308,43 @@ ambient light comes from the sky, a gradient or a colour.
 - Sky reflections on metals (environment maps, IBL), clouds and fog come
   after the MVP.
 
+## Shadows [planned, step 5]
+
+As in Unity: lights give shadows, their meshes cast and receive them.
+
+- **Lights**: every light has `shadows` (`None`, `Hard`, `Soft`, like
+  Shadow Type in Unity), `shadowStrength` (0..1), `shadowBias` and
+  `shadowNormalBias` (against shadow acne and peter panning). A new
+  `DirectionalLight3D` and the sun of a new scene use `Soft`, point and
+  spot lights use `None`, as in Unity.
+- **Meshes**: `MeshRenderer::castShadows` and `receiveShadows`, both on by
+  default.
+- **A directional light** uses cascaded shadow maps (CSM): up to 4
+  cascades in one depth texture (2 x 2), cascade splits by the practical
+  scheme (a mix of uniform and logarithmic), each cascade snapped to the
+  texels of the map so the shadow does not shimmer when the camera moves;
+  a smooth blend between cascades. One directional light has shadows: the
+  sun (see "Sky and environment"), and until phase 5.5 the first one with
+  shadows.
+- **A spot light** uses one perspective map, **a point light** six cube
+  faces; both are tiles in a shared shadow atlas, up to 16 tiles per frame
+  (a point light takes six). More shadowed lights: the nearest to the
+  camera get shadows and the log says so once.
+- **Softness**: `Hard` is one depth compared sample, `Soft` a PCF filter
+  over a Poisson disc rotated per pixel, with no banding.
+- **Passes**: shadows are drawn before the opaque pass, once per cascade
+  and tile, depth only, with the depth shader of the mesh (a material with
+  `alphaCutoff` gets its own after phase 5.3, otherwise a shared one). The
+  frame block holds the cascade and tile matrices and the cascade splits;
+  `lighting.glsl` dims the direct light of a light by its map, shadows do
+  not dim the ambient light.
+- **RHI**: a depth format the shader reads (`Depth32Float`) and a
+  comparison sampler (`sampler2DShadow` in the shader profile).
+- **Settings** (Lighting section): shadow distance (100 m by default), the
+  cascade count, the size of a cascade map and of the atlas (quality).
+- **After the MVP**: contact shadows, softness by light size (PCSS),
+  shadows from transparent surfaces, ray tracing.
+
 ## Upgrading old scenes [planned, step 5]
 
 The scene format goes to version 2: `MeshRenderer` has `materials` instead
@@ -420,38 +458,63 @@ only if every scene was read, as `upgradeProject` already does.
   of range adds nothing, a half transparent white quad over black gives the
   linear middle (sRGB about 188), not 128.
 
-### 5.2 Shader resources
+### 5.2 Shader resources [done]
 
-- **Annotations** (`engine/shader/ShaderAnnotations`): the `//@` grammar
-  of "Shader files", bound to the next declaration or to the declaration of
-  the same line, read into property attributes (`color`, `range`,
-  `default`, `label`, `hidden`) and checked against the type from the
-  reflection; every error has the file and line.
-- **`ShaderData`** (resource kind `shader`): the device description
-  (SPIR-V and reflection), the material layout (fields with type, offset,
-  size, attributes, default), the textures (name, binding, default), the
-  files it includes, the errors of the last compile.
-- **`ShaderLoader`** for `.yshader`: compiles through the project reader
-  (includes next to the file, `<yqlora/...>` from the engine), with the
-  profile; a failed compile is the resource error state with all messages.
-- **Dependencies of a resource**: `LoadResult` lists the files read besides
-  the resource file; reloading on focus also looks at them, so a changed
-  include recompiles the shaders that use it.
-- **Tangents in the profile**: location 3, `vec4`; `Vertex` gets
-  `tangent`, `meshVertexLayout` passes it, glTF `TANGENT` is read when
-  present (computing them is phase 5.6).
-- **`.meta` of a shader** records the profile version.
+- **Annotations**, a responsibility per file in `engine/shader/`:
+  `ShaderAnnotations` parses the text (the `//@` grammar of "Shader
+  files", bound to the next declaration or to the declaration of the same
+  line; blank lines and ordinary comments may stand between them),
+  `MaterialAnnotations` applies the annotations (`color`, `range`,
+  `default`, `label`, `hidden`) to a field or texture by the type from the
+  reflection. Every error has the file and line. Annotations are read only
+  in the shader file itself, not in its includes: it is the one that
+  declares the material block; a declaration the shader does not use is
+  not in the reflection, and its annotations describe nothing.
+- **`ShaderData`** (resource kind `shader`, `shader/ShaderData`) is data
+  only: the device description (SPIR-V and reflection), the material
+  layout (fields with type, offset, size, attributes, default), the
+  textures (name, binding, default). `buildShaderData`
+  (`shader/ShaderDataBuild`) makes it: compile, profile, engine blocks, the
+  material set rule (the `Material` block at binding 0, the rest textures)
+  and the annotations. The errors of the last compile are in the resource
+  status (`ResourceStatus::message`), not in the data.
+- **`ShaderLoader`** for `.yshader` (`kShaderFileExtension`): compiler
+  paths are relative to the project folder, so errors name the project
+  file and an include cannot leave the project; `<yqlora/...>` comes from
+  the engine. A failed compile is the resource error with all messages.
+- **Dependencies of a resource**: `LoadResult::dependencies` lists the
+  files read besides the resource file, also on error; `reloadChanged`
+  looks at them too, so a changed include recompiles the shaders using it.
+- **Tangents in the profile**: location 3, `vec4`; `Vertex` gets `tangent`
+  (exact for the built-in meshes), `meshVertexLayout` passes it, glTF
+  `TANGENT` is read when present (computing them is phase 5.7);
+  `standard.glsl` passes `vTangent`.
+- **`.meta` of a shader** records the profile version (`profileVersion`)
+  through `LoadResult::importUpdate`; a shader of another version does not
+  load until the project is upgraded.
 - **Built-in resources** `Standard` and `Error` (`builtin::kStandardShader`,
-  `builtin::kErrorShader`), loaded from `engine:` like the built-in meshes.
-- **Errors in the log** as `file:line: text`, one block per compile, in the
-  log panel next to the script build errors.
-- **"Create resource > Shader"** from `assets/templates/shader` through the
-  window with a name and "Create".
-- **Tests**: annotations parsed on their own lines and trailing; unknown
-  ones, wrong arguments and ones not fitting the type rejected with the
-  line; the loader compiles both stages of one file; an error inside an
+  `builtin::kErrorShader`, `shader/BuiltinShaders`) from `engine:`. All
+  built-in resources (meshes and shaders) are one table
+  (`resource/BuiltinResourceTable`) and are made on first use: only those
+  who need the shaders compile them. Until phase 5.3 `MeshPass` compiles
+  `standard.yshader` itself; with materials it takes the shader from the
+  cache.
+- The C++ engine blocks (`FrameUniforms` and the others) moved to
+  `render/EngineUniforms`: the name `ShaderData` now belongs to the
+  resource.
+- **Errors in the log** as one block per compile: "Resource '...' is not
+  loaded: the shader does not compile:" and `file:line: text` lines.
+- **"Create resource > Shader"** from `assets/templates/shader/Shader.yshader`
+  through the window with a name and "Create"; a shader icon in Files.
+- **Tests**: annotations on their own lines and trailing; an annotation
+  with no declaration and an unfinished one are errors with the line;
+  unknown ones, wrong arguments, ones not fitting the type and repeated
+  ones are rejected with the line; an extra block in the material set is
+  rejected; the template compiles; the built-in shaders are in the cache;
+  the loader gives both stages of one file and writes the profile version
+  into the `.meta`, and does not load another version; an error inside an
   include names that file and line; a changed include reloads the shader;
-  the template compiles; the `.meta` holds the profile version.
+  a new shader is a copy of the template.
 
 ### 5.3 Materials
 
@@ -554,7 +617,34 @@ only if every scene was read, as `upgradeProject` already does.
   `Gradient` lights the top of a cube with the sky colour and the bottom
   with the ground colour.
 
-### 5.6 glTF materials
+### 5.6 Shadows
+
+- **RHI**: `rhi::Format::Depth32Float` readable by shaders, a comparison
+  sampler (`SamplerDesc::compare`), `sampler2DShadow` in the profile and
+  the reflection; the OpenGL backend.
+- **Properties**: `shadows`, `shadowStrength`, `shadowBias`,
+  `shadowNormalBias` on `Light3D`; `castShadows`, `receiveShadows` on
+  `MeshRenderer`; distance, cascades and map sizes in `LightingSettings`.
+- **Extract**: which lights get shadows, the cascades of the directional
+  light (splits, texel-snapped matrices), atlas tiles of spot lights and
+  point light faces; per map lists of shadow casters culled by its
+  frustum.
+- **`ShadowPass`**: the cascade map and the atlas, a depth pass per
+  cascade and tile, before the opaque pass in the graph; the frame block
+  gets the matrices and the splits.
+- **`lighting.glsl`**: cascade selection with blending, `Hard` and `Soft`
+  (PCF over a rotated Poisson disc), biases; `receiveShadows` through the
+  object block.
+- **A new scene**: the sun with `Soft`; the editor shows the cascades in a
+  debug view of the viewport.
+- **Tests**: cascade splits grow and cover the distance; texel snapping
+  keeps the shadow in place when the camera moves less than a texel; tile
+  limits and the nearest kept; on OpenGL: a cube above a plane darkens the
+  plane below it, without `castShadows` it does not, `receiveShadows` off
+  on the plane removes the shadow from it; a point light casts shadows in
+  every direction; the ambient light stays in the shadow.
+
+### 5.7 glTF materials
 
 - **Images of a model** become nested textures (`texture:Name`), from a
   file next to the model or from a buffer of the GLB, with the colour space
@@ -582,7 +672,7 @@ only if every scene was read, as `upgradeProject` already does.
   none; `MASK` gives `alphaCutoff`, not plain opaque; a re-export keeps the
   nested IDs; dropping fills the slots; the copy holds the same values.
 
-### 5.7 Documents
+### 5.8 Documents
 
 This file, rendering (lighting, sRGB, Prepare with materials), resources
 (shaders, materials, dependencies), scene (light nodes, `MeshRenderer`

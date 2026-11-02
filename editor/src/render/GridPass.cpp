@@ -2,7 +2,7 @@
 
 #include "yqlora/editor/render/EditorShaders.hpp"
 
-#include "yqlora/render/ShaderData.hpp"
+#include "yqlora/render/EngineUniforms.hpp"
 #include "yqlora/shader/ShaderBuild.hpp"
 #include "yqlora/shader/ShaderCompiler.hpp"
 

@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -48,9 +49,9 @@ struct LoadedData {
     }
 };
 
-// Загруженные ресурсы по ID: встроенные (всегда) и файлы открытого проекта.
-// Файл читается при первом обращении к любому его ресурсу, загрузчиком по
-// расширению. Данные живут до перезагрузки их файла или смены проекта:
+// Загруженные ресурсы по ID: встроенные (всегда, делаются при первом
+// обращении) и файлы открытого проекта. Файл читается при первом обращении
+// к любому его ресурсу, загрузчиком по расширению. Данные живут до перезагрузки их файла или смены проекта:
 // пользователи берут их заново каждый кадр и между кадрами указатели не
 // хранят. Только из главного потока.
 class YQLORA_API ResourceCache {
@@ -97,7 +98,8 @@ public:
     bool reload(ResourceId id);
 
     // Перечитывает загруженные файлы, которые изменились, пропали или
-    // появились с последней загрузки; ресурсы, которых не было, ищутся
+    // появились с последней загрузки, и файлы, чьи зависимости (подключения
+    // шейдера) изменились; ресурсы, которых не было, ищутся
     // заново при следующем обращении. Возвращает число перечитанных файлов.
     std::size_t reloadChanged();
 
@@ -108,11 +110,20 @@ private:
         ResourceStatus status;
     };
 
+    // Файл на диске, каким его видели при загрузке.
+    struct FileStamp {
+        bool existed = false;
+        std::filesystem::file_time_type time{};
+
+        bool operator==(const FileStamp&) const = default;
+    };
+
     // Загруженный файл и то, каким он был при загрузке.
     struct FileEntry {
-        bool existed = false;
-        std::filesystem::file_time_type time;
-        std::vector<ResourceId> ids;
+        FileStamp stamp{};
+        std::vector<ResourceId> ids{};
+        // Полный путь и вид каждого прочитанного кроме него файла.
+        std::vector<std::pair<std::filesystem::path, FileStamp>> dependencies{};
     };
 
     struct Found {
@@ -120,12 +131,17 @@ private:
         std::uint64_t revision;
     };
 
+    static FileStamp stampOf(const std::filesystem::path& full);
+
     Found getData(ResourceId id, std::string_view kind);
-    void addBuiltins();
+    // Встроенный ресурс id в записи; false, если такого нет.
+    bool makeBuiltin(ResourceId id);
+    // Поля, которые загрузчик пишет в настройки импорта файла.
+    void updateImport(ResourceId file, const nlohmann::json& update);
     // Читает файл (путь от папки проекта) и заменяет записи его ресурсов.
     void loadFile(const std::filesystem::path& file);
     const ResourceLoader* loaderFor(const std::filesystem::path& file) const;
-    LoadRequest request(ResourceId file, const std::filesystem::path& full) const;
+    LoadRequest request(ResourceId file, const std::filesystem::path& relative) const;
     void setEntry(ResourceId id, Entry entry);
 
     std::vector<std::unique_ptr<ResourceLoader>> m_loaders;

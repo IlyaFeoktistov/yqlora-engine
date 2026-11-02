@@ -48,6 +48,7 @@ inline constexpr const char* kScene = "\uE29B";      // clapperboard
 inline constexpr const char* kCodeFile = "\uE0C3";   // file-code
 inline constexpr const char* kModelFile = "\uE310";  // file-box
 inline constexpr const char* kImageFile = "\uE31C";  // file-image
+inline constexpr const char* kShaderFile = "\uE59C"; // blend
 inline constexpr const char* kMesh = "\uE524";       // cuboid
 inline constexpr const char* kBuild = "\uE0EC";      // hammer
 inline constexpr const char* kMainScene = "\uE176";  // star

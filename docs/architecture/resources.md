@@ -115,7 +115,8 @@ own `ResourceId`, so a `ResourceRef` stays a single 64-bit number.
 
 ### Meshes
 
-- `Vertex`: position, normal, `uv0`. Tangents come with normal maps in step 5.
+- `Vertex`: position, normal, `uv0`, tangent (from `TANGENT` when present;
+  computing them comes with glTF materials in step 5).
 - `MeshData` has submeshes (index ranges, one per glTF primitive) and bounds
   (AABB, for picking and later culling). A submesh has a stable index: it is
   the material slot of step 5, and it keeps the index of the glTF material of

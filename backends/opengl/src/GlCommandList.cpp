@@ -19,6 +19,7 @@ GLint componentCount(rhi::VertexFormat format)
     switch (format) {
     case rhi::VertexFormat::Float2: return 2;
     case rhi::VertexFormat::Float3: return 3;
+    case rhi::VertexFormat::Float4: return 4;
     }
 
     return 0;

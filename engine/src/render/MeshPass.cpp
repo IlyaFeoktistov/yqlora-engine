@@ -1,7 +1,7 @@
 #include "yqlora/render/MeshPass.hpp"
 
+#include "yqlora/render/EngineUniforms.hpp"
 #include "yqlora/render/GpuMesh.hpp"
-#include "yqlora/render/ShaderData.hpp"
 #include "yqlora/shader/EngineShaders.hpp"
 #include "yqlora/shader/ShaderBuild.hpp"
 

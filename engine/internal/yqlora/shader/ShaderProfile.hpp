@@ -25,6 +25,8 @@ inline constexpr std::uint32_t kObjectSet = 3;
 inline constexpr std::uint32_t kPositionLocation = 0;
 inline constexpr std::uint32_t kNormalLocation = 1;
 inline constexpr std::uint32_t kUv0Location = 2;
+// Как TANGENT в glTF: vec4, w - знак бинормали.
+inline constexpr std::uint32_t kTangentLocation = 3;
 
 // Пределы OpenGL 3.3.
 inline constexpr std::size_t kMaxShaderTextures = 16;

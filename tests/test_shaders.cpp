@@ -2,7 +2,7 @@
 
 #include <yqlora/editor/render/EditorShaders.hpp>
 
-#include <yqlora/render/ShaderData.hpp>
+#include <yqlora/render/EngineUniforms.hpp>
 #include <yqlora/shader/EngineShaders.hpp>
 #include <yqlora/shader/ShaderBuild.hpp>
 #include <yqlora/shader/ShaderCompiler.hpp>
@@ -138,7 +138,7 @@ TEST_CASE("Shaders: reflection of the Standard shader")
     REQUIRE(frame);
     CHECK(frame->stages == rhi::stageBit(rhi::ShaderStage::Fragment));
 
-    REQUIRE(reflection.vertexInputs.size() == 3);
+    REQUIRE(reflection.vertexInputs.size() == 4);
     const auto normal = std::ranges::find(reflection.vertexInputs, kNormalLocation, &rhi::VertexInput::location);
     REQUIRE(normal != reflection.vertexInputs.end());
     CHECK(normal->type == rhi::ValueType::Vec3);

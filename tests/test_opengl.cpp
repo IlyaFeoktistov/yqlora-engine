@@ -8,6 +8,7 @@
 #include <yqlora/editor/render/OutlinePass.hpp>
 #include <yqlora/platform/Platform.hpp>
 #include <yqlora/platform/Window.hpp>
+#include <yqlora/render/EngineUniforms.hpp>
 #include <yqlora/render/GraphicsBackend.hpp>
 #include <yqlora/render/MeshData.hpp>
 #include <yqlora/render/OutputPass.hpp>
@@ -15,7 +16,6 @@
 #include <yqlora/render/PrimitiveMeshes.hpp>
 #include <yqlora/render/RenderGraph.hpp>
 #include <yqlora/render/Renderer.hpp>
-#include <yqlora/render/ShaderData.hpp>
 #include <yqlora/render/ViewPass.hpp>
 #include <yqlora/shader/EngineShaders.hpp>
 #include <yqlora/shader/ShaderBuild.hpp>

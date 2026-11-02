@@ -18,10 +18,12 @@ void addQuad(MeshData& mesh, const Vec3& center, const Vec3& right, const Vec3& 
     const Vec3 halfUp = up * 0.5f;
 
     // uv0 как в glTF: (0, 0) - левый верхний угол картинки, v растёт вниз.
-    mesh.vertices.push_back({center - halfRight - halfUp, normal, {0.0f, 1.0f}});
-    mesh.vertices.push_back({center + halfRight - halfUp, normal, {1.0f, 1.0f}});
-    mesh.vertices.push_back({center + halfRight + halfUp, normal, {1.0f, 0.0f}});
-    mesh.vertices.push_back({center - halfRight + halfUp, normal, {0.0f, 0.0f}});
+    // u растёт вдоль right, верх картинки - вдоль up = cross(normal, right).
+    const Vec4 tangent(glm::normalize(right), 1.0f);
+    mesh.vertices.push_back({center - halfRight - halfUp, normal, {0.0f, 1.0f}, tangent});
+    mesh.vertices.push_back({center + halfRight - halfUp, normal, {1.0f, 1.0f}, tangent});
+    mesh.vertices.push_back({center + halfRight + halfUp, normal, {1.0f, 0.0f}, tangent});
+    mesh.vertices.push_back({center - halfRight + halfUp, normal, {0.0f, 0.0f}, tangent});
     mesh.indices.insert(mesh.indices.end(), {first, first + 1, first + 2, first, first + 2, first + 3});
 }
 
@@ -68,7 +70,9 @@ MeshData makeSphere()
             const Vec3 normal(std::sin(theta) * std::sin(phi), std::cos(theta), std::sin(theta) * std::cos(phi));
             // Развёртка по долготе и широте, v = 0 у верхнего полюса.
             const Vec2 uv(static_cast<float>(segment) / kSegments, static_cast<float>(ring) / kRings);
-            mesh.vertices.push_back({normal * kRadius, normal, uv});
+            // u растёт с долготой: касательная - производная положения по ней.
+            const Vec4 tangent(std::cos(phi), 0.0f, -std::sin(phi), 1.0f);
+            mesh.vertices.push_back({normal * kRadius, normal, uv, tangent});
         }
     }
 

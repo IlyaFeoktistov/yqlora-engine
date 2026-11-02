@@ -21,6 +21,7 @@ set(YQLORA_ENGINE_SHADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/uniforms.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/vertex.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/standard.yshader
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/error.yshader
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/output.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fullscreen.vert
 )
@@ -66,6 +67,7 @@ add_library(yqlora SHARED
     src/import/EngineLoaders.cpp
     src/import/GltfLoader.cpp
     src/import/ImageLoader.cpp
+    src/import/ShaderLoader.cpp
     src/import/StbImage.cpp
     src/import/TextureImport.cpp
     src/input/Input.cpp
@@ -113,7 +115,7 @@ add_library(yqlora SHARED
     src/render/LightingSettings.cpp
     src/render/OutputPass.cpp
     src/render/PointLight3D.cpp
-    src/render/ShaderData.cpp
+    src/render/EngineUniforms.cpp
     src/render/SpotLight3D.cpp
     src/render/FrameBuilder.cpp
     src/render/GpuMesh.cpp
@@ -131,13 +133,19 @@ add_library(yqlora SHARED
     src/render/RenderTypes.cpp
     src/render/UniformRing.cpp
     src/rhi/Pipeline.cpp
+    src/resource/BuiltinResourceTable.cpp
     src/resource/ResourceCache.cpp
     src/resource/ResourceDatabase.cpp
     src/resource/ResourceLoader.cpp
     src/runtime/GameRuntime.cpp
+    src/shader/BuiltinShaders.cpp
     src/shader/EngineShaders.cpp
+    src/shader/MaterialAnnotations.cpp
+    src/shader/ShaderAnnotations.cpp
     src/shader/ShaderBuild.cpp
     src/shader/ShaderCompiler.cpp
+    src/shader/ShaderData.cpp
+    src/shader/ShaderDataBuild.cpp
     src/shader/ShaderReflect.cpp
     src/shader/UniformLayout.cpp
     src/scripting/GameModule.cpp

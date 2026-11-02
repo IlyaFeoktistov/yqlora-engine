@@ -63,8 +63,8 @@ snapshot made by Extract, never the scene.
 
 ### What the stages will hold [planned]
 
-The stages above stay; later steps fill them: lights, materials, sky and
-transparency in step 5, shadows and post-processing after the MVP,
+The stages above stay; later steps fill them: lights, materials, sky,
+shadows and transparency in step 5, post-processing after the MVP,
 Vulkan and D3D12 as new backends.
 
 ```
@@ -101,8 +101,9 @@ room for it:
 - **Area lights**: a rectangle and a disc (computed with LTC), like Rect
   Light in Unreal; directional, point and spot lights exist from step 5,
   and so does the sun, a directional light with a flag.
-- **Shadows**: cascaded for the directional light, their own maps for
-  point and spot lights.
+- **Shadows beyond step 5** (which brings sun cascades, an atlas for spot
+  and point lights, PCF softness): contact shadows, softness by light size
+  (PCSS), shadows from transparent surfaces, ray tracing.
 - **A physical sky** (atmospheric scattering, like Sky Atmosphere in
   Unreal) is one more sky shader: the sky is already a material (see
   [sky](materials.md#sky-and-environment-planned-step-5)).
@@ -194,8 +195,8 @@ profile below are checked on every target API when its backend arrives.
   - resources: std140 uniform blocks and combined samplers (`sampler2D`,
     `samplerCube`); no storage buffers, images or separate samplers;
   - sets: 0 frame, 1 view, 2 material, 3 object;
-  - vertex inputs by fixed location: 0 position, 1 normal, 2 `uv0`
-    (tangents with normal maps in step 5);
+  - vertex inputs by fixed location: 0 position, 1 normal, 2 `uv0`,
+    3 tangent (`vec4`, `w` is the bitangent sign);
   - limits of OpenGL 3.3: at most 16 textures per shader, a uniform block
     at most 16 KB.
 
@@ -303,15 +304,15 @@ profile below are checked on every target API when its backend arrives.
    an uploaded texture sampled the right way up, a frame with a mesh, the
    grid and the outline, the depth test with clip depth 0..1.
 
-Out of the stage: the Vulkan and D3D12 backends, the render thread, shadows
-and post-processing (their place in the graph is ready); the sky is in
+Out of the stage: the Vulkan and D3D12 backends, the render thread and
+post-processing (its place in the graph is ready); the sky and shadows are in
 [step 5](materials.md#sky-and-environment-planned-step-5).
 
 ## Meshes and textures [done]
 
-- **A vertex** (`Vertex`): position, normal, `uv0`. `uv0 = (0, 0)` is the top
-  left corner of the picture, as in glTF; tangents come with normal maps in
-  step 5.
+- **A vertex** (`Vertex`): position, normal, `uv0`, tangent (`vec4`, like
+  glTF `TANGENT`). `uv0 = (0, 0)` is the top left corner of the picture, as
+  in glTF.
 - **A mesh** (`MeshData`): vertices, indices of triangles counter-clockwise
   from outside, submeshes and bounds (AABB). A submesh is a range of indices
   with its own material; its index is the material slot of a `MeshRenderer`

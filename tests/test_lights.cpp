@@ -6,11 +6,11 @@
 #include <yqlora/input/Input.hpp>
 #include <yqlora/render/Camera3D.hpp>
 #include <yqlora/render/DirectionalLight3D.hpp>
+#include <yqlora/render/EngineUniforms.hpp>
 #include <yqlora/render/FrameBuilder.hpp>
 #include <yqlora/render/LightingSettings.hpp>
 #include <yqlora/render/PointLight3D.hpp>
 #include <yqlora/render/RenderSystem.hpp>
-#include <yqlora/render/ShaderData.hpp>
 #include <yqlora/render/SpotLight3D.hpp>
 #include <yqlora/scene/Scene.hpp>
 

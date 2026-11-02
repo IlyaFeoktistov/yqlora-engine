@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -43,6 +44,30 @@ enum class ValueType {
     Mat4,
     Other,
 };
+
+// Число компонент значения: 1 у скаляров, 2-4 у векторов, 9 и 16 у
+// матриц, 0 у Other.
+constexpr std::size_t componentCount(ValueType type)
+{
+    constexpr std::size_t kMat3 = 9;
+    constexpr std::size_t kMat4 = 16;
+    switch (type) {
+    case ValueType::Float:
+    case ValueType::Int:
+    case ValueType::UInt: return 1;
+    case ValueType::Vec2:
+    case ValueType::IVec2: return 2;
+    case ValueType::Vec3:
+    case ValueType::IVec3: return 3;
+    case ValueType::Vec4:
+    case ValueType::IVec4: return 4;
+    case ValueType::Mat3: return kMat3;
+    case ValueType::Mat4: return kMat4;
+    case ValueType::Other: return 0;
+    }
+
+    return 0;
+}
 
 struct UniformField {
     std::string name{};

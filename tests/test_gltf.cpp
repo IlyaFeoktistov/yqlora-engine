@@ -40,7 +40,7 @@ fs::path freshDirectory(const char* name)
 
 LoadResult load(const fs::path& file, Json import = Json::object())
 {
-    return GltfLoader{}.load({file, std::move(import)});
+    return GltfLoader{}.load({.file = file, .import = std::move(import)});
 }
 
 template <typename T>

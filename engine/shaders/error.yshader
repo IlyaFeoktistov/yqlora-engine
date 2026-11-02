@@ -1,0 +1,21 @@
+#version 450
+
+// Им рисуется материал, чей шейдер не компилируется: ярко и без света, чтобы
+// ошибку нельзя было не заметить.
+#include <yqlora/standard.glsl>
+
+const vec3 kErrorColor = vec3(1.0, 0.0, 1.0);
+
+#ifdef YQLORA_VERTEX
+void main()
+{
+    standardVertex();
+}
+#endif
+
+#ifdef YQLORA_FRAGMENT
+void main()
+{
+    fragColor = vec4(kErrorColor, 1.0);
+}
+#endif

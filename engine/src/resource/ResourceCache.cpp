@@ -4,7 +4,7 @@
 #include "yqlora/core/Log.hpp"
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/project/Project.hpp"
-#include "yqlora/render/BuiltinMeshes.hpp"
+#include "yqlora/resource/BuiltinResourceTable.hpp"
 #include "yqlora/resource/BuiltinResources.hpp"
 #include "yqlora/resource/ResourceLoader.hpp"
 
@@ -29,10 +29,7 @@ std::string lowerExtension(const fs::path& file)
 
 } // namespace
 
-ResourceCache::ResourceCache()
-{
-    addBuiltins();
-}
+ResourceCache::ResourceCache() = default;
 
 ResourceCache::~ResourceCache() = default;
 
@@ -86,10 +83,11 @@ std::size_t ResourceCache::reloadChanged()
             forgotten.push_back(file);
             continue;
         }
-        std::error_code ec;
-        const fs::path full = m_project->directory() / file;
-        const bool exists = fs::is_regular_file(full, ec);
-        if (exists != entry.existed || (exists && fs::last_write_time(full, ec) != entry.time)) {
+        const bool changed = stampOf(m_project->directory() / file) != entry.stamp
+                             || std::ranges::any_of(entry.dependencies, [](const auto& dependency) {
+                                    return stampOf(dependency.first) != dependency.second;
+                                });
+        if (changed) {
             forgotten.push_back(file);
             ++reloaded;
         }
@@ -123,6 +121,9 @@ ResourceCache::Found ResourceCache::getData(ResourceId id, std::string_view kind
         return {nullptr, 0};
     }
     auto it = m_entries.find(id);
+    if (it == m_entries.end() && builtin::isBuiltin(id) && makeBuiltin(id)) {
+        it = m_entries.find(id);
+    }
     if (it == m_entries.end()) {
         if (const auto path = m_project ? m_project->resources().path(id) : std::nullopt) {
             loadFile(*path);
@@ -140,13 +141,44 @@ ResourceCache::Found ResourceCache::getData(ResourceId id, std::string_view kind
     return {fits ? entry.data.get() : nullptr, entry.status.revision};
 }
 
-void ResourceCache::addBuiltins()
+ResourceCache::FileStamp ResourceCache::stampOf(const fs::path& full)
 {
-    for (const BuiltinMesh& mesh : builtinMeshes()) {
-        setEntry(
-            mesh.id,
-            {MeshData::kResourceKind, std::make_shared<const MeshData>(mesh.make()), {ResourceState::Ready, 0, {}}}
-        );
+    FileStamp stamp;
+    std::error_code ec;
+    stamp.existed = fs::is_regular_file(full, ec);
+    if (stamp.existed) {
+        stamp.time = fs::last_write_time(full, ec);
+    }
+
+    return stamp;
+}
+
+bool ResourceCache::makeBuiltin(ResourceId id)
+{
+    const auto table = builtinResourceTable();
+    const auto found = std::ranges::find(table, id, &BuiltinResourceEntry::id);
+    if (found == table.end()) {
+        return false;
+    }
+    setEntry(id, {found->kind, found->make(), {ResourceState::Ready, 0, {}}});
+
+    return true;
+}
+
+void ResourceCache::updateImport(ResourceId file, const nlohmann::json& update)
+{
+    if (update.empty()) {
+        return;
+    }
+    ResourceDatabase& database = m_project->resources();
+    auto import = nlohmann::json::parse(database.importSettings(file), nullptr, false);
+    if (!import.is_object()) {
+        import = nlohmann::json::object();
+    }
+    nlohmann::json merged = import;
+    merged.update(update);
+    if (merged != import) {
+        database.setImportSettings(file, merged.dump());
     }
 }
 
@@ -155,12 +187,7 @@ void ResourceCache::loadFile(const fs::path& file)
     ResourceDatabase& database = m_project->resources();
     const fs::path full = m_project->directory() / file;
     const ResourceId own = database.id(file);
-    FileEntry loaded;
-    std::error_code ec;
-    loaded.existed = fs::is_regular_file(full, ec);
-    if (loaded.existed) {
-        loaded.time = fs::last_write_time(full, ec);
-    }
+    FileEntry loaded{.stamp = stampOf(full)};
 
     // Новые записи собираются целиком, прежние заменяются только потом.
     std::map<ResourceId, Entry> fresh;
@@ -168,11 +195,19 @@ void ResourceCache::loadFile(const fs::path& file)
         fresh[own] = {{}, nullptr, {state, 0, std::move(message)}};
     };
     const ResourceLoader* loader = loaderFor(file);
-    if (!loaded.existed) {
+    LoadResult result;
+    if (loaded.stamp.existed && loader) {
+        result = loader->load(request(own, file));
+        for (const fs::path& dependency : result.dependencies) {
+            loaded.dependencies.emplace_back(dependency, stampOf(dependency));
+        }
+        updateImport(own, result.importUpdate);
+    }
+    if (!loaded.stamp.existed) {
         fail(ResourceState::Missing, "The file is missing");
     } else if (!loader) {
         fail(ResourceState::Error, "No loader for files " + lowerExtension(file));
-    } else if (LoadResult result = loader->load(request(own, full)); !result.error.empty()) {
+    } else if (!result.error.empty()) {
         fail(ResourceState::Error, std::move(result.error));
     } else {
         std::vector<std::string> keys;
@@ -212,9 +247,9 @@ void ResourceCache::loadFile(const fs::path& file)
     m_files[file] = std::move(loaded);
 }
 
-LoadRequest ResourceCache::request(ResourceId file, const fs::path& full) const
+LoadRequest ResourceCache::request(ResourceId file, const fs::path& relative) const
 {
-    LoadRequest request{full};
+    LoadRequest request{.file = m_project->directory() / relative, .relative = relative};
     const auto import = nlohmann::json::parse(m_project->resources().importSettings(file), nullptr, false);
     if (import.is_object()) {
         request.import = import;

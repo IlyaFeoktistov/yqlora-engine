@@ -16,6 +16,7 @@ rhi::VertexLayout meshVertexLayout()
             {kPositionLocation, rhi::VertexFormat::Float3, offsetof(Vertex, position)},
             {kNormalLocation, rhi::VertexFormat::Float3, offsetof(Vertex, normal)},
             {kUv0Location, rhi::VertexFormat::Float2, offsetof(Vertex, uv0)},
+            {kTangentLocation, rhi::VertexFormat::Float4, offsetof(Vertex, tangent)},
         },
     };
 }

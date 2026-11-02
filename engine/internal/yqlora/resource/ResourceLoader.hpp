@@ -18,6 +18,8 @@ namespace yqlora {
 struct LoadRequest {
     // Полный путь к файлу.
     std::filesystem::path file;
+    // Тот же файл относительно папки проекта: для сообщений и путей подключений.
+    std::filesystem::path relative{};
     // Настройки импорта из .meta, объект; чего в нём нет - по умолчанию.
     nlohmann::json import = nlohmann::json::object();
 };
@@ -34,8 +36,14 @@ struct LoadedResource {
 
 // Ресурсы файла или текст ошибки, если файл не прочитался.
 struct LoadResult {
-    std::vector<LoadedResource> resources;
-    std::string error;
+    std::vector<LoadedResource> resources{};
+    std::string error{};
+    // Полные пути файлов, прочитанных кроме самого файла (подключения
+    // шейдера), и при ошибке тоже: изменился любой - файл перечитывается.
+    std::vector<std::filesystem::path> dependencies{};
+    // Поля, которые загрузчик записывает в настройки импорта .meta (версия
+    // профиля шейдера); остальные настройки остаются.
+    nlohmann::json importUpdate = nlohmann::json::object();
 };
 
 // Ключи вложенных ресурсов одного файла: "mesh:Door", у второго Door -
