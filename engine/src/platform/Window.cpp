@@ -90,6 +90,9 @@ Window::Window(const WindowDesc& desc)
     if (desc.resizable) {
         flags |= SDL_WINDOW_RESIZABLE;
     }
+    if (!desc.visible) {
+        flags |= SDL_WINDOW_HIDDEN;
+    }
     m_window = SDL_CreateWindow(desc.title.c_str(), desc.width, desc.height, flags);
     if (!m_window) {
         throw std::runtime_error(std::string("SDL_CreateWindow failed: ") + SDL_GetError());

@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <memory>
 #include <span>
+#include <vector>
 
 namespace yqlora::rhi {
 
@@ -40,6 +41,11 @@ public:
 
     // Команды текущего кадра.
     virtual CommandList& commands() = 0;
+
+    // Нарисованная картинка цели (текстура с kColorTarget, вне прохода):
+    // строки сверху вниз, плотно, как в createTexture. Ждёт, пока видеокарта
+    // дорисует, поэтому только для тестов и снимков экрана, не каждый кадр.
+    virtual std::vector<std::byte> readPixels(Texture& texture) = 0;
 
     // Показывает задний буфер и начинает следующий кадр. Задний буфер
     // перед этим - в состоянии Present.

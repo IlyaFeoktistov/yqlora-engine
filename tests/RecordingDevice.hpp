@@ -146,6 +146,9 @@ public:
 
     void present() override;
 
+    // Видеокарты нет: картинка - нули нужного размера.
+    std::vector<std::byte> readPixels(rhi::Texture& texture) override;
+
     bool setVsync(bool) override
     {
         return true;

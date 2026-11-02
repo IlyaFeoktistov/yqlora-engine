@@ -56,7 +56,11 @@ snapshot made by Extract, never the scene.
   stage; ImGui then shows the texture. The Viewport adds the editor camera
   view and its passes (grid, outline).
 
-### With the RHI [planned, RHI]
+### What the stages will hold [planned]
+
+The stages above stay; later steps fill them: lights and materials in
+step 5, shadows, sky, transparency and post-processing after the MVP,
+Vulkan and D3D12 as new backends.
 
 ```
  Extract   -> FrameData (also lights, materials)
@@ -70,7 +74,7 @@ snapshot made by Extract, never the scene.
  Present
 ```
 
-## The RHI stage [planned, RHI]
+## The RHI stage [done]
 
 Done before step 5, so that shaders, materials and lights are written once
 for every graphics API. Only the OpenGL implementation is made now; Vulkan
@@ -253,12 +257,16 @@ profile below are checked on every target API when its backend arrives.
 4. **R.4 Prepare and the graph** **[done]**. Culling, sorting, bounds in `DrawItem`, the
    graph in the MVP scope, the grid and outline passes in the editor,
    `FrameData::editor` removed.
-5. **R.5 Tests and documents.** Tests on the test RHI: pass order and graph
+5. **R.5 Tests and documents** **[done]**. Tests on the test RHI: pass order and graph
    dependencies, culling, sorting, no extra draws, the textures each pass
    uses. Small OpenGL integration tests (buffers, textures, pipelines, a
    frame into a target) that run where an OpenGL context can be created and
    are skipped otherwise. The marks `[planned, RHI]` in this file and in
-   [frame](frame.md) are removed.
+   [frame](frame.md) are removed. The OpenGL tests (`tests/test_opengl.cpp`)
+   open a hidden window and read the target back with
+   `rhi::Device::readPixels` (rows from the top, for tests and screenshots):
+   an uploaded texture sampled the right way up, a frame with a mesh, the
+   grid and the outline, the depth test with clip depth 0..1.
 
 Out of the stage: the Vulkan and D3D12 backends, the render thread, shadows,
 sky and post-processing (their place in the graph is ready).
@@ -354,4 +362,4 @@ UiLayer             ImGui drawing for the new API
   leaves the current one in place with a message in the log, once.
 - Vsync is switched on the running renderer, without a rebuild.
 - The same path will recover from a lost device (Vulkan, D3D12), see
-  [the RHI stage](#the-rhi-stage-planned-rhi) **[planned, RHI]**.
+  [the RHI stage](#the-rhi-stage-done) **[planned, Vulkan, D3D12]**.

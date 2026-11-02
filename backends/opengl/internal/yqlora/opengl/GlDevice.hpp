@@ -53,6 +53,7 @@ public:
     void resizeBackBuffer(int width, int height) override;
 
     rhi::CommandList& commands() override;
+    std::vector<std::byte> readPixels(rhi::Texture& texture) override;
     void present() override;
     bool setVsync(bool enabled) override;
 

@@ -11,6 +11,7 @@
 #include <SDL3/SDL.h>
 #include <glad/gl.h>
 
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 
@@ -144,6 +145,37 @@ rhi::CommandList& GlDevice::commands()
 void GlDevice::present()
 {
     SDL_GL_SwapWindow(m_window.sdlWindow());
+}
+
+std::vector<std::byte> GlDevice::readPixels(rhi::Texture& texture)
+{
+    const rhi::TextureDesc& desc = texture.desc();
+    if ((desc.usage & rhi::kColorTarget) == 0U) {
+        throw std::logic_error("readPixels: the texture is not a colour target");
+    }
+    const bool singleChannel = desc.format == rhi::Format::R8;
+    const std::size_t pixelSize = singleChannel ? 1 : 4;
+    const std::size_t rowSize = static_cast<std::size_t>(desc.width) * pixelSize;
+    std::vector<std::byte> pixels(rowSize * static_cast<std::size_t>(desc.height));
+
+    const auto& glTexture = static_cast<GlTexture&>(texture);
+    GLint previous = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previous);
+    glBindFramebuffer(GL_FRAMEBUFFER, glTexture.isBackBuffer() ? 0U : framebuffer(glTexture, nullptr));
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, desc.width, desc.height, singleChannel ? GL_RED : GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous));
+
+    // OpenGL рисует с осью y вверх: первая строка в памяти - нижняя.
+    for (std::size_t top = 0, bottom = static_cast<std::size_t>(desc.height) - 1; top < bottom; ++top, --bottom) {
+        std::swap_ranges(
+            pixels.begin() + static_cast<std::ptrdiff_t>(top * rowSize),
+            pixels.begin() + static_cast<std::ptrdiff_t>((top + 1) * rowSize),
+            pixels.begin() + static_cast<std::ptrdiff_t>(bottom * rowSize)
+        );
+    }
+
+    return pixels;
 }
 
 bool GlDevice::setVsync(bool enabled)

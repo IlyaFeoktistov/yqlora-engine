@@ -220,6 +220,16 @@ void RecordingDevice::resizeBackBuffer(int width, int height)
     m_backBufferDepth.resize(width, height);
 }
 
+std::vector<std::byte> RecordingDevice::readPixels(rhi::Texture& texture)
+{
+    const rhi::TextureDesc& desc = texture.desc();
+    requireThat(hasUsage(desc, rhi::kColorTarget), "readPixels: the texture is not a colour target");
+    requireThat(!m_commands.inPass(), "readPixels: inside a render pass");
+    const std::size_t pixelSize = desc.format == rhi::Format::R8 ? 1 : 4;
+
+    return std::vector<std::byte>(static_cast<std::size_t>(desc.width * desc.height) * pixelSize);
+}
+
 void RecordingDevice::present()
 {
     requireThat(!m_commands.inPass(), "present: a render pass is open");

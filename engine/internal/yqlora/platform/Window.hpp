@@ -26,6 +26,8 @@ struct WindowDesc {
     int width = kDefaultWindowWidth;
     int height = kDefaultWindowHeight;
     bool resizable = true;
+    // Скрытое окно - только ради контекста графического API (тесты).
+    bool visible = true;
     // От API зависит, с каким флагом SDL создаёт окно (OpenGL/Vulkan/...).
     GraphicsApi api = GraphicsApi::OpenGL;
 };
