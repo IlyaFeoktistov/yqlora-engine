@@ -1,8 +1,9 @@
 #pragma once
 
-#include "yqlora/opengl/GlShader.hpp"
+#include "yqlora/render/UniformRing.hpp"
+#include "yqlora/rhi/Device.hpp"
 
-#include "yqlora/render/FrameData.hpp"
+#include <memory>
 
 namespace yqlora::opengl {
 
@@ -11,23 +12,16 @@ namespace yqlora::opengl {
 // по мировым координатам. С расстоянием сетка гаснет, поэтому края квадрата не видно.
 class GridPass {
 public:
-    GridPass();
-    ~GridPass();
+    GridPass(rhi::Device& device, UniformRing& uniforms);
 
-    GridPass(const GridPass&) = delete;
-    GridPass& operator=(const GridPass&) = delete;
-
-    // Рисует поверх уже нарисованной сцены: глубину читает, но не пишет.
-    void draw(const CameraData& camera) const;
+    // Рисует в открытый проход поверх сцены: глубину читает, но не пишет.
+    void draw(rhi::CommandList& commands, const UniformSlice& viewUniforms) const;
 
 private:
-    GlShader m_shader;
-    unsigned int m_vertexArray = 0;
-    unsigned int m_vertexBuffer = 0;
-    int m_viewProjectionLocation = -1;
-    int m_cameraPositionLocation = -1;
-    int m_cellSizeLocation = -1;
-    int m_fadeDistanceLocation = -1;
+    UniformRing& m_uniforms;
+    std::unique_ptr<rhi::Buffer> m_corners;
+    std::unique_ptr<rhi::Shader> m_shader;
+    std::unique_ptr<rhi::Pipeline> m_pipeline;
 };
 
 } // namespace yqlora::opengl

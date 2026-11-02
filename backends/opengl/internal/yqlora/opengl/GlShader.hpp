@@ -1,29 +1,42 @@
 #pragma once
 
-#include <string>
+#include "yqlora/rhi/Pipeline.hpp"
+
+#include <cstdint>
+#include <optional>
+#include <vector>
 
 namespace yqlora::opengl {
 
-// Шейдерная программа OpenGL из исходников вершинного и фрагментного шейдеров.
-// Бросает std::runtime_error с логом компилятора, если шейдер не собрался.
-class GlShader {
+// Программа OpenGL из исходников стадий. В OpenGL нет наборов: каждому
+// ресурсу шейдера (набор, привязка) программа даёт свою точку привязки
+// uniform-блока или текстурный блок, по порядку списка ресурсов.
+class GlShader final : public rhi::Shader {
 public:
-    GlShader(std::string name, const char* vertexSource, const char* fragmentSource);
-    ~GlShader();
+    // Бросает std::runtime_error с логом компилятора, если шейдер не собрался.
+    explicit GlShader(rhi::ShaderDesc desc);
+    ~GlShader() override;
 
-    GlShader(const GlShader&) = delete;
-    GlShader& operator=(const GlShader&) = delete;
+    unsigned int program() const
+    {
+        return m_program;
+    }
 
-    void use() const;
-
-    // -1, если uniform нет или компилятор его выбросил как неиспользуемый.
-    int uniformLocation(const char* name) const;
+    // Точка привязки uniform-блока или номер текстурного блока ресурса.
+    std::optional<unsigned int> slot(std::uint32_t set, std::uint32_t binding) const;
 
 private:
-    unsigned int compile(unsigned int stage, const char* source) const;
+    struct Slot {
+        std::uint32_t set = 0;
+        std::uint32_t binding = 0;
+        unsigned int slot = 0;
+    };
 
-    std::string m_name;
+    unsigned int compile(unsigned int stage, const std::string& source) const;
+    void assignSlots();
+
     unsigned int m_program = 0;
+    std::vector<Slot> m_slots;
 };
 
 } // namespace yqlora::opengl

@@ -5,25 +5,26 @@
 
 #include <memory>
 
-// Намеренно без glad/SDL: этот заголовок включает фабрика рендереров.
-struct SDL_GLContextState;
+namespace yqlora {
+class GpuMeshCache;
+class UniformRing;
+} // namespace yqlora
+
+namespace yqlora::rhi {
+class Texture;
+}
 
 namespace yqlora::opengl {
 
-class GlMeshCache;
-class GlTexture;
+class GlDevice;
 class GridPass;
 class MeshPass;
 class OutlinePass;
 
+// Рендерер поверх rhi::Device на OpenGL. Проходы уже пишут только команды
+// RHI; в движок они переезжают в R.3.
 class OpenGLRenderer final : public Renderer {
 public:
-    static constexpr int kVersionMajor = 3;
-    static constexpr int kVersionMinor = 3;
-
-    // Атрибуты контекста (версия, core profile, буферы), задаются до создания окна.
-    static void prepareWindow();
-
     explicit OpenGLRenderer(Window& window);
     ~OpenGLRenderer() override;
 
@@ -53,18 +54,17 @@ public:
     bool setVsync(bool enabled) override;
 
 private:
-    // Рисует сцену в привязанный сейчас framebuffer размером width x height.
-    void drawScene(const FrameData& frame, int width, int height);
+    void drawScene(const FrameData& frame, rhi::Texture& color, rhi::Texture& depth);
 
     Window& m_window;
-    SDL_GLContextState* m_context = nullptr;
-    std::unique_ptr<GlMeshCache> m_meshes;
-    std::unique_ptr<GpuResourceCache<GlTexture>> m_uiTextures;
+    // Первым создаётся и последним удаляется: остальное - объекты устройства.
+    std::unique_ptr<GlDevice> m_device;
+    std::unique_ptr<UniformRing> m_uniforms;
+    std::unique_ptr<GpuMeshCache> m_meshes;
+    std::unique_ptr<GpuResourceCache<rhi::Texture>> m_uiTextures;
     std::unique_ptr<MeshPass> m_meshPass;
     std::unique_ptr<GridPass> m_grid;
     std::unique_ptr<OutlinePass> m_outline;
-    int m_width = 0;
-    int m_height = 0;
 };
 
 } // namespace yqlora::opengl

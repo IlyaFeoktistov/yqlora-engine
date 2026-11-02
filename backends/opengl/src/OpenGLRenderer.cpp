@@ -1,6 +1,6 @@
 #include "yqlora/opengl/OpenGLRenderer.hpp"
 
-#include "yqlora/opengl/GlMesh.hpp"
+#include "yqlora/opengl/GlDevice.hpp"
 #include "yqlora/opengl/GlRenderTarget.hpp"
 #include "yqlora/opengl/GlTexture.hpp"
 #include "yqlora/opengl/GlUiRenderer.hpp"
@@ -8,185 +8,181 @@
 #include "yqlora/opengl/MeshPass.hpp"
 #include "yqlora/opengl/OutlinePass.hpp"
 
-#include "yqlora/core/Log.hpp"
 #include "yqlora/platform/Window.hpp"
+#include "yqlora/render/GpuMesh.hpp"
+#include "yqlora/render/ShaderData.hpp"
+#include "yqlora/render/TextureData.hpp"
+#include "yqlora/render/UniformRing.hpp"
 
-#include <SDL3/SDL.h>
-#include <glad/gl.h>
-
-#include <stdexcept>
-#include <string>
+#include <span>
 
 namespace yqlora::opengl {
 
 namespace {
 
-constexpr int kDepthBits = 24;
-// Трафарет нужен контуру выделения.
-constexpr int kStencilBits = 8;
 // Кадр без единого вида (в сцене нет активной камеры).
 const Vec4 kNoViewColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-void clearView(CameraClear clear, const Vec4& background)
+// Свет падает сверху, немного сбоку и спереди.
+const Vec3 kLightDirection = glm::normalize(Vec3(-0.4f, -1.0f, -0.3f));
+
+rhi::LoadOp colorLoad(CameraClear clear)
 {
-    switch (clear) {
-    case CameraClear::ColorAndDepth:
-        glClearColor(background.r, background.g, background.b, background.a);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        break;
-    case CameraClear::DepthOnly: glClear(GL_DEPTH_BUFFER_BIT); break;
-    case CameraClear::Nothing: break;
-    }
+    return clear == CameraClear::ColorAndDepth ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
+}
+
+rhi::LoadOp depthLoad(CameraClear clear)
+{
+    return clear == CameraClear::Nothing ? rhi::LoadOp::Load : rhi::LoadOp::Clear;
+}
+
+rhi::SamplerDesc samplerDesc(const TextureSampling& sampling)
+{
+    return {
+        .filter = sampling.filter == TextureFilter::Nearest ? rhi::Filter::Nearest : rhi::Filter::Linear,
+        .wrap = sampling.wrap == TextureWrap::Clamp    ? rhi::Wrap::Clamp
+                : sampling.wrap == TextureWrap::Mirror ? rhi::Wrap::Mirror
+                                                       : rhi::Wrap::Repeat,
+        .mipmaps = sampling.mipmaps,
+    };
 }
 
 } // namespace
 
-void OpenGLRenderer::prepareWindow()
-{
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, kVersionMajor);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, kVersionMinor);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-#ifdef __APPLE__
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-#endif
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, kDepthBits);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, kStencilBits);
-}
-
 OpenGLRenderer::OpenGLRenderer(Window& window)
     : m_window(window)
+    , m_device(std::make_unique<GlDevice>(window))
+    , m_uniforms(std::make_unique<UniformRing>(*m_device))
+    , m_meshes(std::make_unique<GpuMeshCache>(*m_device))
+    , m_uiTextures(std::make_unique<GpuResourceCache<rhi::Texture>>())
+    , m_meshPass(std::make_unique<MeshPass>(*m_device, *m_meshes, *m_uniforms))
+    , m_grid(std::make_unique<GridPass>(*m_device, *m_uniforms))
+    , m_outline(std::make_unique<OutlinePass>(*m_device, *m_meshes, *m_uniforms))
 {
-    m_context = SDL_GL_CreateContext(window.sdlWindow());
-    if (!m_context) {
-        throw std::runtime_error(std::string("SDL_GL_CreateContext failed: ") + SDL_GetError());
-    }
-
-    const int version = gladLoadGL(reinterpret_cast<GLADloadfunc>(SDL_GL_GetProcAddress));
-    if (version == 0) {
-        SDL_GL_DestroyContext(m_context);
-        throw std::runtime_error("Failed to load OpenGL functions");
-    }
-
-    log::info(
-        "OpenGL {}.{}: {} ({})",
-        GLAD_VERSION_MAJOR(version),
-        GLAD_VERSION_MINOR(version),
-        reinterpret_cast<const char*>(glGetString(GL_RENDERER)),
-        reinterpret_cast<const char*>(glGetString(GL_VERSION))
-    );
-
-    glEnable(GL_DEPTH_TEST);
-    m_meshes = std::make_unique<GlMeshCache>();
-    m_uiTextures = std::make_unique<GpuResourceCache<GlTexture>>();
-    m_meshPass = std::make_unique<MeshPass>(*m_meshes);
-    m_grid = std::make_unique<GridPass>();
-    m_outline = std::make_unique<OutlinePass>(*m_meshes);
-    resize(window.widthInPixels(), window.heightInPixels());
 }
 
 OpenGLRenderer::~OpenGLRenderer()
 {
-    // GL-объекты удаляются, пока контекст ещё жив.
+    // Объекты устройства удаляются раньше него.
     m_outline.reset();
     m_grid.reset();
     m_meshPass.reset();
-    m_meshes.reset();
     m_uiTextures.reset();
-    SDL_GL_DestroyContext(m_context);
+    m_meshes.reset();
+    m_uniforms.reset();
+    m_device.reset();
 }
 
 void OpenGLRenderer::render(const FrameData& frame)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    drawScene(frame, m_width, m_height);
+    drawScene(frame, m_device->backBuffer(), m_device->backBufferDepth());
 }
 
 void OpenGLRenderer::render(const FrameData& frame, RenderTarget& target)
 {
     // Цели создаёт только этот рендерер, так что тип известен.
     auto& glTarget = static_cast<GlRenderTarget&>(target);
-    glBindFramebuffer(GL_FRAMEBUFFER, glTarget.framebuffer());
-    drawScene(frame, glTarget.width(), glTarget.height());
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    drawScene(frame, glTarget.color(), glTarget.depth());
+    m_device->commands().transition(glTarget.color(), rhi::ResourceState::ShaderRead);
 }
 
 std::unique_ptr<RenderTarget> OpenGLRenderer::createRenderTarget(int width, int height)
 {
-    return std::make_unique<GlRenderTarget>(width, height);
+    return std::make_unique<GlRenderTarget>(*m_device, width, height);
 }
 
 void OpenGLRenderer::clearWindow(const Vec4& color)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, m_width, m_height);
-    glClearColor(color.r, color.g, color.b, color.a);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    rhi::CommandList& commands = m_device->commands();
+    commands.transition(m_device->backBuffer(), rhi::ResourceState::ColorTarget);
+    commands.beginRenderPass(
+        {.color = &m_device->backBuffer(), .depth = &m_device->backBufferDepth(), .clearColor = color}
+    );
+    commands.endRenderPass();
 }
 
 std::unique_ptr<UiRenderer> OpenGLRenderer::createUiRenderer()
 {
-    return std::make_unique<GlUiRenderer>(m_window.sdlWindow(), m_context);
+    return std::make_unique<GlUiRenderer>(m_window.sdlWindow(), m_device->context());
 }
 
-void OpenGLRenderer::drawScene(const FrameData& frame, int width, int height)
+void OpenGLRenderer::drawScene(const FrameData& frame, rhi::Texture& color, rhi::Texture& depth)
 {
-    // Отрисовка интерфейса меняет состояние GL, возвращаем нужное сцене.
-    glDisable(GL_SCISSOR_TEST);
-    glEnable(GL_DEPTH_TEST);
-
-    glViewport(0, 0, width, height);
+    rhi::CommandList& commands = m_device->commands();
+    commands.transition(color, rhi::ResourceState::ColorTarget);
+    commands.transition(depth, rhi::ResourceState::DepthTarget);
     if (frame.views.empty()) {
-        clearView(CameraClear::ColorAndDepth, kNoViewColor);
+        commands.beginRenderPass({.color = &color, .depth = &depth, .clearColor = kNoViewColor});
+        commands.endRenderPass();
 
         return;
     }
-    // Виды по очереди: следующая камера рисует поверх предыдущей.
-    for (const ViewData& view : frame.views) {
-        clearView(view.clear, view.background);
-        m_meshPass->draw(frame, view);
-    }
 
-    // Сетка полупрозрачная, поэтому рисуется после объектов сцены.
-    const CameraData& top = frame.views.back().camera;
-    if (frame.editor.grid) {
-        m_grid->draw(top);
+    const UniformSlice frameUniforms = m_uniforms->push(FrameUniforms{.lightDirection = kLightDirection});
+    UniformSlice viewUniforms;
+    // Виды по очереди: следующая камера рисует поверх предыдущей.
+    for (std::size_t i = 0; i < frame.views.size(); ++i) {
+        const ViewData& view = frame.views[i];
+        viewUniforms = m_uniforms->push(
+            ViewUniforms{
+                .viewProjection = view.camera.projection * view.camera.view,
+                .cameraPosition = view.camera.position,
+            }
+        );
+        commands.beginRenderPass({
+            .color = &color,
+            .depth = &depth,
+            .colorLoad = colorLoad(view.clear),
+            .depthLoad = depthLoad(view.clear),
+            .clearColor = view.background,
+        });
+        m_meshPass->draw(commands, frame, view, frameUniforms, viewUniforms);
+        // Сетка полупрозрачная, поэтому рисуется после объектов сцены, в последнем виде.
+        if (frame.editor.grid && i + 1 == frame.views.size()) {
+            m_grid->draw(commands, viewUniforms);
+        }
+        commands.endRenderPass();
     }
-    m_outline->draw(frame, top, width, height);
+    m_outline->draw(commands, frame, viewUniforms, color, &depth);
 }
 
 void OpenGLRenderer::present()
 {
-    SDL_GL_SwapWindow(m_window.sdlWindow());
+    m_device->commands().transition(m_device->backBuffer(), rhi::ResourceState::Present);
+    m_device->present();
+    m_uniforms->reset();
     m_meshes->endFrame();
     m_uiTextures->endFrame();
 }
 
 UiTexture OpenGLRenderer::uiTexture(ResourceId id, std::uint64_t revision, const TextureData& data)
 {
-    const GlTexture& texture = m_uiTextures->get(id, revision, [&] {
-        return std::make_unique<GlTexture>(data, GlTexture::Use::Interface);
+    const rhi::Texture& texture = m_uiTextures->get(id, revision, [&] {
+        // Цвета как в файле, без перевода из sRGB: ImGui рисует в обычный буфер.
+        auto created = m_device->createTexture(
+            {.width = data.width,
+             .height = data.height,
+             .format = rhi::Format::Rgba8,
+             .mipmaps = data.sampling.mipmaps},
+            std::as_bytes(std::span(data.pixels))
+        );
+        static_cast<GlTexture&>(*created).setOwnSampling(samplerDesc(data.sampling));
+
+        return created;
     });
 
     // Первая строка картинки лежит в текстуре при v = 0 (см. GlTexture).
-    return {texture.id(), {0.0f, 0.0f}, {1.0f, 1.0f}};
+    return {static_cast<const GlTexture&>(texture).id(), {0.0f, 0.0f}, {1.0f, 1.0f}};
 }
 
 bool OpenGLRenderer::setVsync(bool enabled)
 {
-    if (!SDL_GL_SetSwapInterval(enabled ? 1 : 0)) {
-        log::warn("VSync cannot be switched: {}", SDL_GetError());
-
-        return false;
-    }
-
-    return true;
+    return m_device->setVsync(enabled);
 }
 
 void OpenGLRenderer::resize(int width, int height)
 {
-    m_width = width;
-    m_height = height;
+    m_device->resizeBackBuffer(width, height);
 }
 
 } // namespace yqlora::opengl

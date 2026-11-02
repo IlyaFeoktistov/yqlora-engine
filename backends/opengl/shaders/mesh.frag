@@ -2,8 +2,15 @@
 
 in vec3 vNormal;
 
-uniform vec4 uColor;
-uniform vec3 uLightDirection;
+layout(std140) uniform Frame {
+    vec3 uLightDirection;
+};
+
+layout(std140) uniform Object {
+    mat4 uModel;
+    mat4 uNormalMatrix;
+    vec4 uColor;
+};
 
 out vec4 fragColor;
 

@@ -1,6 +1,6 @@
 #include "yqlora/opengl/GlUiRenderer.hpp"
 
-#include "yqlora/opengl/OpenGLRenderer.hpp"
+#include "yqlora/opengl/GlDevice.hpp"
 
 #include <glad/gl.h>
 #include <imgui.h>
@@ -15,8 +15,8 @@ GlUiRenderer::GlUiRenderer(SDL_Window* window, SDL_GLContextState* context)
 {
     ImGui_ImplSDL3_InitForOpenGL(window, context);
     // Шейдеры ImGui под ту же версию GLSL, что и контекст.
-    const std::string glslVersion = "#version " + std::to_string(OpenGLRenderer::kVersionMajor)
-                                    + std::to_string(OpenGLRenderer::kVersionMinor) + "0 core";
+    const std::string glslVersion = "#version " + std::to_string(GlDevice::kVersionMajor)
+                                    + std::to_string(GlDevice::kVersionMinor) + "0 core";
     ImGui_ImplOpenGL3_Init(glslVersion.c_str());
 }
 

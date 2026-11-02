@@ -2,9 +2,18 @@
 
 layout(location = 0) in vec3 aPosition;
 
-uniform mat4 uTransform;
+layout(std140) uniform View {
+    mat4 uViewProjection;
+    vec3 uCameraPosition;
+};
+
+layout(std140) uniform Object {
+    mat4 uModel;
+    mat4 uNormalMatrix;
+    vec4 uColor;
+};
 
 void main()
 {
-    gl_Position = uTransform * vec4(aPosition, 1.0);
+    gl_Position = uViewProjection * uModel * vec4(aPosition, 1.0);
 }

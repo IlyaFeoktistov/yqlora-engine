@@ -1,57 +1,52 @@
 #include "yqlora/opengl/MeshPass.hpp"
 
 #include "GeneratedShaders.hpp"
-#include "yqlora/opengl/GlMesh.hpp"
-
-#include <glad/gl.h>
-#include <glm/gtc/type_ptr.hpp>
+#include "yqlora/render/GpuMesh.hpp"
+#include "yqlora/render/ShaderData.hpp"
 
 namespace yqlora::opengl {
 
-namespace {
-
-// Свет падает сверху, немного сбоку и спереди.
-const Vec3 kLightDirection = glm::normalize(Vec3(-0.4f, -1.0f, -0.3f));
-
-} // namespace
-
-MeshPass::MeshPass(GlMeshCache& meshes)
+MeshPass::MeshPass(rhi::Device& device, GpuMeshCache& meshes, UniformRing& uniforms)
     : m_meshes(meshes)
-    , m_shader("mesh", shaders::kMeshVert, shaders::kMeshFrag)
+    , m_uniforms(uniforms)
+    , m_shader(device.createShader({
+          .name = "mesh",
+          .vertex = shaders::kMeshVert,
+          .fragment = shaders::kMeshFrag,
+          .bindings = {kFrameBlock, kViewBlock, kObjectBlock},
+      }))
+    , m_pipeline(device.createPipeline({.shader = m_shader.get(), .vertexLayout = meshVertexLayout()}))
 {
-    m_viewProjectionLocation = m_shader.uniformLocation("uViewProjection");
-    m_modelLocation = m_shader.uniformLocation("uModel");
-    m_normalMatrixLocation = m_shader.uniformLocation("uNormalMatrix");
-    m_colorLocation = m_shader.uniformLocation("uColor");
-    m_lightDirectionLocation = m_shader.uniformLocation("uLightDirection");
 }
 
-void MeshPass::draw(const FrameData& frame, const ViewData& view) const
+void MeshPass::draw(
+    rhi::CommandList& commands,
+    const FrameData& frame,
+    const ViewData& view,
+    const UniformSlice& frameUniforms,
+    const UniformSlice& viewUniforms
+) const
 {
     if (frame.drawItems.empty()) {
         return;
     }
-    const Mat4 viewProjection = view.camera.projection * view.camera.view;
-
-    m_shader.use();
-    glUniformMatrix4fv(m_viewProjectionLocation, 1, GL_FALSE, glm::value_ptr(viewProjection));
-    glUniform3fv(m_lightDirectionLocation, 1, glm::value_ptr(kLightDirection));
-
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
+    commands.bindPipeline(*m_pipeline);
+    setUniforms(commands, kFrameBlock, frameUniforms);
+    setUniforms(commands, kViewBlock, viewUniforms);
     for (const DrawItem& item : frame.drawItems) {
         if (!inMask(view.mask, item.layer)) {
             continue;
         }
         // Нормали поворачиваются вместе с объектом, но неравномерный масштаб
         // их бы исказил: для этого и нужна обратная транспонированная матрица.
-        const Mat3 normalMatrix = glm::transpose(glm::inverse(Mat3(item.world)));
-        glUniformMatrix4fv(m_modelLocation, 1, GL_FALSE, glm::value_ptr(item.world));
-        glUniformMatrix3fv(m_normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-        glUniform4fv(m_colorLocation, 1, glm::value_ptr(item.color));
-        m_meshes.get(item).draw();
+        const ObjectUniforms object{
+            .model = item.world,
+            .normalMatrix = Mat4(glm::transpose(glm::inverse(Mat3(item.world)))),
+            .color = item.color,
+        };
+        setUniforms(commands, kObjectBlock, m_uniforms.push(object));
+        drawMesh(commands, m_meshes.get(item));
     }
-    glDisable(GL_CULL_FACE);
 }
 
 } // namespace yqlora::opengl

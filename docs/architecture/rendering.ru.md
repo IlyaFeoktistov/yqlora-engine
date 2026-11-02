@@ -192,7 +192,7 @@ HLSL от SPIRV-Cross. Переносимость не автоматическ�
 
 ### Фазы (коммит на фазу)
 
-1. **R.1 RHI и OpenGL.** `rhi::Device`, `rhi::CommandList`, буферы,
+1. **R.1 RHI и OpenGL** **[done]**. `rhi::Device`, `rhi::CommandList`, буферы,
    текстуры, сэмплеры, конвейеры, цели рендера, состояния ресурсов, правило
    времени жизни. Реализация на OpenGL: `GlMesh`, `GlTexture`,
    `GlRenderTarget` становятся объектами RHI, старые проходы работают

@@ -1,42 +1,46 @@
 #pragma once
 
-#include "yqlora/opengl/GlShader.hpp"
-
 #include "yqlora/render/FrameData.hpp"
+#include "yqlora/render/UniformRing.hpp"
+#include "yqlora/rhi/Device.hpp"
+
+#include <memory>
+
+namespace yqlora {
+class GpuMeshCache;
+}
 
 namespace yqlora::opengl {
 
-class GlMeshCache;
-
 // Контур выбранного узла в редакторе. Сначала узел рисуется белым в маску
-// размером с окно, затем полноэкранный проход закрашивает пиксели рядом
+// размером с цель, затем полноэкранный проход закрашивает пиксели рядом
 // с маской. Толщина контура в пикселях не зависит от расстояния до объекта,
 // а сам контур виден и сквозь другие объекты.
 class OutlinePass {
 public:
-    explicit OutlinePass(GlMeshCache& meshes);
-    ~OutlinePass();
+    OutlinePass(rhi::Device& device, GpuMeshCache& meshes, UniformRing& uniforms);
 
-    OutlinePass(const OutlinePass&) = delete;
-    OutlinePass& operator=(const OutlinePass&) = delete;
-
-    // Рисует в текущий framebuffer размером width x height.
-    void draw(const FrameData& frame, const CameraData& camera, int width, int height);
+    // Свои проходы: маска, затем контур поверх color. Вызывается вне прохода.
+    void draw(
+        rhi::CommandList& commands,
+        const FrameData& frame,
+        const UniformSlice& viewUniforms,
+        rhi::Texture& color,
+        rhi::Texture* depth
+    );
 
 private:
     void resizeMask(int width, int height);
 
-    GlMeshCache& m_meshes;
-    GlShader m_maskShader;
-    GlShader m_outlineShader;
-    unsigned int m_maskFramebuffer = 0;
-    unsigned int m_maskTexture = 0;
-    unsigned int m_emptyVertexArray = 0;
-    int m_maskWidth = 0;
-    int m_maskHeight = 0;
-    int m_maskTransformLocation = -1;
-    int m_outlineMaskLocation = -1;
-    int m_outlineColorLocation = -1;
+    rhi::Device& m_device;
+    GpuMeshCache& m_meshes;
+    UniformRing& m_uniforms;
+    std::unique_ptr<rhi::Texture> m_mask;
+    std::unique_ptr<rhi::Sampler> m_maskSampler;
+    std::unique_ptr<rhi::Shader> m_maskShader;
+    std::unique_ptr<rhi::Shader> m_outlineShader;
+    std::unique_ptr<rhi::Pipeline> m_maskPipeline;
+    std::unique_ptr<rhi::Pipeline> m_outlinePipeline;
 };
 
 } // namespace yqlora::opengl

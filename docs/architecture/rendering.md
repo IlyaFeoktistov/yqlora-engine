@@ -197,7 +197,7 @@ profile below are checked on every target API when its backend arrives.
 
 ### Phases (a commit per phase)
 
-1. **R.1 RHI and OpenGL.** `rhi::Device`, `rhi::CommandList`, buffers,
+1. **R.1 RHI and OpenGL** **[done]**. `rhi::Device`, `rhi::CommandList`, buffers,
    textures, samplers, pipelines, render targets, resource states, the
    lifetime rule. The OpenGL implementation: `GlMesh`, `GlTexture`,
    `GlRenderTarget` become RHI objects, the old passes work over them. A

@@ -1,44 +1,47 @@
 #pragma once
 
 #include "yqlora/render/RenderTarget.hpp"
+#include "yqlora/rhi/Device.hpp"
+
+#include <memory>
 
 namespace yqlora::opengl {
 
-// Framebuffer с цветом в текстуре и своим буфером глубины.
+// Цель рендера: текстура цвета и своя глубина. После отрисовки цвет в
+// состоянии ShaderRead: его читает интерфейс.
 class GlRenderTarget final : public RenderTarget {
 public:
-    GlRenderTarget(int width, int height);
-    ~GlRenderTarget() override;
-
-    GlRenderTarget(const GlRenderTarget&) = delete;
-    GlRenderTarget& operator=(const GlRenderTarget&) = delete;
+    GlRenderTarget(rhi::Device& device, int width, int height);
 
     int width() const override
     {
-        return m_width;
+        return m_color->desc().width;
     }
 
     int height() const override
     {
-        return m_height;
+        return m_color->desc().height;
     }
 
     void resize(int width, int height) override;
     UiTexture uiTexture() const override;
 
-    unsigned int framebuffer() const
+    rhi::Texture& color() const
     {
-        return m_framebuffer;
+        return *m_color;
+    }
+
+    rhi::Texture& depth() const
+    {
+        return *m_depth;
     }
 
 private:
-    void allocate();
+    void allocate(int width, int height);
 
-    unsigned int m_framebuffer = 0;
-    unsigned int m_colorTexture = 0;
-    unsigned int m_depthBuffer = 0;
-    int m_width = 0;
-    int m_height = 0;
+    rhi::Device& m_device;
+    std::unique_ptr<rhi::Texture> m_color;
+    std::unique_ptr<rhi::Texture> m_depth;
 };
 
 } // namespace yqlora::opengl

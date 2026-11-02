@@ -1,6 +1,7 @@
 #include "yqlora/render/Renderer.hpp"
 
 #if YQLORA_HAS_OPENGL
+#include "yqlora/opengl/GlDevice.hpp"
 #include "yqlora/opengl/OpenGLRenderer.hpp"
 #endif
 
@@ -34,7 +35,7 @@ void prepareWindowForApi(GraphicsApi api)
     switch (api) {
     case GraphicsApi::OpenGL:
 #if YQLORA_HAS_OPENGL
-        opengl::OpenGLRenderer::prepareWindow();
+        opengl::GlDevice::prepareWindow();
 
         return;
 #else

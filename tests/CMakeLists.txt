@@ -46,6 +46,8 @@ add_executable(yqlora_tests
     test_process.cpp
     test_compiler_diagnostics.cpp
     test_script_build.cpp
+    test_rhi.cpp
+    RecordingDevice.cpp
 )
 target_link_libraries(yqlora_tests PRIVATE yqlora::internal yqlora::editor doctest::doctest stb_headers)
 target_compile_definitions(yqlora_tests PRIVATE

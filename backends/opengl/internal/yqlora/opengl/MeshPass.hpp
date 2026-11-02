@@ -1,30 +1,37 @@
 #pragma once
 
-#include "yqlora/opengl/GlShader.hpp"
-
 #include "yqlora/render/FrameData.hpp"
+#include "yqlora/render/UniformRing.hpp"
+#include "yqlora/rhi/Device.hpp"
+
+#include <memory>
+
+namespace yqlora {
+class GpuMeshCache;
+}
 
 namespace yqlora::opengl {
 
-class GlMeshCache;
-
 // Непрозрачные меши кадра. Пока источников света в сцене нет, всё освещено
-// одним фиксированным направленным светом.
+// одним фиксированным направленным светом из данных кадра.
 class MeshPass {
 public:
-    explicit MeshPass(GlMeshCache& meshes);
+    MeshPass(rhi::Device& device, GpuMeshCache& meshes, UniformRing& uniforms);
 
-    // Меши кадра со слоем из маски вида, через камеру вида.
-    void draw(const FrameData& frame, const ViewData& view) const;
+    // Меши кадра со слоем из маски вида, в открытый проход.
+    void draw(
+        rhi::CommandList& commands,
+        const FrameData& frame,
+        const ViewData& view,
+        const UniformSlice& frameUniforms,
+        const UniformSlice& viewUniforms
+    ) const;
 
 private:
-    GlMeshCache& m_meshes;
-    GlShader m_shader;
-    int m_viewProjectionLocation = -1;
-    int m_modelLocation = -1;
-    int m_normalMatrixLocation = -1;
-    int m_colorLocation = -1;
-    int m_lightDirectionLocation = -1;
+    GpuMeshCache& m_meshes;
+    UniformRing& m_uniforms;
+    std::unique_ptr<rhi::Shader> m_shader;
+    std::unique_ptr<rhi::Pipeline> m_pipeline;
 };
 
 } // namespace yqlora::opengl

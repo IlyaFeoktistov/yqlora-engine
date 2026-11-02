@@ -2,9 +2,15 @@
 
 in vec3 vWorld;
 
-uniform vec3 uCameraPosition;
-uniform float uCellSize;
-uniform float uFadeDistance;
+layout(std140) uniform View {
+    mat4 uViewProjection;
+    vec3 uCameraPosition;
+};
+
+layout(std140) uniform Grid {
+    float uCellSize;
+    float uFadeDistance;
+};
 
 out vec4 fragColor;
 

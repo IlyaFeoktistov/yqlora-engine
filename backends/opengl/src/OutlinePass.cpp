@@ -1,10 +1,8 @@
 #include "yqlora/opengl/OutlinePass.hpp"
 
 #include "GeneratedShaders.hpp"
-#include "yqlora/opengl/GlMesh.hpp"
-
-#include <glad/gl.h>
-#include <glm/gtc/type_ptr.hpp>
+#include "yqlora/render/GpuMesh.hpp"
+#include "yqlora/render/ShaderData.hpp"
 
 #include <algorithm>
 
@@ -13,99 +11,111 @@ namespace yqlora::opengl {
 namespace {
 
 // Один треугольник на весь экран: вершины строит сам шейдер по gl_VertexID.
-constexpr int kFullscreenTriangleVertices = 3;
+constexpr std::uint32_t kFullscreenTriangleVertices = 3;
+
+const Vec4 kMaskClear(0.0f);
+
+struct alignas(16) OutlineUniforms {
+    Vec4 color{1.0f};
+};
+
+const rhi::ShaderBinding kOutlineBlock{"Outline", rhi::BindingKind::UniformBlock, kMaterialSet, 0};
+const rhi::ShaderBinding kMaskTexture{"uMask", rhi::BindingKind::Texture, kMaterialSet, 1};
 
 } // namespace
 
-OutlinePass::OutlinePass(GlMeshCache& meshes)
-    : m_meshes(meshes)
-    , m_maskShader("outline mask", shaders::kOutlineMaskVert, shaders::kOutlineMaskFrag)
-    , m_outlineShader("outline", shaders::kFullscreenVert, shaders::kOutlineFrag)
+OutlinePass::OutlinePass(rhi::Device& device, GpuMeshCache& meshes, UniformRing& uniforms)
+    : m_device(device)
+    , m_meshes(meshes)
+    , m_uniforms(uniforms)
+    , m_maskSampler(device.createSampler({.filter = rhi::Filter::Nearest, .wrap = rhi::Wrap::Clamp, .mipmaps = false}))
+    , m_maskShader(device.createShader({
+          .name = "outline mask",
+          .vertex = shaders::kOutlineMaskVert,
+          .fragment = shaders::kOutlineMaskFrag,
+          .bindings = {kViewBlock, kObjectBlock},
+      }))
+    , m_outlineShader(device.createShader({
+          .name = "outline",
+          .vertex = shaders::kFullscreenVert,
+          .fragment = shaders::kOutlineFrag,
+          .bindings = {kOutlineBlock, kMaskTexture},
+      }))
+    // Маска без теста глубины: контур виден сквозь другие объекты.
+    , m_maskPipeline(device.createPipeline({
+          .shader = m_maskShader.get(),
+          .vertexLayout = meshVertexLayout(),
+          .depthTest = false,
+          .depthWrite = false,
+          .cull = rhi::CullMode::None,
+          .colorFormat = rhi::Format::R8,
+          .depthFormat = rhi::Format::None,
+      }))
+    , m_outlinePipeline(device.createPipeline({
+          .shader = m_outlineShader.get(),
+          .depthTest = false,
+          .depthWrite = false,
+          .cull = rhi::CullMode::None,
+      }))
 {
-    m_maskTransformLocation = m_maskShader.uniformLocation("uTransform");
-    m_outlineMaskLocation = m_outlineShader.uniformLocation("uMask");
-    m_outlineColorLocation = m_outlineShader.uniformLocation("uColor");
-
-    glGenFramebuffers(1, &m_maskFramebuffer);
-    glGenTextures(1, &m_maskTexture);
-    // Core profile не рисует без привязанного VAO, даже если атрибутов нет.
-    glGenVertexArrays(1, &m_emptyVertexArray);
 }
 
-OutlinePass::~OutlinePass()
-{
-    glDeleteVertexArrays(1, &m_emptyVertexArray);
-    glDeleteTextures(1, &m_maskTexture);
-    glDeleteFramebuffers(1, &m_maskFramebuffer);
-}
-
-void OutlinePass::draw(const FrameData& frame, const CameraData& camera, int width, int height)
+void OutlinePass::draw(
+    rhi::CommandList& commands,
+    const FrameData& frame,
+    const UniformSlice& viewUniforms,
+    rhi::Texture& color,
+    rhi::Texture* depth
+)
 {
     const auto isSelected = [&](const DrawItem& item) {
         return std::ranges::find(frame.editor.selected, item.node) != frame.editor.selected.end();
     };
-    const bool hasSelectedMesh = std::ranges::any_of(frame.drawItems, isSelected);
-    if (!hasSelectedMesh || width <= 0 || height <= 0) {
+    if (!std::ranges::any_of(frame.drawItems, isSelected)) {
         return;
     }
-    resizeMask(width, height);
+    resizeMask(color.desc().width, color.desc().height);
 
-    GLint previousFramebuffer = 0;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFramebuffer);
-
-    // 1. Маска выбранных узлов, без теста глубины: контур виден сквозь другие объекты.
-    glBindFramebuffer(GL_FRAMEBUFFER, m_maskFramebuffer);
-    glViewport(0, 0, width, height);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_DEPTH_TEST);
-
-    const Mat4 viewProjection = camera.projection * camera.view;
-    m_maskShader.use();
+    // 1. Маска выбранных узлов.
+    commands.transition(*m_mask, rhi::ResourceState::ColorTarget);
+    commands.beginRenderPass({.color = m_mask.get(), .clearColor = kMaskClear});
+    commands.bindPipeline(*m_maskPipeline);
+    setUniforms(commands, kViewBlock, viewUniforms);
     for (const DrawItem& item : frame.drawItems) {
         if (!isSelected(item)) {
             continue;
         }
-        const Mat4 transform = viewProjection * item.world;
-        glUniformMatrix4fv(m_maskTransformLocation, 1, GL_FALSE, glm::value_ptr(transform));
-        m_meshes.get(item).draw();
+        setUniforms(commands, kObjectBlock, m_uniforms.push(ObjectUniforms{.model = item.world}));
+        drawMesh(commands, m_meshes.get(item));
     }
+    commands.endRenderPass();
 
     // 2. Контур поверх кадра.
-    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFramebuffer));
-    glViewport(0, 0, width, height);
-    m_outlineShader.use();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, m_maskTexture);
-    glUniform1i(m_outlineMaskLocation, 0);
-    glUniform4fv(m_outlineColorLocation, 1, glm::value_ptr(frame.editor.outlineColor));
-    glBindVertexArray(m_emptyVertexArray);
-    glDrawArrays(GL_TRIANGLES, 0, kFullscreenTriangleVertices);
-    glBindVertexArray(0);
-
-    glEnable(GL_DEPTH_TEST);
+    commands.transition(*m_mask, rhi::ResourceState::ShaderRead);
+    commands.beginRenderPass({
+        .color = &color,
+        .depth = depth,
+        .colorLoad = rhi::LoadOp::Load,
+        .depthLoad = rhi::LoadOp::Load,
+    });
+    commands.bindPipeline(*m_outlinePipeline);
+    setUniforms(commands, kOutlineBlock, m_uniforms.push(OutlineUniforms{frame.editor.outlineColor}));
+    commands.setTexture(kMaskTexture.set, kMaskTexture.binding, *m_mask, *m_maskSampler);
+    commands.draw(kFullscreenTriangleVertices);
+    commands.endRenderPass();
 }
 
 void OutlinePass::resizeMask(int width, int height)
 {
-    if (width == m_maskWidth && height == m_maskHeight) {
+    if (m_mask && m_mask->desc().width == width && m_mask->desc().height == height) {
         return;
     }
-    m_maskWidth = width;
-    m_maskHeight = height;
-
-    glBindTexture(GL_TEXTURE_2D, m_maskTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    GLint previousFramebuffer = 0;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFramebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, m_maskFramebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_maskTexture, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFramebuffer));
+    m_mask = m_device.createTexture({
+        .width = width,
+        .height = height,
+        .format = rhi::Format::R8,
+        .usage = rhi::kColorTarget | rhi::kSampled,
+    });
 }
 
 } // namespace yqlora::opengl

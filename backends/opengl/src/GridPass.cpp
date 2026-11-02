@@ -1,17 +1,24 @@
 #include "yqlora/opengl/GridPass.hpp"
 
 #include "GeneratedShaders.hpp"
+#include "yqlora/render/ShaderData.hpp"
 
-#include <glad/gl.h>
-#include <glm/gtc/type_ptr.hpp>
+#include <array>
+#include <cstddef>
+#include <span>
 
 namespace yqlora::opengl {
 
 namespace {
 
-// Квадрат из двух треугольников, у каждой вершины две координаты.
-constexpr int kCornerComponents = 2;
-constexpr int kCornerCount = 6;
+// Квадрат [-1, 1] из двух треугольников, размер и положение задаёт вершинный шейдер.
+// clang-format off
+constexpr std::array kCorners{
+    -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f,
+    -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f,
+};
+// clang-format on
+constexpr std::uint32_t kCornerCount = kCorners.size() / Vec2::length();
 
 // Шаг мелкой сетки в метрах; каждая десятая линия крупная.
 constexpr float kCellSize = 1.0f;
@@ -19,62 +26,47 @@ constexpr float kCellSize = 1.0f;
 // Дальше этого расстояния от камеры сетки не видно. Это же половина стороны квадрата.
 constexpr float kFadeDistance = 150.0f;
 
+// Блок Grid в шейдерах сетки.
+struct alignas(16) GridUniforms {
+    float cellSize = kCellSize;
+    float fadeDistance = kFadeDistance;
+};
+
+const rhi::ShaderBinding kGridBlock{"Grid", rhi::BindingKind::UniformBlock, kMaterialSet, 0};
+
 } // namespace
 
-GridPass::GridPass()
-    : m_shader("grid", shaders::kGridVert, shaders::kGridFrag)
+GridPass::GridPass(rhi::Device& device, UniformRing& uniforms)
+    : m_uniforms(uniforms)
+    , m_corners(device.createBuffer(
+          {.size = sizeof(kCorners), .usage = rhi::BufferUsage::Vertex},
+          std::as_bytes(std::span(kCorners))
+      ))
+    , m_shader(device.createShader({
+          .name = "grid",
+          .vertex = shaders::kGridVert,
+          .fragment = shaders::kGridFrag,
+          .bindings = {kViewBlock, kGridBlock},
+      }))
+    , m_pipeline(device.createPipeline({
+          .shader = m_shader.get(),
+          .vertexLayout = {.stride = sizeof(Vec2), .attributes = {{0, rhi::VertexFormat::Float2, 0}}},
+          .depthTest = true,
+          .depthWrite = false,
+          // Снизу сетку тоже видно.
+          .cull = rhi::CullMode::None,
+          .blend = rhi::BlendMode::Alpha,
+      }))
 {
-    // Два треугольника на квадрат [-1, 1], размер и положение задаёт вершинный шейдер.
-    // clang-format off
-    const float corners[] = {
-        -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f,
-        -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f,
-    };
-    // clang-format on
-
-    glGenVertexArrays(1, &m_vertexArray);
-    glGenBuffers(1, &m_vertexBuffer);
-    glBindVertexArray(m_vertexArray);
-    glBindBuffer(GL_ARRAY_BUFFER, m_vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(corners), corners, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, kCornerComponents, GL_FLOAT, GL_FALSE, kCornerComponents * sizeof(float), nullptr);
-    glBindVertexArray(0);
-
-    m_viewProjectionLocation = m_shader.uniformLocation("uViewProjection");
-    m_cameraPositionLocation = m_shader.uniformLocation("uCameraPosition");
-    m_cellSizeLocation = m_shader.uniformLocation("uCellSize");
-    m_fadeDistanceLocation = m_shader.uniformLocation("uFadeDistance");
 }
 
-GridPass::~GridPass()
+void GridPass::draw(rhi::CommandList& commands, const UniformSlice& viewUniforms) const
 {
-    glDeleteBuffers(1, &m_vertexBuffer);
-    glDeleteVertexArrays(1, &m_vertexArray);
-}
-
-void GridPass::draw(const CameraData& camera) const
-{
-    const Mat4 viewProjection = camera.projection * camera.view;
-
-    m_shader.use();
-    glUniformMatrix4fv(m_viewProjectionLocation, 1, GL_FALSE, glm::value_ptr(viewProjection));
-    glUniform3fv(m_cameraPositionLocation, 1, glm::value_ptr(camera.position));
-    glUniform1f(m_cellSizeLocation, kCellSize);
-    glUniform1f(m_fadeDistanceLocation, kFadeDistance);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_FALSE);
-    // Снизу сетку тоже видно.
-    glDisable(GL_CULL_FACE);
-
-    glBindVertexArray(m_vertexArray);
-    glDrawArrays(GL_TRIANGLES, 0, kCornerCount);
-    glBindVertexArray(0);
-
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
+    commands.bindPipeline(*m_pipeline);
+    setUniforms(commands, kViewBlock, viewUniforms);
+    setUniforms(commands, kGridBlock, m_uniforms.push(GridUniforms{}));
+    commands.setVertexBuffer(*m_corners);
+    commands.draw(kCornerCount);
 }
 
 } // namespace yqlora::opengl

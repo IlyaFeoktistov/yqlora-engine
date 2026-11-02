@@ -3,7 +3,10 @@
 in vec2 vUv;
 
 uniform sampler2D uMask;
-uniform vec4 uColor;
+
+layout(std140) uniform Outline {
+    vec4 uColor;
+};
 
 out vec4 fragColor;
 

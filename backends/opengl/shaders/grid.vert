@@ -2,9 +2,15 @@
 
 layout(location = 0) in vec2 aCorner;
 
-uniform mat4 uViewProjection;
-uniform vec3 uCameraPosition;
-uniform float uFadeDistance;
+layout(std140) uniform View {
+    mat4 uViewProjection;
+    vec3 uCameraPosition;
+};
+
+layout(std140) uniform Grid {
+    float uCellSize;
+    float uFadeDistance;
+};
 
 out vec3 vWorld;
 

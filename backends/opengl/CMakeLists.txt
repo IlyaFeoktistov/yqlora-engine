@@ -32,11 +32,13 @@ add_custom_command(
 add_library(yqlora_opengl STATIC
     ${YQLORA_GL_SHADERS_HEADER}
     src/OpenGLRenderer.cpp
+    src/GlBuffer.cpp
+    src/GlCommandList.cpp
+    src/GlDevice.cpp
     src/GlShader.cpp
     src/GlRenderTarget.cpp
     src/GlUiRenderer.cpp
     src/GridPass.cpp
-    src/GlMesh.cpp
     src/GlTexture.cpp
     src/MeshPass.cpp
     src/OutlinePass.cpp
