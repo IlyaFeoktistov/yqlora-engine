@@ -13,6 +13,7 @@
 #include "yqlora/render/ShaderData.hpp"
 #include "yqlora/render/TextureData.hpp"
 #include "yqlora/render/UniformRing.hpp"
+#include "yqlora/shader/ShaderCompiler.hpp"
 
 #include <span>
 
@@ -52,12 +53,14 @@ rhi::SamplerDesc samplerDesc(const TextureSampling& sampling)
 OpenGLRenderer::OpenGLRenderer(Window& window)
     : m_window(window)
     , m_device(std::make_unique<GlDevice>(window))
+    // Шейдеры движка вшиты, файлов проекта рендереру читать не нужно.
+    , m_shaders(std::make_unique<ShaderCompiler>(ShaderFileReader{}))
     , m_uniforms(std::make_unique<UniformRing>(*m_device))
     , m_meshes(std::make_unique<GpuMeshCache>(*m_device))
     , m_uiTextures(std::make_unique<GpuResourceCache<rhi::Texture>>())
-    , m_meshPass(std::make_unique<MeshPass>(*m_device, *m_meshes, *m_uniforms))
-    , m_grid(std::make_unique<GridPass>(*m_device, *m_uniforms))
-    , m_outline(std::make_unique<OutlinePass>(*m_device, *m_meshes, *m_uniforms))
+    , m_meshPass(std::make_unique<MeshPass>(*m_device, *m_shaders, *m_meshes, *m_uniforms))
+    , m_grid(std::make_unique<GridPass>(*m_device, *m_shaders, *m_uniforms))
+    , m_outline(std::make_unique<OutlinePass>(*m_device, *m_shaders, *m_meshes, *m_uniforms))
 {
 }
 
@@ -70,6 +73,7 @@ OpenGLRenderer::~OpenGLRenderer()
     m_uiTextures.reset();
     m_meshes.reset();
     m_uniforms.reset();
+    m_shaders.reset();
     m_device.reset();
 }
 

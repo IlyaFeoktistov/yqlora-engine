@@ -81,7 +81,7 @@ TEST_CASE("FrameBuilder: every Node3D with a MeshRenderer and a known mesh becom
     auto& unknown = root.addChild<Node3D>("Unknown");
     unknown.addComponent<MeshRenderer>().setMesh(ResourceRef{123456});
 
-    const FrameData frame = extractFrame(scene, 1.0f, DepthRange::MinusOneToOne);
+    const FrameData frame = extractFrame(scene, 1.0f);
     REQUIRE(frame.drawItems.size() == 1);
     const DrawItem& item = frame.drawItems[0];
     CHECK(item.mesh == scene.services().resources().find<MeshData>(builtin::kCubeMesh));

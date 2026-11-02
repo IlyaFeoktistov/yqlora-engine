@@ -9,11 +9,6 @@ Renderer& EditorHost::renderer() const
     return m_app.renderer();
 }
 
-DepthRange EditorHost::depthRange() const
-{
-    return m_app.depthRange();
-}
-
 const Input& EditorHost::input() const
 {
     return m_app.input();

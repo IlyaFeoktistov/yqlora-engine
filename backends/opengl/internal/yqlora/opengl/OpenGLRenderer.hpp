@@ -7,6 +7,7 @@
 
 namespace yqlora {
 class GpuMeshCache;
+class ShaderCompiler;
 class UniformRing;
 } // namespace yqlora
 
@@ -36,11 +37,6 @@ public:
         return GraphicsApi::OpenGL;
     }
 
-    DepthRange depthRange() const override
-    {
-        return DepthRange::MinusOneToOne;
-    }
-
     void render(const FrameData& frame) override;
     void render(const FrameData& frame, RenderTarget& target) override;
     std::unique_ptr<RenderTarget> createRenderTarget(int width, int height) override;
@@ -59,6 +55,7 @@ private:
     Window& m_window;
     // Первым создаётся и последним удаляется: остальное - объекты устройства.
     std::unique_ptr<GlDevice> m_device;
+    std::unique_ptr<ShaderCompiler> m_shaders;
     std::unique_ptr<UniformRing> m_uniforms;
     std::unique_ptr<GpuMeshCache> m_meshes;
     std::unique_ptr<GpuResourceCache<rhi::Texture>> m_uiTextures;

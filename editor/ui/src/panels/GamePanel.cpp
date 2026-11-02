@@ -74,7 +74,7 @@ void GamePanel::draw(EditorContext& context)
     const Scene& scene = session.scene();
     const RenderSystem* render = scene.system<RenderSystem>();
     if (render && render->mainCamera()) {
-        m_view.render(context.host.renderer(), extractFrame(scene, size.x / size.y, context.host.depthRange()));
+        m_view.render(context.host.renderer(), extractFrame(scene, size.x / size.y));
     } else {
         // Без камеры игре не через что показываться.
         const std::string text = tr("editor.play.noCamera");

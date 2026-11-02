@@ -71,6 +71,8 @@ cmake --build --preset debug
 | [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) | MIT |
 | [cgltf](https://github.com/jkuhlmann/cgltf) | MIT |
 | [stb_image](https://github.com/nothings/stb) | MIT или общественное достояние |
+| [glslang](https://github.com/KhronosGroup/glslang) | BSD-3-Clause и другие (см. его LICENSE.txt) |
+| [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) | Apache-2.0 |
 | [doctest](https://github.com/doctest/doctest) | MIT |
 | [glad](https://github.com/Dav1dde/glad) (сгенерированный загрузчик) | CC0-1.0 или WTFPL; части Khronos - Apache-2.0 |
 | Шрифт [Noto Sans](https://github.com/notofonts/latin-greek-cyrillic) | [SIL OFL 1.1](assets/fonts/OFL.txt) |

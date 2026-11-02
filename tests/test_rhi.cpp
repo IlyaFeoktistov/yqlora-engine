@@ -20,11 +20,22 @@ using yqlora::test::RecordingDevice;
 
 namespace {
 
-const rhi::ShaderBinding kAlbedo{"uAlbedo", rhi::BindingKind::Texture, kMaterialSet, 1};
+const rhi::ShaderBinding kAlbedo{.name = "albedo", .kind = rhi::BindingKind::Texture, .slot = {kMaterialSet, 1}};
+
+// Отражение блока, как его дал бы шейдер; тестовому устройству хватает места и вида.
+rhi::ShaderBinding block(const UniformLayout& layout)
+{
+    return {
+        .name = std::string(layout.name),
+        .kind = rhi::BindingKind::UniformBlock,
+        .slot = layout.slot,
+        .size = static_cast<std::uint32_t>(layout.size),
+    };
+}
 
 std::unique_ptr<rhi::Shader> meshShader(rhi::Device& device)
 {
-    return device.createShader({.name = "mesh", .bindings = {kViewBlock, kObjectBlock}});
+    return device.createShader({.name = "mesh", .reflection = {.bindings = {block(kViewBlock), block(kObjectBlock)}}});
 }
 
 // Проход в задний буфер с его глубиной.
@@ -139,7 +150,7 @@ TEST_CASE("RHI: a draw needs every resource of the shader set after the pipeline
 TEST_CASE("RHI: a texture is read only in ShaderRead")
 {
     RecordingDevice device;
-    auto shader = device.createShader({.name = "textured", .bindings = {kAlbedo}});
+    auto shader = device.createShader({.name = "textured", .reflection = {.bindings = {kAlbedo}}});
     auto pipeline = device.createPipeline({.shader = shader.get()});
     auto sampler = device.createSampler({});
     auto target = device.createTexture({.usage = rhi::kColorTarget | rhi::kSampled}, {});
@@ -147,13 +158,13 @@ TEST_CASE("RHI: a texture is read only in ShaderRead")
     beginWindowPass(device);
     rhi::CommandList& commands = device.commands();
     commands.bindPipeline(*pipeline);
-    CHECK_THROWS_AS(commands.setTexture(kAlbedo.set, kAlbedo.binding, *target, *sampler), std::logic_error);
+    CHECK_THROWS_AS(commands.setTexture(kAlbedo.slot.set, kAlbedo.slot.binding, *target, *sampler), std::logic_error);
     commands.endRenderPass();
 
     commands.transition(*target, rhi::ResourceState::ShaderRead);
     beginWindowPass(device);
     commands.bindPipeline(*pipeline);
-    commands.setTexture(kAlbedo.set, kAlbedo.binding, *target, *sampler);
+    commands.setTexture(kAlbedo.slot.set, kAlbedo.slot.binding, *target, *sampler);
     CHECK_NOTHROW(commands.draw(3));
     commands.endRenderPass();
 }

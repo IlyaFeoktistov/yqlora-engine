@@ -47,6 +47,7 @@ add_executable(yqlora_tests
     test_compiler_diagnostics.cpp
     test_script_build.cpp
     test_rhi.cpp
+    test_shaders.cpp
     RecordingDevice.cpp
 )
 target_link_libraries(yqlora_tests PRIVATE yqlora::internal yqlora::editor doctest::doctest stb_headers)
@@ -69,6 +70,14 @@ if(TARGET yqlora_example_scripts)
     add_dependencies(yqlora_tests yqlora_example_scripts)
 endif()
 yqlora_set_warnings(yqlora_tests)
+# Перевод шейдеров в GLSL 330 проверяется без контекста OpenGL. Бэкенд
+# спрятан внутри библиотеки движка, поэтому тесты собирают переводчик сами.
+if(YQLORA_BACKEND_OPENGL)
+    target_sources(yqlora_tests PRIVATE ${PROJECT_SOURCE_DIR}/backends/opengl/src/GlslTranslator.cpp)
+    target_include_directories(yqlora_tests PRIVATE ${PROJECT_SOURCE_DIR}/backends/opengl/internal)
+    target_link_libraries(yqlora_tests PRIVATE spirv-cross-glsl)
+    target_compile_definitions(yqlora_tests PRIVATE YQLORA_HAS_OPENGL=1)
+endif()
 
 add_test(NAME yqlora_tests COMMAND yqlora_tests)
 

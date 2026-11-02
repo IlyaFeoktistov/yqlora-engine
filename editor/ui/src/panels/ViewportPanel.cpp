@@ -105,7 +105,7 @@ void ViewportPanel::draw(EditorContext& context)
         .camera = m_camera,
         .theme = context.theme,
         .settings = context.settings,
-        .view = m_camera.cameraData(aspect, context.host.depthRange()),
+        .view = m_camera.cameraData(aspect),
         .origin = origin,
         .size = size,
         .mouseFree = sceneHovered && !m_camera.flying(),
@@ -125,9 +125,9 @@ void ViewportPanel::draw(EditorContext& context)
 void ViewportPanel::renderScene(EditorContext& context, float aspect, const GizmoContext& gizmoContext)
 {
     const EditorHost& host = context.host;
-    FrameData frame = extractFrame(context.session.scene(), aspect, host.depthRange());
+    FrameData frame = extractFrame(context.session.scene(), aspect);
     frame.views = {{
-        .camera = m_camera.cameraData(aspect, host.depthRange()),
+        .camera = m_camera.cameraData(aspect),
         .background = context.theme.colors().viewportBackground,
     }};
     m_gizmos.prepareFrame(frame, gizmoContext);
@@ -203,8 +203,8 @@ void ViewportPanel::drawCameraPreview(EditorContext& context, const Camera3D& ca
 
     // Только эта камера, как её увидит игра: без гизмо и без остальных камер.
     const float aspect = rect.size.x / rect.size.y;
-    FrameData frame = extractFrame(context.session.scene(), aspect, host.depthRange());
-    frame.views = {cameraView(camera, aspect, host.depthRange())};
+    FrameData frame = extractFrame(context.session.scene(), aspect);
+    frame.views = {cameraView(camera, aspect)};
     m_preview.render(host.renderer(), frame);
 }
 

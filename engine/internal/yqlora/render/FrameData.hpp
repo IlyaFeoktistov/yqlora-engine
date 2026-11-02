@@ -1,6 +1,5 @@
 #pragma once
 
-#include "yqlora/math/DepthRange.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/resource/ResourceId.hpp"

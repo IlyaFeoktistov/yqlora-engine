@@ -1,8 +1,9 @@
 #include "yqlora/opengl/OutlinePass.hpp"
 
-#include "GeneratedShaders.hpp"
 #include "yqlora/render/GpuMesh.hpp"
 #include "yqlora/render/ShaderData.hpp"
+#include "yqlora/shader/EngineShaders.hpp"
+#include "yqlora/shader/ShaderBuild.hpp"
 
 #include <algorithm>
 
@@ -15,32 +16,47 @@ constexpr std::uint32_t kFullscreenTriangleVertices = 3;
 
 const Vec4 kMaskClear(0.0f);
 
+// Блок Outline в engine/shaders/outline.frag.
 struct alignas(16) OutlineUniforms {
     Vec4 color{1.0f};
 };
 
-const rhi::ShaderBinding kOutlineBlock{"Outline", rhi::BindingKind::UniformBlock, kMaterialSet, 0};
-const rhi::ShaderBinding kMaskTexture{"uMask", rhi::BindingKind::Texture, kMaterialSet, 1};
+const UniformLayout kOutlineBlock{
+    "Outline",
+    {kMaterialSet, 0},
+    sizeof(OutlineUniforms),
+    {YQLORA_UNIFORM_MEMBER(OutlineUniforms, color)},
+};
+
+const UniformLayout* const kOutlineLayouts[] = {&kOutlineBlock};
+
+constexpr rhi::BindingSlot kMaskTexture{kMaterialSet, 1};
 
 } // namespace
 
-OutlinePass::OutlinePass(rhi::Device& device, GpuMeshCache& meshes, UniformRing& uniforms)
+OutlinePass::OutlinePass(rhi::Device& device, ShaderCompiler& shaders, GpuMeshCache& meshes, UniformRing& uniforms)
     : m_device(device)
     , m_meshes(meshes)
     , m_uniforms(uniforms)
     , m_maskSampler(device.createSampler({.filter = rhi::Filter::Nearest, .wrap = rhi::Wrap::Clamp, .mipmaps = false}))
-    , m_maskShader(device.createShader({
-          .name = "outline mask",
-          .vertex = shaders::kOutlineMaskVert,
-          .fragment = shaders::kOutlineMaskFrag,
-          .bindings = {kViewBlock, kObjectBlock},
-      }))
-    , m_outlineShader(device.createShader({
-          .name = "outline",
-          .vertex = shaders::kFullscreenVert,
-          .fragment = shaders::kOutlineFrag,
-          .bindings = {kOutlineBlock, kMaskTexture},
-      }))
+    , m_maskShader(device.createShader(buildEngineShader(
+          shaders,
+          {
+              .name = "outline mask",
+              .vertexPath = engineShaderPath("outline_mask.vert"),
+              .fragmentPath = engineShaderPath("outline_mask.frag"),
+              .layouts = kEngineBlocks,
+          }
+      )))
+    , m_outlineShader(device.createShader(buildEngineShader(
+          shaders,
+          {
+              .name = "outline",
+              .vertexPath = engineShaderPath("fullscreen.vert"),
+              .fragmentPath = engineShaderPath("outline.frag"),
+              .layouts = kOutlineLayouts,
+          }
+      )))
     // Маска без теста глубины: контур виден сквозь другие объекты.
     , m_maskPipeline(device.createPipeline({
           .shader = m_maskShader.get(),

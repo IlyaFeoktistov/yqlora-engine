@@ -8,7 +8,8 @@
 
 namespace yqlora {
 class GpuMeshCache;
-}
+class ShaderCompiler;
+} // namespace yqlora
 
 namespace yqlora::opengl {
 
@@ -18,7 +19,7 @@ namespace yqlora::opengl {
 // а сам контур виден и сквозь другие объекты.
 class OutlinePass {
 public:
-    OutlinePass(rhi::Device& device, GpuMeshCache& meshes, UniformRing& uniforms);
+    OutlinePass(rhi::Device& device, ShaderCompiler& shaders, GpuMeshCache& meshes, UniformRing& uniforms);
 
     // Свои проходы: маска, затем контур поверх color. Вызывается вне прохода.
     void draw(

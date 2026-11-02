@@ -49,7 +49,7 @@ public:
     Vec3 right() const;
     Vec3 up() const;
 
-    CameraData cameraData(float aspect, DepthRange depthRange) const;
+    CameraData cameraData(float aspect) const;
 
     // Луч из камеры через точку окна. point и viewportSize в одних единицах,
     // отсчёт от левого верхнего угла, как у положения мыши.

@@ -71,9 +71,9 @@ Mat4 Camera3D::viewMatrix() const
     return glm::inverse(worldMatrix());
 }
 
-Mat4 Camera3D::projectionMatrix(float aspect, DepthRange depthRange) const
+Mat4 Camera3D::projectionMatrix(float aspect) const
 {
-    return math::perspective(glm::radians(m_fovDegrees), aspect, m_near, m_far, depthRange);
+    return math::perspective(glm::radians(m_fovDegrees), aspect, m_near, m_far);
 }
 
 } // namespace yqlora

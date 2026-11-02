@@ -71,6 +71,8 @@ The program starts without a console and logs only warnings and errors;
 | [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) | MIT |
 | [cgltf](https://github.com/jkuhlmann/cgltf) | MIT |
 | [stb_image](https://github.com/nothings/stb) | MIT or public domain |
+| [glslang](https://github.com/KhronosGroup/glslang) | BSD-3-Clause and others (see its LICENSE.txt) |
+| [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) | Apache-2.0 |
 | [doctest](https://github.com/doctest/doctest) | MIT |
 | [glad](https://github.com/Dav1dde/glad) (generated loader) | CC0-1.0 or WTFPL; Khronos parts Apache-2.0 |
 | [Noto Sans](https://github.com/notofonts/latin-greek-cyrillic) font | [SIL OFL 1.1](assets/fonts/OFL.txt) |

@@ -1,5 +1,7 @@
 #include "yqlora/opengl/GlShader.hpp"
 
+#include "yqlora/opengl/GlslTranslator.hpp"
+
 #include <glad/gl.h>
 
 #include <array>
@@ -17,10 +19,10 @@ GlShader::GlShader(rhi::ShaderDesc desc)
     : rhi::Shader(std::move(desc))
 {
     const std::string& name = this->desc().name;
-    const GLuint vertex = compile(GL_VERTEX_SHADER, this->desc().vertex);
+    const GLuint vertex = compile(GL_VERTEX_SHADER, translateToGlsl330(this->desc().vertex, rhi::ShaderStage::Vertex));
     GLuint fragment = 0;
     try {
-        fragment = compile(GL_FRAGMENT_SHADER, this->desc().fragment);
+        fragment = compile(GL_FRAGMENT_SHADER, translateToGlsl330(this->desc().fragment, rhi::ShaderStage::Fragment));
     } catch (...) {
         glDeleteShader(vertex);
         throw;
@@ -50,10 +52,10 @@ GlShader::~GlShader()
     glDeleteProgram(m_program);
 }
 
-std::optional<unsigned int> GlShader::slot(std::uint32_t set, std::uint32_t binding) const
+std::optional<unsigned int> GlShader::slot(rhi::BindingSlot binding) const
 {
     for (const Slot& entry : m_slots) {
-        if (entry.set == set && entry.binding == binding) {
+        if (entry.binding == binding) {
             return entry.slot;
         }
     }
@@ -66,21 +68,22 @@ void GlShader::assignSlots()
     unsigned int nextBlock = 0;
     unsigned int nextUnit = 0;
     glUseProgram(m_program);
-    for (const rhi::ShaderBinding& binding : desc().bindings) {
-        // Ресурс, который компилятор выбросил как неиспользуемый, программе
-        // не найти; точка за ним всё равно числится, привязка к ней безвредна.
+    for (const rhi::ShaderBinding& binding : desc().reflection.bindings) {
+        // Ресурс, который драйвер выбросил как неиспользуемый, программе не
+        // найти; точка за ним всё равно числится, привязка к ней безвредна.
+        const std::string name = glResourceName(binding.slot);
         if (binding.kind == rhi::BindingKind::UniformBlock) {
-            const GLuint index = glGetUniformBlockIndex(m_program, binding.name.c_str());
+            const GLuint index = glGetUniformBlockIndex(m_program, name.c_str());
             if (index != GL_INVALID_INDEX) {
                 glUniformBlockBinding(m_program, index, nextBlock);
             }
-            m_slots.push_back({binding.set, binding.binding, nextBlock++});
+            m_slots.push_back({binding.slot, nextBlock++});
         } else {
-            const GLint location = glGetUniformLocation(m_program, binding.name.c_str());
+            const GLint location = glGetUniformLocation(m_program, name.c_str());
             if (location >= 0) {
                 glUniform1i(location, static_cast<GLint>(nextUnit));
             }
-            m_slots.push_back({binding.set, binding.binding, nextUnit++});
+            m_slots.push_back({binding.slot, nextUnit++});
         }
     }
     glUseProgram(0);

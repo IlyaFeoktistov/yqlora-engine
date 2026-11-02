@@ -145,7 +145,7 @@ const rhi::ShaderBinding& RecordingCommandList::binding(
 ) const
 {
     requireThat(m_pipeline != nullptr, "No pipeline is bound");
-    const rhi::ShaderBinding* found = m_pipeline->desc().shader->findBinding(set, slot);
+    const rhi::ShaderBinding* found = m_pipeline->desc().shader->findBinding({set, slot});
     requireThat(found != nullptr, "The shader has no resource at this set and binding");
     requireThat(found->kind == kind, "The shader resource is of another kind");
 
@@ -155,8 +155,8 @@ const rhi::ShaderBinding& RecordingCommandList::binding(
 void RecordingCommandList::checkDrawable() const
 {
     requireThat(m_inPass && m_pipeline != nullptr, "draw: no pipeline is bound");
-    for (const rhi::ShaderBinding& entry : m_pipeline->desc().shader->desc().bindings) {
-        requireThat(m_bound.contains({entry.set, entry.binding}), "draw: a shader resource is not set");
+    for (const rhi::ShaderBinding& entry : m_pipeline->desc().shader->desc().reflection.bindings) {
+        requireThat(m_bound.contains({entry.slot.set, entry.slot.binding}), "draw: a shader resource is not set");
     }
     requireThat(m_pipeline->desc().vertexLayout.attributes.empty() || m_hasVertexBuffer, "draw: no vertex buffer");
 }

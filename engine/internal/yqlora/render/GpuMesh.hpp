@@ -3,6 +3,7 @@
 #include "yqlora/core/Export.hpp"
 #include "yqlora/render/GpuResourceCache.hpp"
 #include "yqlora/rhi/Device.hpp"
+#include "yqlora/shader/ShaderProfile.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -12,12 +13,7 @@ namespace yqlora {
 struct DrawItem;
 struct MeshData;
 
-// Входы вершин меша. Те же location у шейдеров мешей.
-inline constexpr std::uint32_t kPositionLocation = 0;
-inline constexpr std::uint32_t kNormalLocation = 1;
-inline constexpr std::uint32_t kUv0Location = 2;
-
-// Раскладка Vertex для конвейеров, которые рисуют меши.
+// Раскладка Vertex по местам входов профиля шейдеров (ShaderProfile.hpp) для конвейеров, которые рисуют меши.
 YQLORA_API rhi::VertexLayout meshVertexLayout();
 
 // Меш в видеопамяти.

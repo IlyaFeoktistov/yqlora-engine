@@ -1,7 +1,5 @@
 #pragma once
 
-#include "yqlora/math/DepthRange.hpp"
-
 #include <glm/gtc/epsilon.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -33,14 +31,12 @@ inline constexpr Vec3 kWorldUp{0.0f, 1.0f, 0.0f};
 // Допуск для сравнения результатов вычислений с плавающей точкой.
 inline constexpr float kEpsilon = 1e-4f;
 
-// Перспективная проекция правой системы координат под диапазон глубины рендерера.
-inline Mat4 perspective(float fovYRadians, float aspect, float nearPlane, float farPlane, DepthRange depthRange)
+// Перспективная проекция по соглашению движка для всех графических API:
+// правая система, глубина клипа от 0 (ближняя плоскость) до 1 (дальняя).
+// Под свой API её приводит бэкенд (OpenGL - в шейдере, см. rendering.md).
+inline Mat4 perspective(float fovYRadians, float aspect, float nearPlane, float farPlane)
 {
-    if (depthRange == DepthRange::ZeroToOne) {
-        return glm::perspectiveRH_ZO(fovYRadians, aspect, nearPlane, farPlane);
-    }
-
-    return glm::perspectiveRH_NO(fovYRadians, aspect, nearPlane, farPlane);
+    return glm::perspectiveRH_ZO(fovYRadians, aspect, nearPlane, farPlane);
 }
 
 // Векторы равны с точностью до epsilon по каждой координате.

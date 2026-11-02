@@ -3,6 +3,7 @@
 #include "yqlora/core/Export.hpp"
 #include "yqlora/rhi/Device.hpp"
 #include "yqlora/rhi/Pipeline.hpp"
+#include "yqlora/shader/UniformLayout.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -54,10 +55,10 @@ private:
     std::size_t m_cursor = 0;
 };
 
-// Данные блока шейдера (набор и привязка - из его описания).
-inline void setUniforms(rhi::CommandList& commands, const rhi::ShaderBinding& block, const UniformSlice& slice)
+// Данные блока шейдера (набор и привязка - из его раскладки).
+inline void setUniforms(rhi::CommandList& commands, const UniformLayout& block, const UniformSlice& slice)
 {
-    commands.setUniformBuffer(block.set, block.binding, *slice.buffer, slice.offset, slice.size);
+    commands.setUniformBuffer(block.slot.set, block.slot.binding, *slice.buffer, slice.offset, slice.size);
 }
 
 } // namespace yqlora

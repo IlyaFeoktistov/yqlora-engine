@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/rhi/RhiTypes.hpp"
+#include "yqlora/rhi/ShaderReflection.hpp"
 
 #include <cstdint>
 #include <string>
@@ -9,27 +10,13 @@
 
 namespace yqlora::rhi {
 
-enum class BindingKind {
-    UniformBlock,
-    Texture, // текстура вместе с сэмплером (sampler2D)
-};
-
-// Ресурс шейдера по набору и привязке, как в Vulkan. Имя - то, что в шейдере:
-// по нему OpenGL находит ресурс в программе.
-struct ShaderBinding {
-    std::string name{};
-    BindingKind kind = BindingKind::UniformBlock;
-    std::uint32_t set = 0;
-    std::uint32_t binding = 0;
-};
-
-// Исходники стадий и ресурсы шейдера. Сейчас это GLSL 330 для OpenGL и список
-// ресурсов вручную; с R.2 здесь SPIR-V, а ресурсы даёт отражение.
+// Шейдер в SPIR-V: вершинная и фрагментная стадии и их отражение. Бэкенд
+// переводит SPIR-V в свой язык (OpenGL - GLSL 330 через SPIRV-Cross).
 struct ShaderDesc {
     std::string name{};
-    std::string vertex{};
-    std::string fragment{};
-    std::vector<ShaderBinding> bindings{};
+    std::vector<std::uint32_t> vertex{};
+    std::vector<std::uint32_t> fragment{};
+    ShaderReflection reflection{};
 };
 
 class Shader {
@@ -50,15 +37,9 @@ public:
     }
 
     // nullptr, если такого ресурса у шейдера нет.
-    const ShaderBinding* findBinding(std::uint32_t set, std::uint32_t binding) const
+    const ShaderBinding* findBinding(BindingSlot slot) const
     {
-        for (const ShaderBinding& entry : m_desc.bindings) {
-            if (entry.set == set && entry.binding == binding) {
-                return &entry;
-            }
-        }
-
-        return nullptr;
+        return m_desc.reflection.find(slot);
     }
 
 private:

@@ -10,12 +10,12 @@
 
 namespace yqlora {
 
-FrameData extractFrame(const Scene& scene, float aspect, DepthRange depthRange)
+FrameData extractFrame(const Scene& scene, float aspect)
 {
     FrameData frame;
     if (const RenderSystem* render = scene.system<RenderSystem>()) {
         for (const Camera3D* camera : render->cameras()) {
-            frame.views.push_back(cameraView(*camera, aspect, depthRange));
+            frame.views.push_back(cameraView(*camera, aspect));
         }
     }
     ResourceCache& resources = scene.services().resources();
@@ -42,13 +42,13 @@ FrameData extractFrame(const Scene& scene, float aspect, DepthRange depthRange)
     return frame;
 }
 
-ViewData cameraView(const Camera3D& camera, float aspect, DepthRange depthRange)
+ViewData cameraView(const Camera3D& camera, float aspect)
 {
     return {
         .camera =
             {
                 .view = camera.viewMatrix(),
-                .projection = camera.projectionMatrix(aspect, depthRange),
+                .projection = camera.projectionMatrix(aspect),
                 .position = camera.worldPosition(),
             },
         .clear = camera.clear(),

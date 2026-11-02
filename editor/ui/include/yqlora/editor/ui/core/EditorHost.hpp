@@ -1,7 +1,5 @@
 #pragma once
 
-#include "yqlora/math/DepthRange.hpp"
-
 #include <filesystem>
 #include <functional>
 #include <optional>
@@ -24,7 +22,6 @@ public:
     }
 
     Renderer& renderer() const;
-    DepthRange depthRange() const;
     const Input& input() const;
     Language& language() const;
 

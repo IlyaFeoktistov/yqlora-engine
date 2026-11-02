@@ -20,7 +20,7 @@ TEST_CASE("Scene: new scene is empty")
 
     // Пустую сцену можно обновлять и рисовать.
     scene.advance(0.016f);
-    const FrameData frame = extractFrame(scene, 1.0f, DepthRange::MinusOneToOne);
+    const FrameData frame = extractFrame(scene, 1.0f);
     CHECK(frame.views.empty());
     CHECK(frame.drawItems.empty());
 }

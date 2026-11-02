@@ -21,7 +21,7 @@ snapshot made by Extract, never the scene.
                  colour, node layer
    Node3D: world matrices
         |
-        |  extractFrame(scene, aspect, depthRange)        render/FrameBuilder
+        |  extractFrame(scene, aspect)                    render/FrameBuilder
         v
  FrameData (snapshot, nothing points back into the scene)
    views[]      one per camera: view and projection, clear mode,
@@ -123,8 +123,8 @@ Vulkan itself.
   (`GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT` in OpenGL).
 - **One convention for clip space** across the engine: right-handed world,
   clip depth from 0 (near) to 1 (far), NDC y up, texture rows from the top.
-  Projections are built only this way, so cameras do not know the API and
-  `DepthRange` leaves the camera code. The backend adapts: OpenGL gets its
+  Projections are built only this way (`math::perspective`), so cameras do
+  not know the API; there is no `DepthRange` any more. The backend adapts: OpenGL gets its
   vertex shaders from SPIRV-Cross with the depth remapped to -1..1
   (`fixup_clipspace`), Vulkan will flip y with the viewport. The vertical
   flip of render targets in OpenGL stays inside the backend (`UiTexture`
@@ -171,9 +171,22 @@ profile below are checked on every target API when its backend arrives.
   separate part used by the editor and the engine at start-up; the game
   built without the editor can ship precompiled shaders and run without
   glslang (step 9). SPIRV-Cross stays in the OpenGL backend.
-- **Built-in shaders** move from `backends/opengl/shaders` to
-  `engine/render/shaders` and go through the same path as the shaders of a
-  project in step 5.
+- **Only what a stage uses** gets into the reflection: a block that is
+  included but never read is not a resource of the shader and does not
+  have to be set before a draw. So a shader may include the whole engine
+  library (`<yqlora/uniforms.glsl>`) and keep only what it reads.
+- **Built-in shaders** **[done]** live in `engine/shaders` and are embedded
+  into the engine library. Their path in the compiler starts with
+  `engine:` (`engine:mesh.vert`); errors show the same path.
+  `#include <yqlora/...>` takes a file from `engine/shaders/include`, so the
+  shaders of a project in step 5 include the same library.
+- **Where it lives** **[done]**: `engine/internal/yqlora/shader` -
+  `ShaderCompiler` (glslang, includes, defines, cache), `reflectShader` and
+  `checkShaderProfile`, `UniformLayout` with `checkUniformLayout` (the C++
+  side of a block: `YQLORA_UNIFORM_MEMBER` gives the name, offset and
+  size of a field), `buildShader` (the whole path, errors of every step
+  together). The OpenGL backend has `GlslTranslator`: SPIR-V to GLSL 330,
+  resources and varyings renamed so that GLSL 330 finds them by name.
 
 ### Prepare and the render graph
 
@@ -204,7 +217,7 @@ profile below are checked on every target API when its backend arrives.
    minimal test RHI that records commands and checks pipeline and target
    compatibility, from the first phase, so that mistakes of the interface
    are found before the OpenGL implementation fixes them.
-2. **R.2 Shaders.** glslang and SPIRV-Cross, the profile, `ShaderReflection`,
+2. **R.2 Shaders** **[done]**. glslang and SPIRV-Cross, the profile, `ShaderReflection`,
    includes, defines, errors with file and line, the in-memory cache, the
    checks of std140 structs against the reflection; built-in shaders in GLSL
    450; the clip space convention, `DepthRange` leaves the cameras.

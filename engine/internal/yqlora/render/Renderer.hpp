@@ -21,7 +21,6 @@ public:
     virtual ~Renderer() = default;
 
     virtual GraphicsApi api() const = 0;
-    virtual DepthRange depthRange() const = 0;
 
     // Рисует кадр в окно. На экране он появится после present(): между ними
     // поверх можно дорисовать интерфейс.

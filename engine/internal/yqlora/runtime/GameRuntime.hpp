@@ -1,7 +1,6 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
-#include "yqlora/math/DepthRange.hpp"
 #include "yqlora/render/FrameData.hpp"
 #include "yqlora/scene/Scene.hpp"
 
@@ -22,7 +21,7 @@ public:
 
     void simulate(float deltaSeconds);
     void updateTransforms();
-    FrameData extract(float aspect, DepthRange depthRange) const;
+    FrameData extract(float aspect) const;
 
 private:
     Scene m_scene;

@@ -197,7 +197,7 @@ const GlShader& GlCommandList::shader() const
 
 unsigned int GlCommandList::slot(std::uint32_t set, std::uint32_t binding) const
 {
-    const std::optional<unsigned int> found = shader().slot(set, binding);
+    const std::optional<unsigned int> found = shader().slot({set, binding});
     if (!found) {
         throw std::logic_error(
             "Shader '" + shader().desc().name + "' has no resource at set " + std::to_string(set) + ", binding "

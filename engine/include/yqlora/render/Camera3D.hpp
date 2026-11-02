@@ -1,7 +1,6 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
-#include "yqlora/math/DepthRange.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/scene/Layers.hpp"
 #include "yqlora/scene/Node3D.hpp"
@@ -54,7 +53,7 @@ public:
     void setFarPlane(float farPlane);
 
     Mat4 viewMatrix() const;
-    Mat4 projectionMatrix(float aspect, DepthRange depthRange) const;
+    Mat4 projectionMatrix(float aspect) const;
 
     // Порядок отрисовки: меньше - раньше. Первая камера сцены - главная.
     int order() const

@@ -19,9 +19,9 @@ void GameRuntime::updateTransforms()
     m_scene.updateTransforms();
 }
 
-FrameData GameRuntime::extract(float aspect, DepthRange depthRange) const
+FrameData GameRuntime::extract(float aspect) const
 {
-    return extractFrame(m_scene, aspect, depthRange);
+    return extractFrame(m_scene, aspect);
 }
 
 } // namespace yqlora

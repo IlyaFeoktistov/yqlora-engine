@@ -3,7 +3,6 @@
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/core/Export.hpp"
 #include "yqlora/input/Input.hpp"
-#include "yqlora/math/DepthRange.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/platform/Window.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
@@ -107,10 +106,8 @@ public:
     // Размер окна в тех же единицах, что положение мыши.
     Vec2 windowSize() const;
 
-    // Ширина к высоте области вывода и диапазон глубины рендерера:
-    // нужны, чтобы построить проекцию своей камеры.
+    // Ширина к высоте области вывода: нужна, чтобы построить проекцию своей камеры.
     float aspectRatio() const;
-    DepthRange depthRange() const;
 
     // Уточнение в заголовке окна перед названием программы, например имя проекта.
     // Пустая строка - только название.

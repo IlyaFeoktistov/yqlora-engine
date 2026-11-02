@@ -8,9 +8,9 @@
 
 namespace yqlora::opengl {
 
-// Программа OpenGL из исходников стадий. В OpenGL нет наборов: каждому
-// ресурсу шейдера (набор, привязка) программа даёт свою точку привязки
-// uniform-блока или текстурный блок, по порядку списка ресурсов.
+// Программа OpenGL из SPIR-V стадий (через GLSL 330). В OpenGL нет наборов:
+// каждому ресурсу шейдера (набор, привязка) программа даёт свою точку
+// привязки uniform-блока или текстурный блок, по порядку отражения.
 class GlShader final : public rhi::Shader {
 public:
     // Бросает std::runtime_error с логом компилятора, если шейдер не собрался.
@@ -23,12 +23,11 @@ public:
     }
 
     // Точка привязки uniform-блока или номер текстурного блока ресурса.
-    std::optional<unsigned int> slot(std::uint32_t set, std::uint32_t binding) const;
+    std::optional<unsigned int> slot(rhi::BindingSlot binding) const;
 
 private:
     struct Slot {
-        std::uint32_t set = 0;
-        std::uint32_t binding = 0;
+        rhi::BindingSlot binding{};
         unsigned int slot = 0;
     };
 

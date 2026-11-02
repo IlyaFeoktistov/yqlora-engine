@@ -1,20 +1,24 @@
 #include "yqlora/opengl/MeshPass.hpp"
 
-#include "GeneratedShaders.hpp"
 #include "yqlora/render/GpuMesh.hpp"
 #include "yqlora/render/ShaderData.hpp"
+#include "yqlora/shader/EngineShaders.hpp"
+#include "yqlora/shader/ShaderBuild.hpp"
 
 namespace yqlora::opengl {
 
-MeshPass::MeshPass(rhi::Device& device, GpuMeshCache& meshes, UniformRing& uniforms)
+MeshPass::MeshPass(rhi::Device& device, ShaderCompiler& shaders, GpuMeshCache& meshes, UniformRing& uniforms)
     : m_meshes(meshes)
     , m_uniforms(uniforms)
-    , m_shader(device.createShader({
-          .name = "mesh",
-          .vertex = shaders::kMeshVert,
-          .fragment = shaders::kMeshFrag,
-          .bindings = {kFrameBlock, kViewBlock, kObjectBlock},
-      }))
+    , m_shader(device.createShader(buildEngineShader(
+          shaders,
+          {
+              .name = "mesh",
+              .vertexPath = engineShaderPath("mesh.vert"),
+              .fragmentPath = engineShaderPath("mesh.frag"),
+              .layouts = kEngineBlocks,
+          }
+      )))
     , m_pipeline(device.createPipeline({.shader = m_shader.get(), .vertexLayout = meshVertexLayout()}))
 {
 }

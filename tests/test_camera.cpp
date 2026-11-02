@@ -24,21 +24,19 @@ TEST_CASE("Camera3D: view matrix moves the world opposite to the camera")
     CHECK(origin.z == doctest::Approx(-5.0f));
 }
 
-TEST_CASE("Camera3D: projection depth range depends on the API")
+TEST_CASE("Camera3D: clip depth goes from 0 at the near plane to 1 at the far plane")
 {
     Camera3D camera;
     camera.setClipPlanes(1.0f, 100.0f);
 
-    auto ndcDepth = [&](DepthRange range, float viewZ) {
-        const Vec4 clip = camera.projectionMatrix(1.0f, range) * Vec4(0.0f, 0.0f, viewZ, 1.0f);
+    auto ndcDepth = [&](float viewZ) {
+        const Vec4 clip = camera.projectionMatrix(1.0f) * Vec4(0.0f, 0.0f, viewZ, 1.0f);
 
         return clip.z / clip.w;
     };
 
-    CHECK(ndcDepth(DepthRange::MinusOneToOne, -1.0f) == doctest::Approx(-1.0f));
-    CHECK(ndcDepth(DepthRange::MinusOneToOne, -100.0f) == doctest::Approx(1.0f));
-    CHECK(ndcDepth(DepthRange::ZeroToOne, -1.0f) == doctest::Approx(0.0f));
-    CHECK(ndcDepth(DepthRange::ZeroToOne, -100.0f) == doctest::Approx(1.0f));
+    CHECK(ndcDepth(-1.0f) == doctest::Approx(0.0f));
+    CHECK(ndcDepth(-100.0f) == doctest::Approx(1.0f));
 }
 
 namespace {
@@ -103,7 +101,7 @@ TEST_CASE_FIXTURE(Fixture, "Extract: one view per camera with its clear, backgro
     weapon.setLayer(5);
     weapon.addComponent<MeshRenderer>().setMesh(ResourceRef{builtin::kCubeMesh});
 
-    const FrameData frame = extractFrame(scene, 16.0f / 9.0f, DepthRange::MinusOneToOne);
+    const FrameData frame = extractFrame(scene, 16.0f / 9.0f);
     REQUIRE(frame.views.size() == 2);
     CHECK(frame.views[0].camera.position == Vec3(1.0f, 2.0f, 3.0f));
     CHECK(frame.views[0].clear == CameraClear::ColorAndDepth);

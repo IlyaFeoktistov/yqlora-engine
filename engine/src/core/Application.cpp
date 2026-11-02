@@ -155,11 +155,6 @@ float Application::aspectRatio() const
     return static_cast<float>(width) / static_cast<float>(height);
 }
 
-DepthRange Application::depthRange() const
-{
-    return m_renderer->depthRange();
-}
-
 // Общее у обоих режимов: ввод и вывод кадра на экран.
 class Application::Stages : public FrameStages {
 public:
@@ -218,7 +213,7 @@ public:
 
     void extract() override
     {
-        m_frame = m_app.m_game->extract(m_app.aspectRatio(), m_app.depthRange());
+        m_frame = m_app.m_game->extract(m_app.aspectRatio());
     }
 
     void render() override

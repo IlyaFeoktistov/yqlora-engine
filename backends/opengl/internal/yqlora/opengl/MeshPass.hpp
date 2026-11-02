@@ -8,7 +8,8 @@
 
 namespace yqlora {
 class GpuMeshCache;
-}
+class ShaderCompiler;
+} // namespace yqlora
 
 namespace yqlora::opengl {
 
@@ -16,7 +17,7 @@ namespace yqlora::opengl {
 // одним фиксированным направленным светом из данных кадра.
 class MeshPass {
 public:
-    MeshPass(rhi::Device& device, GpuMeshCache& meshes, UniformRing& uniforms);
+    MeshPass(rhi::Device& device, ShaderCompiler& shaders, GpuMeshCache& meshes, UniformRing& uniforms);
 
     // Меши кадра со слоем из маски вида, в открытый проход.
     void draw(

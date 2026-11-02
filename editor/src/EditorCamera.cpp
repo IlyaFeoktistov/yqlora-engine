@@ -95,11 +95,11 @@ Vec3 EditorCamera::up() const
     return glm::cross(right(), forward());
 }
 
-CameraData EditorCamera::cameraData(float aspect, DepthRange depthRange) const
+CameraData EditorCamera::cameraData(float aspect) const
 {
     CameraData camera;
     camera.view = glm::lookAt(m_position, m_position + forward(), math::kWorldUp);
-    camera.projection = math::perspective(glm::radians(m_fovDegrees), aspect, m_near, m_far, depthRange);
+    camera.projection = math::perspective(glm::radians(m_fovDegrees), aspect, m_near, m_far);
     camera.position = m_position;
 
     return camera;

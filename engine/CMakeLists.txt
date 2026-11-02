@@ -13,7 +13,37 @@ target_compile_definitions(yqlora_engine_code INTERFACE
     "IMGUI_API=${YQLORA_DLL_EXPORT}"
 )
 
+# Шейдеры движка лежат файлами в shaders/ и вшиваются в библиотеку при сборке.
+set(YQLORA_ENGINE_SHADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/uniforms.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/vertex.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/mesh.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/mesh.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline_mask.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline_mask.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fullscreen.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/outline.frag
+)
+set(YQLORA_ENGINE_SHADERS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/EmbeddedShaders.hpp)
+# Список через "|": точку с запятой в команде разрезала бы оболочка.
+string(REPLACE ";" "|" YQLORA_ENGINE_SHADERS_ARG "${YQLORA_ENGINE_SHADERS}")
+add_custom_command(
+    OUTPUT ${YQLORA_ENGINE_SHADERS_HEADER}
+    COMMAND ${CMAKE_COMMAND}
+        -DOUTPUT=${YQLORA_ENGINE_SHADERS_HEADER}
+        -DROOT=${CMAKE_CURRENT_SOURCE_DIR}/shaders
+        -DSHADERS=${YQLORA_ENGINE_SHADERS_ARG}
+        -P ${PROJECT_SOURCE_DIR}/cmake/EmbedShaders.cmake
+    DEPENDS ${YQLORA_ENGINE_SHADERS} ${PROJECT_SOURCE_DIR}/cmake/EmbedShaders.cmake
+    COMMENT "Embedding engine shaders"
+    VERBATIM
+)
+
 add_library(yqlora SHARED
+    ${YQLORA_ENGINE_SHADERS_HEADER}
     src/core/Application.cpp
     src/core/AppPaths.cpp
     src/core/EngineServices.cpp
@@ -95,6 +125,11 @@ add_library(yqlora SHARED
     src/resource/ResourceDatabase.cpp
     src/resource/ResourceLoader.cpp
     src/runtime/GameRuntime.cpp
+    src/shader/EngineShaders.cpp
+    src/shader/ShaderBuild.cpp
+    src/shader/ShaderCompiler.cpp
+    src/shader/ShaderReflect.cpp
+    src/shader/UniformLayout.cpp
     src/scripting/GameModule.cpp
     src/scripting/ModuleRegistrar.cpp
     src/scripting/Script.cpp
@@ -105,10 +140,13 @@ add_library(yqlora::yqlora ALIAS yqlora)
 
 # include/ - публичный API для игр: математика, сцена, ввод, лог, tr().
 # internal/ - окно, платформа, рендер, Application: см. yqlora::internal ниже.
-target_include_directories(yqlora PUBLIC include PRIVATE src)
+target_include_directories(yqlora PUBLIC include PRIVATE src ${CMAKE_CURRENT_BINARY_DIR}/generated)
+# glslang - компилятор шейдеров, SPIRV-Cross (ядро) - их отражение.
 target_link_libraries(yqlora
     PUBLIC glm::glm imgui_headers
-    PRIVATE yqlora_engine_code imgui SDL3::SDL3-static nlohmann_json::nlohmann_json cgltf_headers stb_headers
+    PRIVATE
+        yqlora_engine_code imgui SDL3::SDL3-static nlohmann_json::nlohmann_json cgltf_headers stb_headers
+        glslang glslang-default-resource-limits spirv-cross-core
 )
 target_compile_definitions(yqlora PRIVATE YQLORA_ENGINE_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(yqlora INTERFACE

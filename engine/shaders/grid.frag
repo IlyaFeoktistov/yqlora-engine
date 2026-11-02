@@ -1,22 +1,15 @@
-#version 330 core
+#version 450
 
-in vec3 vWorld;
+#include <yqlora/uniforms.glsl>
+#include "grid.glsl"
 
-layout(std140) uniform View {
-    mat4 uViewProjection;
-    vec3 uCameraPosition;
-};
+layout(location = 0) in vec3 vWorld;
 
-layout(std140) uniform Grid {
-    float uCellSize;
-    float uFadeDistance;
-};
-
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // Каждая десятая линия - крупная, и видна дальше мелких.
 const float kMajorEvery = 10.0;
-// На какой доле uFadeDistance сетка начинает гаснуть; мелкие клетки - раньше.
+// На какой доле grid.fadeDistance сетка начинает гаснуть; мелкие клетки - раньше.
 const float kFadeStart = 0.3;
 const float kMinorFadeStart = 0.1;
 const float kMinorFadeEnd = 0.4;
@@ -48,14 +41,14 @@ float axisLine(float coord)
 
 void main()
 {
-    float distanceToCamera = length(vWorld - uCameraPosition);
-    float fade = 1.0 - smoothstep(uFadeDistance * kFadeStart, uFadeDistance, distanceToCamera);
+    float distanceToCamera = length(vWorld - view.cameraPosition);
+    float fade = 1.0 - smoothstep(grid.fadeDistance * kFadeStart, grid.fadeDistance, distanceToCamera);
     // Мелкие клетки гаснут раньше: вдали они сливаются в рябь.
     float minorFade =
-        1.0 - smoothstep(uFadeDistance * kMinorFadeStart, uFadeDistance * kMinorFadeEnd, distanceToCamera);
+        1.0 - smoothstep(grid.fadeDistance * kMinorFadeStart, grid.fadeDistance * kMinorFadeEnd, distanceToCamera);
 
-    float minor = gridLines(vWorld.xz, uCellSize) * minorFade;
-    float major = gridLines(vWorld.xz, uCellSize * kMajorEvery);
+    float minor = gridLines(vWorld.xz, grid.cellSize) * minorFade;
+    float major = gridLines(vWorld.xz, grid.cellSize * kMajorEvery);
     vec4 color = vec4(kLineColor, max(minor * kMinorAlpha, major * kMajorAlpha));
 
     // Ось X лежит на z = 0, ось Z на x = 0.

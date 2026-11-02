@@ -5,6 +5,10 @@
 
 #include <memory>
 
+namespace yqlora {
+class ShaderCompiler;
+}
+
 namespace yqlora::opengl {
 
 // Бесконечная сетка редактора на плоскости Y = 0. Рисуется квадрат под камерой,
@@ -12,7 +16,7 @@ namespace yqlora::opengl {
 // по мировым координатам. С расстоянием сетка гаснет, поэтому края квадрата не видно.
 class GridPass {
 public:
-    GridPass(rhi::Device& device, UniformRing& uniforms);
+    GridPass(rhi::Device& device, ShaderCompiler& shaders, UniformRing& uniforms);
 
     // Рисует в открытый проход поверх сцены: глубину читает, но не пишет.
     void draw(rhi::CommandList& commands, const UniformSlice& viewUniforms) const;
