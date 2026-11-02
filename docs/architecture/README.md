@@ -14,6 +14,7 @@ Status marks: **[done]** implemented, **[next]** the next stage of work
 | [Types and reflection](reflection.md) | type registry, properties, methods, types declared at run time |
 | [Engine context and the frame](frame.md) | engine services, game time, scene systems, the order of a frame |
 | [Rendering](rendering.md) | cameras, layers, views, the RHI, shaders, Prepare and the render graph |
+| [Shaders, materials and lights](materials.md) | project shaders, materials and their slots, light nodes (step 5 plan) |
 | [Scripts](scripting.md) | C++, Luau, visual scripts, hot reload |
 | [Editor](editor.md) | parts of the editor: session, document, Play, panels |
 | [Code editor](code-editor.md) | the Scripts tab: Luau with highlighting and hints, later shaders |
