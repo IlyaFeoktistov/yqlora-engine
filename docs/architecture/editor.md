@@ -135,8 +135,8 @@ Status marks: see [README](README.md).
   its nested resources (`nestedResources`). Any resource can be dragged.
   A click on an empty place clears the selection, so a new resource is
   made in the project root; a right click there opens the create menu.
-- **Selection**: clicking a resource in Files selects it instead of nodes,
-  as in Unity (`Selection::selectResource`), and the inspector shows the
+- **Selection**: clicking a resource in Files selects it instead of nodes
+  (`Selection::selectResource`), and the inspector shows the
   file. `ResourceInspector` shows what every file has (name, kind, the
   state and the message if the file is not loaded, from `inspectResource`)
   and then the inspector of its kind (`ResourceKindInspector`): a model
@@ -155,7 +155,7 @@ Status marks: see [README](README.md).
   the nodes of the model under it, a mesh - a `Node3D` with a
   `MeshRenderer` (`instantiateResource`). One undo step
   (`SceneEditing::addResource`, `AddBranchCommand`).
-- **A resource field**, as in Unity (`resourceField`): an icon and the name
+- **A resource field** (`resourceField`): an icon and the name
   of the resource or "None (Mesh)"; clicking the field or the button on its
   right opens a picker with a search: None, built-in resources of the kind
   (from `builtinResourceTable()`), project assets (nested ones under their
@@ -172,7 +172,7 @@ Status marks: see [README](README.md).
 
 ## Snapping while moving [done]
 
-As in Unity: a node is placed exactly on the grid, onto a vertex or onto a
+A node is placed exactly on the grid, onto a vertex or onto a
 surface, not by eye. It works in the manipulator and when a model is
 dragged from Files into the viewport.
 

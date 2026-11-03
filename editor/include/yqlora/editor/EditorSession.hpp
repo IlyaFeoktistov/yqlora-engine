@@ -3,6 +3,7 @@
 #include "yqlora/editor/Command.hpp"
 #include "yqlora/editor/EditHistory.hpp"
 #include "yqlora/editor/GameLibrary.hpp"
+#include "yqlora/editor/MaterialEditing.hpp"
 #include "yqlora/editor/PlayMode.hpp"
 #include "yqlora/editor/SceneDocument.hpp"
 #include "yqlora/editor/SceneEditing.hpp"
@@ -104,6 +105,18 @@ public:
         return m_settingsEditing;
     }
 
+    // Службы движка, в которых живёт сессия: ресурсы, ввод, реестр типов.
+    EngineServices& services() const
+    {
+        return m_services;
+    }
+
+    // Правка файлов материалов в инспекторе, см. MaterialEditing.
+    MaterialEditing& materialEditing()
+    {
+        return m_materialEditing;
+    }
+
     // Правка закончилась (отпустили мышь, ушли из поля ввода): следующая
     // будет отдельным шагом истории.
     void finishEdit()
@@ -200,6 +213,7 @@ public:
     void update(float deltaSeconds, const Input& input)
     {
         updateModified(deltaSeconds);
+        m_materialEditing.update(deltaSeconds);
         m_play.update(deltaSeconds, input);
         // Сцену документа правят между кадрами: мировые матрицы одним проходом.
         m_document.scene().updateTransforms();
@@ -241,6 +255,7 @@ private:
     EditHistory m_history;
     float m_sinceModifiedCheck = 0.0f;
     SceneEditing m_editing{*this};
+    MaterialEditing m_materialEditing{*this};
     SettingsEditing m_settingsEditing{*this};
 };
 

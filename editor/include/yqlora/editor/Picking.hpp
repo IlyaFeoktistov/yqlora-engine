@@ -1,7 +1,9 @@
 #pragma once
 
 #include "yqlora/math/Ray.hpp"
+
 #include "yqlora/scene/Node.hpp"
+#include <cstddef>
 
 #include <functional>
 #include <optional>
@@ -29,6 +31,8 @@ struct SurfaceHit {
     Vec3 point{0.0f};
     // Единичная нормаль треугольника в мире.
     Vec3 normal{0.0f};
+    // Подмеш, в который попал луч: слот материала.
+    std::size_t submesh = 0;
 };
 
 // Ближайшее попадание луча в меши сцены, кроме ветки skip (её узел ставят и

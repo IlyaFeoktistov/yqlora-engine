@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/reflection/EnumNames.hpp"
+#include "yqlora/resource/ResourceKinds.hpp"
 #include <cstdint>
 #include <string_view>
 #include <vector>
@@ -39,7 +40,7 @@ struct TextureSampling {
 // Картинка на стороне CPU: RGBA по байту на канал, строки сверху вниз.
 // Так же, как uv0 в glTF: (0, 0) - левый верхний угол.
 struct TextureData {
-    static constexpr std::string_view kResourceKind = "texture";
+    static constexpr std::string_view kResourceKind = kinds::kTexture;
 
     int width = 0;
     int height = 0;

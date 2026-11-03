@@ -102,6 +102,16 @@ public:
         return get<T>(id).data;
     }
 
+    // Заменяет данные загруженного ресурса id в памяти с новой ревизией:
+    // правка материала в инспекторе, изменение материала из скрипта. Файл не
+    // пишется, его перечитывание вернёт данные с диска. false, если ресурс
+    // не загружен, другого вида или встроенный (встроенные не меняются).
+    template <typename T>
+    bool replace(ResourceId id, T data)
+    {
+        return replaceData(id, T::kResourceKind, std::make_shared<const T>(std::move(data)));
+    }
+
     // Вид ресурса файла по его загрузчику, файл не читается. Пусто, если
     // загрузчика для таких файлов нет.
     std::string_view kindOf(const std::filesystem::path& file) const;
@@ -164,6 +174,7 @@ private:
     static FileStamp stampOf(const std::filesystem::path& full);
 
     Found getData(ResourceId id, std::string_view kind);
+    bool replaceData(ResourceId id, std::string_view kind, std::shared_ptr<const void> data);
     // Запись ресурса id: встроенный делается, файл читается. nullptr - ресурса нет.
     const Entry* lookup(ResourceId id);
     // Встроенный ресурс id в записи; false, если такого нет.

@@ -13,7 +13,7 @@ struct EditorColors;
 inline constexpr const char* kClickedComponent = "##clickedComponent";
 inline constexpr const char* kComponentNames[] = {"X", "Y", "Z", "W"};
 
-// Подпись, которую можно тянуть мышью, как в Unity: Shift ускоряет в 10 раз,
+// Подпись, которую можно тянуть мышью: Shift ускоряет в 10 раз,
 // Ctrl замедляет. Меняет value и отмечает в result, что значение тянут.
 void dragLabel(
     const char* id,

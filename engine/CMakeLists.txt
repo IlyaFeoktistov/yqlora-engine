@@ -146,6 +146,7 @@ add_library(yqlora SHARED
     src/material/MaterialData.cpp
     src/material/MaterialFile.cpp
     src/material/MaterialOverrides.cpp
+    src/material/SharedMaterial.cpp
     src/render/MeshRenderer.cpp
     src/render/MeshData.cpp
     src/render/PrimitiveMeshes.cpp

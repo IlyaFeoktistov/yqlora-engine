@@ -11,6 +11,8 @@
 #include <span>
 
 namespace yqlora {
+class MeshRenderer;
+struct Ray;
 class Camera3D;
 class Component;
 class Node;
@@ -72,6 +74,14 @@ public:
     bool setProperty(Component& component, const Property& property, const PropertyValue& value);
 
     bool setTransform(Node3D& node, const TransformValues& values);
+
+    // Ставит материал в слот slot рендерера одним шагом истории; список
+    // слотов дорастает до slot пустыми. false, если ничего не поменялось.
+    bool setMaterialSlot(MeshRenderer& renderer, std::size_t slot, ResourceRef material);
+
+    // Материал, отпущенный в окне вида под лучом ray: в слот подмеша, в
+    // который попал луч. false - луч мимо мешей.
+    bool dropMaterial(const Ray& ray, ResourceRef material);
 
     // Переносит узел последним ребёнком parent, см. SetParentCommand. false,
     // если так нельзя (canMoveUnder).

@@ -105,13 +105,33 @@ struct Hit {
     float t = 0.0f;
     // Нормаль поверхности в мире; у камеры и света - нулевая.
     Vec3 normal{0.0f};
+    std::size_t submesh = 0;
 };
 
-void keepNearest(std::optional<Hit>& best, NodeId node, std::optional<float> t, const Vec3& normal = Vec3(0.0f))
+void keepNearest(
+    std::optional<Hit>& best,
+    NodeId node,
+    std::optional<float> t,
+    const Vec3& normal = Vec3(0.0f),
+    std::size_t submesh = 0
+)
 {
     if (t && (!best || *t < best->t)) {
-        best = Hit{node, *t, normal};
+        best = Hit{node, *t, normal, submesh};
     }
+}
+
+// Подмеш, которому принадлежит индекс firstIndex треугольника.
+std::size_t submeshOf(const MeshData& mesh, std::size_t firstIndex)
+{
+    for (std::size_t i = 0; i < mesh.submeshes.size(); ++i) {
+        const SubMesh& submesh = mesh.submeshes[i];
+        if (firstIndex >= submesh.firstIndex && firstIndex < submesh.firstIndex + submesh.indexCount) {
+            return i;
+        }
+    }
+
+    return 0;
 }
 
 // Камеры и свет - узлы, а не компоненты, поэтому их ищем по дереву.
@@ -150,7 +170,7 @@ void pickMesh(const Node3D& node, const MeshData& mesh, const Ray& worldRay, std
         if (const auto t = intersect(localRay, a, b, c); t && (!best || *t < best->t)) {
             const Vec3 normal = normalToWorld * glm::cross(b - a, c - a);
             const float length = glm::length(normal);
-            keepNearest(best, node.id(), t, length > 0.0f ? normal / length : Vec3(0.0f));
+            keepNearest(best, node.id(), t, length > 0.0f ? normal / length : Vec3(0.0f), submeshOf(mesh, i));
         }
     }
 }
@@ -199,7 +219,7 @@ std::optional<SurfaceHit> raycastSurfaces(const Scene& scene, const Ray& ray, co
         return std::nullopt;
     }
 
-    return SurfaceHit{best->node, ray.at(best->t), best->normal};
+    return SurfaceHit{best->node, ray.at(best->t), best->normal, best->submesh};
 }
 
 std::optional<ScreenVertex> nearestVertex(

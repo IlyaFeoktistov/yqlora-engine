@@ -7,6 +7,7 @@
 #include <yqlora/input/InputSettings.hpp>
 #include <yqlora/platform/InputFeeder.hpp>
 #include <yqlora/reflection/PropertyJson.hpp>
+#include <yqlora/resource/ResourceKinds.hpp>
 #include <yqlora/scene/Node3D.hpp>
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
@@ -30,11 +31,16 @@ public:
 
     float speed = 2.0f;
     float runtimeOnly = 0.0f;
+    // Ресурсы в полях скрипта: материал и список текстур.
+    ResourceRef look;
+    std::vector<ResourceRef> decals;
 
     YQLORA_FIELDS(
         field("speed", &Mover::speed).range(0.0f, 10.0f).formerly("moveSpeed").group("movement"),
         field("bonus", &Mover::m_bonus).displayName("Bonus").tooltip("Extra speed"),
-        field("runtimeOnly", &Mover::runtimeOnly).notSaved().notShown()
+        field("runtimeOnly", &Mover::runtimeOnly).notSaved().notShown(),
+        field("look", &Mover::look).resource(kinds::kMaterial),
+        field("decals", &Mover::decals).resource(kinds::kTexture)
     )
 
     int updates = 0;
@@ -98,6 +104,14 @@ struct Fixture {
 };
 
 } // namespace
+
+TEST_CASE_FIXTURE(Fixture, "Script: resource fields know their kind, like any property of the engine")
+{
+    CHECK(property("look").type() == PropertyType::Resource);
+    CHECK(property("look").attributes().resourceKind == kinds::kMaterial);
+    CHECK(property("decals").elementType() == PropertyType::Resource);
+    CHECK(property("decals").attributes().resourceKind == kinds::kTexture);
+}
 
 TEST_CASE_FIXTURE(Fixture, "Script: registered as a script with its fields and their attributes")
 {

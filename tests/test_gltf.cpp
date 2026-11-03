@@ -152,7 +152,9 @@ TEST_CASE("GltfLoader: GLB with interleaved data, shared and same-named meshes, 
     CHECK(door.vertices[3].normal == Vec3(0.0f, 0.0f, 1.0f));
     REQUIRE(door.submeshes.size() == 2);
     CHECK(door.submeshes[0].sourceMaterial == 1);
+    CHECK(door.submeshes[0].sourceMaterialName == "Metal");
     CHECK_FALSE(door.submeshes[1].sourceMaterial);
+    CHECK(door.submeshes[1].sourceMaterialName.empty());
     CHECK(door.submeshes[1].firstIndex == 6);
     CHECK(door.indices[6] == 4);
     CHECK(data<MeshData>(result.resources[3]).submeshes[0].sourceMaterial == 0);

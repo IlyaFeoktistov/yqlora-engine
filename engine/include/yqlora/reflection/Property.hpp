@@ -369,6 +369,10 @@ public:
     using ComponentSetter = std::function<void(Component&, const PropertyValue&)>;
     using SettingsGetter = std::function<PropertyValue(const SettingsSection&)>;
     using SettingsSetter = std::function<void(SettingsSection&, const PropertyValue&)>;
+    // Подписи элементов списка у этого компонента (слоты материалов по
+    // подмешам его меша): инспектор показывает строку на подпись, даже если
+    // элементов меньше. Пустая подпись - "Элемент N".
+    using ElementLabels = std::function<std::vector<std::string>(const Component&)>;
 
     // Setter получает значение уже проверенного типа type.
     static Property forNode(
@@ -434,6 +438,14 @@ public:
         return m_enumNames;
     }
 
+    // Подписи элементов списка, см. ElementLabels; пусто - элементы по номерам.
+    const ElementLabels& elementLabels() const
+    {
+        return m_elementLabels;
+    }
+
+    void setElementLabels(ElementLabels labels);
+
     // Поля записи по порядку: у свойства-записи - его, у списка записей - его
     // элементов. Пусто у остальных.
     const std::vector<Property>& fields() const
@@ -481,6 +493,7 @@ private:
     std::vector<std::string> m_enumNames;
     std::vector<Property> m_fields;
     RecordValue m_recordDefaults;
+    ElementLabels m_elementLabels;
     PropertyAttributes m_attributes;
     // Своё у каждого вида объектов: объект одного вида не передать свойству другого.
     NodeGetter m_nodeGet;

@@ -35,6 +35,8 @@ add_library(yqlora_editor STATIC
     src/GameLibrary.cpp
     src/Inspection.cpp
     src/LayerUsage.cpp
+    src/MaterialEditing.cpp
+    src/MaterialPreview.cpp
     src/PlayMode.cpp
     src/ResourceChoices.cpp
     src/ModelInspection.cpp
@@ -92,8 +94,10 @@ add_library(yqlora_editor_ui STATIC
     ui/src/gizmos/GridGizmo.cpp
     ui/src/gizmos/ManipulatorGizmo.cpp
     ui/src/gizmos/SelectionGizmo.cpp
+    ui/src/inspectors/MaterialInspector.cpp
     ui/src/inspectors/ModelInspector.cpp
     ui/src/inspectors/ResourceKindInspector.cpp
+    ui/src/inspectors/ShaderInspector.cpp
     ui/src/inspectors/TextureInspector.cpp
     ui/src/menu/MainMenu.cpp
     ui/src/panels/FileSystemPanel.cpp

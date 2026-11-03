@@ -1,4 +1,9 @@
+#include "EngineRegistry.hpp"
 #include <doctest/doctest.h>
+
+#include <yqlora/core/EngineServices.hpp>
+
+#include <yqlora/input/Input.hpp>
 
 #include <yqlora/core/EngineTypes.hpp>
 #include <yqlora/reflection/TypeRegistry.hpp>
@@ -11,6 +16,7 @@
 #include <yqlora/resource/ResourceCache.hpp>
 #include <yqlora/scene/Scene.hpp>
 
+#include <algorithm>
 #include <vector>
 #include <yqlora/scene/SceneSerializer.hpp>
 
@@ -158,4 +164,24 @@ TEST_CASE("MeshRenderer: a scene with the old color opens with empty slots and k
     CHECK(renderer->materials().empty());
     auto saved = nlohmann::json::parse(serializer.toJson(loaded));
     CHECK(rendererJson(saved)["properties"].contains("color"));
+}
+
+TEST_CASE("MeshRenderer: a slot per submesh of its mesh, the materials property is labelled by them")
+{
+    test::EngineRegistry registry;
+    Input input;
+    EngineServices services{input, registry};
+    Scene scene{services};
+    auto& renderer = scene.createRoot<Node3D>("Cube").addComponent<MeshRenderer>();
+    CHECK(renderer.slotNames().empty());
+    renderer.setMesh({builtin::kCubeMesh});
+    CHECK(renderer.slotNames() == std::vector<std::string>{""});
+
+    const TypeInfo* type = registry.find("MeshRenderer");
+    REQUIRE(type);
+    const auto properties = registry.properties(*type);
+    const auto materials = std::ranges::find(properties, std::string("materials"), &Property::name);
+    REQUIRE(materials != properties.end());
+    REQUIRE((*materials)->elementLabels());
+    CHECK((*materials)->elementLabels()(renderer).size() == 1);
 }

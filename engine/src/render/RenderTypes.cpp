@@ -49,8 +49,11 @@ void registerRenderTypes(TypeRegistry& registry)
         .requiresNode<Node3D>()
         .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh)
         .resource(MeshData::kResourceKind)
-        .property("materials", &MeshRenderer::materials, &MeshRenderer::setMaterials)
-        .resource(MaterialData::kResourceKind);
+        .property(kMaterialsProperty, &MeshRenderer::materials, &MeshRenderer::setMaterials)
+        .resource(MaterialData::kResourceKind)
+        .elementLabels([](const Component& component) {
+            return static_cast<const MeshRenderer&>(component).slotNames();
+        });
 
     registry.registerSystem<RenderSystem>();
 

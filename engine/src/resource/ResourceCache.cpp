@@ -147,6 +147,17 @@ ResourceCache::Found ResourceCache::getData(ResourceId id, std::string_view kind
     return {fits ? entry.data.get() : nullptr, entry.status.revision};
 }
 
+bool ResourceCache::replaceData(ResourceId id, std::string_view kind, std::shared_ptr<const void> data)
+{
+    const auto it = m_entries.find(id);
+    if (builtin::isBuiltin(id) || it == m_entries.end() || !it->second.data || it->second.kind != kind) {
+        return false;
+    }
+    setEntry(id, {it->second.kind, std::move(data), {ResourceState::Ready, 0, {}}});
+
+    return true;
+}
+
 std::string_view ResourceCache::loadedKind(ResourceId id)
 {
     const Entry* entry = id != 0 ? lookup(id) : nullptr;

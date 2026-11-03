@@ -124,6 +124,10 @@ public:
         const std::filesystem::path& templateFile
     );
 
+    // Материал name.ymat в папке folder: шейдер Standard, белый. nullopt,
+    // если имя не годится, занято или файл не записался.
+    std::optional<std::filesystem::path> createMaterial(const std::filesystem::path& folder, std::string_view name);
+
     // Переименовывает файл или папку в той же папке. Возвращает новый путь;
     // nullopt, если имя недопустимо, занято или путь трогать нельзя.
     std::optional<std::filesystem::path> rename(const std::filesystem::path& path, const std::string& newName);

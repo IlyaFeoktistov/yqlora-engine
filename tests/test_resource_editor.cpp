@@ -5,9 +5,13 @@
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineServices.hpp>
+#include <yqlora/core/JsonFile.hpp>
 #include <yqlora/editor/EditorSession.hpp>
+#include <yqlora/editor/MaterialEditing.hpp>
+#include <yqlora/editor/MaterialPreview.hpp>
 #include <yqlora/editor/ModelInspection.hpp>
 #include <yqlora/editor/Picking.hpp>
+#include <yqlora/editor/ProjectFiles.hpp>
 #include <yqlora/editor/ProjectSetup.hpp>
 #include <yqlora/editor/ResourceChoices.hpp>
 #include <yqlora/editor/ResourceInspection.hpp>
@@ -17,9 +21,12 @@
 #include <yqlora/i18n/Translate.hpp>
 #include <yqlora/import/ModelData.hpp>
 #include <yqlora/input/Input.hpp>
+#include <yqlora/material/MaterialFile.hpp>
+#include <yqlora/math/Ray.hpp>
 #include <yqlora/project/GeneralSettings.hpp>
 #include <yqlora/project/Project.hpp>
 #include <yqlora/render/BuiltinMeshes.hpp>
+#include <yqlora/render/FrameData.hpp>
 #include <yqlora/render/MeshData.hpp>
 #include <yqlora/render/MeshRenderer.hpp>
 #include <yqlora/render/TextureData.hpp>
@@ -365,4 +372,88 @@ TEST_CASE_FIXTURE(Fixture, "resourceChoices: nested resources follow the file or
     REQUIRE(meshes.size() == builtinMeshes().size() + 1);
     CHECK(meshes.back().id == frame);
     CHECK(resourceForField(MeshData::kResourceKind, model, &resources, session.resources()) == frame);
+}
+
+TEST_CASE_FIXTURE(
+    Fixture,
+    "MaterialEditing: an edit reaches the cache at once, the file is written when it ends or twice a second"
+)
+{
+    ProjectFiles files(*session.project());
+    const auto created = files.createMaterial({}, "Wood");
+    REQUIRE(created);
+    const ResourceId wood = session.project()->resources().id(*created);
+    const fs::path file = directory / *created;
+    const auto onDisk = [&] {
+        std::string error;
+
+        return materialFromJson(*readJsonFile(file), error)->values;
+    };
+    MaterialEditing& editing = session.materialEditing();
+    REQUIRE(editing.material(wood));
+    const std::uint64_t revision = session.resources().get<MaterialData>(wood).revision;
+
+    REQUIRE(editing.change(wood, [](MaterialData& material) {
+        material.values["roughness"] = {0.2f};
+    }));
+    CHECK(session.resources().get<MaterialData>(wood).revision > revision);
+    CHECK(editing.material(wood)->values.at("roughness")[0] == doctest::Approx(0.2f));
+    CHECK(onDisk().empty());
+    // Перетаскивание идёт: файл не пишется каждый кадр, но и не ждёт конца.
+    editing.update(0.1f);
+    CHECK(onDisk().empty());
+    editing.update(1.0f / MaterialEditing::kWritesPerSecond);
+    CHECK(onDisk().at("roughness")[0] == doctest::Approx(0.2f));
+
+    REQUIRE(editing.change(wood, [](MaterialData& material) {
+        material.values["roughness"] = {0.7f};
+    }));
+    CHECK(editing.pending());
+    REQUIRE(editing.finish());
+    CHECK_FALSE(editing.pending());
+    CHECK(onDisk().at("roughness")[0] == doctest::Approx(0.7f));
+    CHECK_FALSE(editing.change(builtin::kDefaultMaterial, [](MaterialData&) {
+    }));
+}
+
+TEST_CASE_FIXTURE(
+    Fixture,
+    "MaterialPreview: a sphere with the material, its own camera and light, nothing from the scene"
+)
+{
+    const std::size_t sceneNodes = session.scene().root()->children().size();
+    MaterialPreview preview(services);
+    const FrameData frame = preview.frame(builtin::kErrorMaterial, 1.0f);
+    CHECK(frame.views.size() == 1);
+    CHECK(frame.lights.size() == 1);
+    REQUIRE(frame.drawItems.size() == 1);
+    CHECK(frame.drawItems[0].meshId == builtin::kSphereMesh);
+    CHECK(frame.materials[frame.drawItems[0].material].id == builtin::kErrorMaterial);
+    CHECK(session.scene().root()->children().size() == sceneNodes);
+}
+
+TEST_CASE_FIXTURE(
+    Fixture,
+    "A material dropped on an object goes into the slot of the submesh under the cursor, one undo step"
+)
+{
+    // Далеко от того, что уже есть в новой сцене.
+    const Vec3 away(100.0f, 0.0f, 0.0f);
+    Node* cube = session.editing().addResource(builtin::kCubeMesh, nullptr, away);
+    REQUIRE(cube);
+    auto* renderer = cube->getComponent<MeshRenderer>();
+    REQUIRE(renderer);
+    const Ray ray{away + Vec3(0.0f, 0.0f, 5.0f), Vec3(0.0f, 0.0f, -1.0f)};
+
+    REQUIRE(session.editing().dropMaterial(ray, {builtin::kErrorMaterial}));
+    CHECK(renderer->materials() == std::vector<ResourceRef>{{builtin::kErrorMaterial}});
+    // Тот же материал ещё раз - не правка.
+    CHECK_FALSE(session.editing().dropMaterial(ray, {builtin::kErrorMaterial}));
+    // Мимо объектов - ничего.
+    CHECK_FALSE(session.editing().dropMaterial({Vec3(-100.0f), Vec3(0.0f, -1.0f, 0.0f)}, {builtin::kDefaultMaterial}));
+
+    const NodeId cubeId = cube->id();
+    REQUIRE(session.undo());
+    renderer = session.findNode(cubeId)->getComponent<MeshRenderer>();
+    CHECK(renderer->materials().empty());
 }

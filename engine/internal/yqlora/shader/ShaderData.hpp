@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
+#include "yqlora/resource/ResourceKinds.hpp"
 #include "yqlora/rhi/Pipeline.hpp"
 
 #include <cstdint>
@@ -60,7 +61,7 @@ struct MaterialTexture {
 // и раскладка материала. Материал задаёт значения по именам полей. Собирает
 // его buildShaderData (ShaderDataBuild.hpp).
 struct ShaderData {
-    static constexpr std::string_view kResourceKind = "shader";
+    static constexpr std::string_view kResourceKind = kinds::kShader;
 
     rhi::ShaderDesc desc{};
     // Размер блока Material; 0 - блока нет.

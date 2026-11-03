@@ -15,7 +15,7 @@ class ResourceDatabase;
 
 namespace yqlora::editor {
 
-// Что можно выбрать в поле ссылки на ресурс (окно выбора, как в Unity).
+// Что можно выбрать в поле ссылки на ресурс (окно выбора).
 struct ResourceChoice {
     ResourceId id = 0;
     // Имя в списке: имя встроенного ресурса, путь файла или имя вложенного.
@@ -47,7 +47,7 @@ std::vector<ResourceChoice> resourceChoices(
 
 // Что положить в поле вида kind, если на него отпустили ресурс id: сам
 // ресурс, если он подходит, а файл с вложенными ресурсами этого вида -
-// первый из них (модель на поле меша - её первый меш, как в Unity). nullopt -
+// первый из них (модель на поле меша - её первый меш). nullopt -
 // ресурс не подходит.
 std::optional<ResourceId> resourceForField(
     std::string_view kind,

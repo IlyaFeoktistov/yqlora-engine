@@ -13,8 +13,8 @@ namespace yqlora {
 // Слой 0 есть всегда, под этим именем, и не переименовывается.
 inline constexpr std::string_view kDefaultLayerName = "Default";
 
-// Раздел Layers настроек проекта: имена kLayerCount слоёв, как Tags and
-// Layers в Unity. Узлы и маски камер хранят номера, поэтому переименование
+// Раздел Layers настроек проекта: имена kLayerCount слоёв. Узлы и маски
+// камер хранят номера, поэтому переименование
 // слоя сцены не меняет. Слой без имени не используется и не попадает в списки.
 class YQLORA_API LayerSettings final : public SettingsSection {
 public:

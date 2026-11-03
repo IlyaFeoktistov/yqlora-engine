@@ -147,7 +147,8 @@
             "resetPart": "Reset",
             "copyPart": "Copy",
             "pastePart": "Paste into",
-            "pressControl": "Press a key, a mouse or gamepad button..."
+            "pressControl": "Press a key, a mouse or gamepad button...",
+            "element": "Element"
         },
         "viewport": {
             "cameraPreview": "Preview of the selected camera"
@@ -206,6 +207,7 @@
             "newResource": "Create resource",
             "newCppScript": "C++ script",
             "newShader": "Shader",
+            "newMaterial": "Material",
             "scriptName": "Class name (Latin letters, digits and _):",
             "name": "Name:",
             "create": "Create",
@@ -273,6 +275,21 @@
             "notLoaded": "Not loaded",
             "missing": "Missing",
             "dragHint": "Drag a model or a mesh into the scene tree or the viewport"
+        },
+        "material": {
+            "shader": "Shader",
+            "blend": "Blend",
+            "cull": "Face culling",
+            "values": "Values",
+            "textures": "Textures",
+            "noShader": "The shader of the material is not loaded: it draws with Error"
+        },
+        "shader": {
+            "open": "Open",
+            "errors": "Compile errors",
+            "compiled": "Compiled",
+            "field": "Field",
+            "type": "Type"
         },
         "resourceField": {
             "search": "Search",

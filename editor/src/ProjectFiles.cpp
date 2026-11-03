@@ -5,6 +5,7 @@
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/editor/NewScene.hpp"
 #include "yqlora/editor/ProjectSetup.hpp"
+#include "yqlora/material/MaterialFile.hpp"
 #include "yqlora/platform/Files.hpp"
 #include "yqlora/project/Project.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
@@ -74,6 +75,14 @@ const NewResourceType kNewResourceTypes[] = {
      false,
      [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext& context) {
          return files.createShader(folder, name, shaderTemplateFile(context.assets));
+     }},
+    {MaterialData::kResourceKind,
+     "editor.files.newMaterial",
+     "New Material",
+     kMaterialFileExtension,
+     false,
+     [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext&) {
+         return files.createMaterial(folder, name);
      }},
 };
 
@@ -300,6 +309,24 @@ std::optional<fs::path> ProjectFiles::createShader(
     }
     if (!fs::copy_file(templateFile, m_project.directory() / relative, ec)) {
         log::error("Cannot create shader '{}' from '{}': {}", name, toUtf8(templateFile), ec.message());
+
+        return std::nullopt;
+    }
+    m_project.resources().add(relative);
+
+    return relative;
+}
+
+std::optional<fs::path> ProjectFiles::createMaterial(const fs::path& folder, std::string_view name)
+{
+    const NewResourceType& type = *findNewResourceType(MaterialData::kResourceKind);
+    const fs::path relative = folder / fromUtf8(occupiedFileName(type, name));
+    std::error_code ec;
+    if (!isValidResourceName(type, name) || !canModify(relative) || fs::exists(m_project.directory() / relative, ec)) {
+        return std::nullopt;
+    }
+    if (!writeMaterialFile(m_project.directory() / relative, MaterialData{})) {
+        log::error("Cannot write material '{}'", toUtf8(relative));
 
         return std::nullopt;
     }

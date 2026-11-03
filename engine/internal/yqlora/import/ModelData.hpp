@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/math/Math.hpp"
+#include "yqlora/resource/ResourceKinds.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -26,7 +27,7 @@ struct ModelNode {
 // сцену. Меши - вложенные ресурсы файла; здесь только их ключи, ID даёт .meta
 // (ResourceDatabase::subresources). Один меш у нескольких узлов - один ключ.
 struct ModelData {
-    static constexpr std::string_view kResourceKind = "model";
+    static constexpr std::string_view kResourceKind = kinds::kModel;
 
     std::vector<ModelNode> nodes;
     // Узлы верхнего уровня, индексы в nodes.

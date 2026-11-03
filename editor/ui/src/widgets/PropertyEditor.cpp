@@ -24,7 +24,11 @@
 
 #include <algorithm>
 #include <optional>
+#include <span>
+#include <string>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace yqlora::editor {
 
@@ -40,6 +44,9 @@ constexpr int kWholeValue = -1;
 constexpr int kListColumnCount = 2;
 // Подпись поля записи и его значение.
 constexpr int kRecordColumnCount = 2;
+// Подпись элемента (слота) и его значение; подпись уже значения.
+constexpr int kLabeledListColumnCount = 2;
+constexpr float kLabeledListLabelWeight = 0.4f;
 
 // Сколько меняется значение за точку движения мыши.
 constexpr float kAngleDragSpeed = 0.5f;
@@ -186,6 +193,50 @@ void listField(const Property& property, ListValue& list, const PropertyEditorCo
         list.items.push_back(property.defaultElement());
         result.changed = true;
     }
+}
+
+// Список, чьи строки задают подписи объекта (слоты по подмешам): строка на
+// подпись, даже если элементов меньше; добавлять и удалять нельзя, их
+// число - дело объекта. Лишние элементы видны под своими номерами.
+void labeledListField(
+    const Property& property,
+    ListValue& list,
+    std::span<const std::string> labels,
+    const PropertyEditorContext& context,
+    PropertyResult& result
+)
+{
+    const std::size_t rows = std::max(list.items.size(), labels.size());
+    if (!ImGui::BeginTable("items", kLabeledListColumnCount)) {
+        return;
+    }
+    ImGui::TableSetupColumn("label", ImGuiTableColumnFlags_WidthStretch, kLabeledListLabelWeight);
+    ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    for (std::size_t i = 0; i < rows; ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        const bool named = i < labels.size() && !labels[i].empty();
+        const std::string label = named ? labels[i] : tr("editor.inspector.element") + " " + std::to_string(i);
+        ImGui::TextUnformatted(label.c_str());
+        ImGui::SetItemTooltip("%s", label.c_str());
+        ImGui::TableNextColumn();
+        PropertyValue item = i < list.items.size() ? list.items[i] : property.defaultElement();
+        PropertyResult itemResult;
+        valueField(property, property.elementType(), item, context, itemResult);
+        result.dragging = result.dragging || itemResult.dragging;
+        if (itemResult.changed) {
+            // Элементы до этой строки появляются в списке пустыми.
+            while (list.items.size() <= i) {
+                list.items.push_back(property.defaultElement());
+            }
+            list.items[i] = std::move(item);
+            result.changed = true;
+        }
+        ImGui::PopID();
+    }
+    ImGui::EndTable();
 }
 
 void valueField(
@@ -355,7 +406,17 @@ PropertyResult drawPropertyRow(const Property& property, Object& object, const P
     const float rowTop = ImGui::GetCursorScreenPos().y;
     rowLabel(property, value, result);
     ImGui::TableNextColumn();
-    valueField(property, property.type(), value, context, result);
+    std::vector<std::string> labels;
+    if constexpr (std::is_same_v<Object, Component>) {
+        if (property.elementLabels()) {
+            labels = property.elementLabels()(object);
+        }
+    }
+    if (!labels.empty()) {
+        labeledListField(property, std::get<ListValue>(value), labels, context, result);
+    } else {
+        valueField(property, property.type(), value, context, result);
+    }
     const float rowBottom = ImGui::GetItemRectMax().y;
     rowMenu(property, value, rowTop, rowBottom, result, [&] {
         return defaultValue(context.registry, object, property);

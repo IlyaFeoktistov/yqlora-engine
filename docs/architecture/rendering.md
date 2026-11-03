@@ -87,7 +87,7 @@ Vulkan and D3D12 as new backends.
 
 ## Photorealism by default [planned, after the MVP]
 
-The goal, as in Unreal Engine: the defaults are chosen so that the picture
+The goal: the defaults are chosen so that the picture
 looks like a photograph at once. Everything stays tunable: each effect has
 its own parameters, which can be changed or turned off for a style of
 one's own. It is a large stage after the MVP; the decisions of step 5 leave
@@ -104,14 +104,12 @@ room for it:
   and changing the units is a scene migration.
 - **Image-based lighting**: reflections of the sky and environment maps on
   metals (IBL), ambient occlusion (SSAO), then global illumination.
-- **Area lights**: a rectangle and a disc (computed with LTC), like Rect
-  Light in Unreal; directional, point and spot lights exist from step 5,
+- **Area lights**: a rectangle and a disc (computed with LTC); directional, point and spot lights exist from step 5,
   and so does the sun, a directional light with a flag.
 - **Shadows beyond step 5** (which brings sun cascades, an atlas for spot
   and point lights, PCF softness): contact shadows, softness by light size
   (PCSS), shadows from transparent surfaces, ray tracing.
-- **A physical sky** (atmospheric scattering, like Sky Atmosphere in
-  Unreal) is one more sky shader: the sky is already a material (see
+- **A physical sky** (atmospheric scattering) is one more sky shader: the sky is already a material (see
   [sky](materials.md#sky-and-environment-planned-step-5)).
 
 The content and order of the stage are agreed separately, before it starts.
@@ -376,12 +374,12 @@ not part of this.
   which camera draws over which **[done]**.
 - The editor's own camera (no game camera, or not playing) is drawn as one
   view with the background from the editor theme.
-- **Camera preview** in the editor, as in Unity: while a camera is selected, a
+- **Camera preview** in the editor: while a camera is selected, a
   small window in the corner of the viewport shows the picture through it, so
   the camera can be placed by eye. A button on the viewport toggles it, the
   choice is an editor setting (`EditorSettings`, a file in the user folder)
   **[done]**.
-- **Two windows during Play**, as in Unity: "Game" shows the main camera,
+- **Two windows during Play**: "Game" shows the main camera,
   "Scene" keeps the free editor camera, where nodes are selected and changed
   while the game runs. Changes made during Play belong to the Play copy and
   are gone after Stop **[done]**. The Game window comes forward and takes the

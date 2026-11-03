@@ -117,8 +117,6 @@ Described in [input](input.md).
 
 ## Layers
 
-As Tags and Layers in Unity:
-
 - 32 layers. Layer 0 is `Default`, always there and not renamed; the others
   are named by the project. A layer without a name is unused and does not
   appear in the lists.

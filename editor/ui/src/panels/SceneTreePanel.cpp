@@ -112,7 +112,7 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection)
     }
 
     const auto id = reinterpret_cast<void*>(static_cast<std::uintptr_t>(node.id()));
-    // Неактивные узлы бледные, как в Unity.
+    // Неактивные узлы бледные.
     const bool inactive = !node.activeInHierarchy();
     if (inactive) {
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));

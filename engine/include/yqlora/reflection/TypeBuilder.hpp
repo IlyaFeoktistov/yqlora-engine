@@ -59,6 +59,16 @@ public:
         return self();
     }
 
+    // Подписи элементов последнего свойства-списка компонента, см.
+    // Property::ElementLabels.
+    Self& elementLabels(Property::ElementLabels labels)
+    {
+        assertComponent();
+        lastProperty().setElementLabels(std::move(labels));
+
+        return self();
+    }
+
     // Тип переименован: файлы со старым именем читаются, пишется новое. Не
     // formerly: так в цепочке называется прежнее имя последнего свойства.
     Self& formerTypeName(std::string oldName)
@@ -139,9 +149,14 @@ protected:
 
     PropertyAttributes& attributesToEdit()
     {
+        return lastProperty().attributes();
+    }
+
+    Property& lastProperty()
+    {
         assert(!m_info.m_properties.empty() && "TypeBuilder: add the property first");
 
-        return m_info.m_properties.back().attributes();
+        return m_info.m_properties.back();
     }
 
     void assertComponent() const

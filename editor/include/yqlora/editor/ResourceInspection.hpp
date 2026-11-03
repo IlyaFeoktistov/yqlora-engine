@@ -33,7 +33,7 @@ nlohmann::json importSettingsOf(EditorSession& session, ResourceId id);
 
 // Записывает настройки импорта в .meta и перечитывает файл: новая ревизия,
 // новые данные везде, где ресурс используется. Истории правок это не
-// касается, как и в Unity: файл и .meta - не сцена. false, если .meta не
+// касается: файл и .meta - не сцена. false, если .meta не
 // записалась.
 bool applyImportSettings(EditorSession& session, ResourceId id, const nlohmann::json& settings);
 

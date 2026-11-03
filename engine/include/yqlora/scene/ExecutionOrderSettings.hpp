@@ -17,8 +17,8 @@ struct ExecutionOrderEntry {
     int order = 0;
 };
 
-// Раздел Execution Order настроек проекта, как Script Execution Order в
-// Unity: порядок типов компонентов внутри фаз кадра (меньше - раньше).
+// Раздел Execution Order настроек проекта: порядок типов компонентов внутри
+// фаз кадра (меньше - раньше).
 // Типа нет в списке - действует порядок из кода (BasicTypeBuilder::executionOrder).
 class YQLORA_API ExecutionOrderSettings final : public SettingsSection {
 public:

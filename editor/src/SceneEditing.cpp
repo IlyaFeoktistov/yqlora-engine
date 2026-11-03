@@ -1,12 +1,13 @@
 #include "yqlora/editor/SceneEditing.hpp"
 
-#include "yqlora/editor/ResourceInstance.hpp"
-
 #include "yqlora/editor/EditorSession.hpp"
+#include "yqlora/editor/Picking.hpp"
+#include "yqlora/editor/ResourceInstance.hpp"
 #include "yqlora/editor/SceneCommands.hpp"
 #include "yqlora/reflection/ComponentRules.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/render/Camera3D.hpp"
+#include "yqlora/render/MeshRenderer.hpp"
 #include "yqlora/render/RenderSystem.hpp"
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/NodeTree.hpp"
@@ -150,6 +151,40 @@ bool SceneEditing::setProperty(Component& component, const Property& property, c
     return execute(
         std::make_unique<SetPropertyCommand>(PropertyTarget{.node = node->id(), .component = index}, property, value)
     );
+}
+
+bool SceneEditing::setMaterialSlot(MeshRenderer& renderer, std::size_t slot, ResourceRef material)
+{
+    const TypeInfo* type = m_session.registry().find(renderer.typeName());
+    if (!type) {
+        return false;
+    }
+    const auto properties = m_session.registry().properties(*type);
+    const auto found = std::ranges::find(properties, kMaterialsProperty, &Property::name);
+    if (found == properties.end()) {
+        return false;
+    }
+    std::vector<ResourceRef> materials = renderer.materials();
+    if (slot < materials.size() && materials[slot] == material) {
+        return false;
+    }
+    materials.resize(std::max(materials.size(), slot + 1));
+    materials[slot] = material;
+    // Отдельный шаг истории, не слитый с соседней правкой.
+    m_session.finishEdit();
+    const bool done = setProperty(renderer, **found, PropertyStorage<std::vector<ResourceRef>>::store(materials));
+    m_session.finishEdit();
+
+    return done;
+}
+
+bool SceneEditing::dropMaterial(const Ray& ray, ResourceRef material)
+{
+    const auto hit = raycastSurfaces(m_session.scene(), ray);
+    Node* node = hit ? m_session.findNode(hit->node) : nullptr;
+    auto* renderer = node ? node->getComponent<MeshRenderer>() : nullptr;
+
+    return renderer && setMaterialSlot(*renderer, hit->submesh, material);
 }
 
 bool SceneEditing::setParent(Node& node, Node& parent, KeepWorld keepWorld)

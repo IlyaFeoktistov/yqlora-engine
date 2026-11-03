@@ -15,13 +15,12 @@ Status marks: see [README](README.md).
   says): a shader is a resource, a material is a resource that names a
   shader, a light is a node. A material knows nothing about lights, a light
   knows nothing about materials; they meet only in the shader.
-- **Lighting is PBR metallic-roughness**, as in glTF and the Standard shader
-  of Unity: base colour, metallic, roughness, normal map, emission. glTF
+- **Lighting is PBR metallic-roughness**, as in glTF: base colour, metallic, roughness, normal map, emission. glTF
   materials come in without loss.
 - **Maps of `Standard`** (each optional; a missing one is a default texture
   and the result is as without it):
   - `baseColorMap` (sRGB, alpha is opacity) times `baseColor`;
-  - `ormMap`, a packed map as in glTF and Unreal: R occlusion, G roughness,
+  - `ormMap`, a packed map as in glTF: R occlusion, G roughness,
     B metallic; factors `roughness`, `metallic`, `occlusionStrength`;
   - `normalMap` (tangent space, +Y up, as in glTF) with strength
     `normalScale`;
@@ -38,14 +37,14 @@ Status marks: see [README](README.md).
   scenes are not upgraded: until the branch is released, file formats stay
   at version 1 without upgrades, and an object of an old scene draws with
   the default material (its `color` stays an unknown property).
-- **Material edits go straight into the file**, as in Unity, without
+- **Material edits go straight into the file**, without
   pressing "Save"; the edit history of the scene does not hold them. Undo
   for materials can come later; assigning a material in the scene is a
   scene edit and is undone as one.
 - **Forward rendering, every light per pixel**, with shadows from the
   sun, spot and point lights (see "Shadows"); post-processing comes after
   the MVP (its place in the graph is ready).
-- **Sky and sun as in Unity**: the sky is a material with a sky shader
+- **Sky and sun**: the sky is a material with a sky shader
   (the built-in `Procedural` and `Panoramic` or your own), the sun is a
   directional light; a camera with the `Sky` clear draws the sky as its
   background, and the ambient light can come from the sky (see "Sky and
@@ -193,8 +192,7 @@ A material file `.ymat` (JSON, `FileFormat` version 1):
 
 ## Materials from scripts [done]
 
-A script changes how one object looks without touching the material file,
-as `MaterialPropertyBlock` in Unity does:
+A script changes how one object looks without touching the material file:
 
 ```cpp
 auto& renderer = node().component<MeshRenderer>();
@@ -227,7 +225,8 @@ renderer.overrides(0).clear();
   (`light.setIntensity(...)`), with no new API.
 - A material file can also be changed from a script through the resource
   (`materialData.set...`) for all objects at once; such a change is not
-  written to disk. Made in phase 5.4 **[planned, step 5]**.
+  written to disk (`SharedMaterial`: `setFloat`, `setVector`, `setColor`,
+  `setTexture`; built-in materials do not change).
 
 ## Lights [planned, step 5]
 
@@ -253,14 +252,13 @@ renderer.overrides(0).clear();
   sky reflections on metals and IBL are outside step 5. Phase 5.1 gives a
   constant colour and intensity, phase 5.5 adds the sky and a gradient (see
   "Sky and environment").
-- **A new scene** has a camera and a directional light, as in Unity and
-  Godot, so a new object is lit at once.
+- **A new scene** has a camera and a directional light, so a new object is lit at once.
 - **The editor** draws light icons and their range or direction in the
   viewport, as it does for cameras.
 
 ## Sky and environment [planned, step 5]
 
-As in Unity: the sky is a material, the sun is a directional light, the
+The sky is a material, the sun is a directional light, the
 ambient light comes from the sky, a gradient or a colour.
 
 - **A sky material** is an ordinary `.ymat` with a sky shader. A sky shader
@@ -271,7 +269,7 @@ ambient light comes from the sky, a gradient or a colour.
   the pixel), so your own sky is just this function and a `Material` block
   with annotations, as for any material.
 - **Built-in sky shaders** with fixed IDs, like `Standard`:
-  - `Procedural`, like `Skybox/Procedural` in Unity: the sun (none, simple,
+  - `Procedural`: the sun (none, simple,
     high quality), sun size, its convergence (edge softness), atmosphere
     thickness, sky tint, ground colour, exposure. The sky follows a
     simplified atmospheric scattering, so sunrise and sunset change its
@@ -279,14 +277,12 @@ ambient light comes from the sky, a gradient or a colour.
   - `Panoramic`: a panorama image (equirectangular, an sRGB texture), a
     rotation around the vertical, a tint, exposure.
   The built-in `Default Sky` material is `Procedural` with its defaults.
-- **The sun** is the directional light with the `sun` flag (like Sun Source
-  in Unity); when no enabled light has the flag, the brightest directional
+- **The sun** is the directional light with the `sun` flag; when no enabled light has the flag, the brightest directional
   light is the sun. The frame block gets `sunDirection`, `sunColor` and
   `hasSun`, so any shader (sky, water, your own material) knows where the
   sun is. The sun lights the scene as an ordinary directional light and
   stays in its array.
-- **The `Sky` camera clear** (`CameraClear::Sky`), like Skybox on a Unity
-  camera: the sky pass draws the sky material of the settings after the
+- **The `Sky` camera clear** (`CameraClear::Sky`): the sky pass draws the sky material of the settings after the
   opaque pass (depth test on the far plane, no write), so the sky fills
   only the pixels where nothing is. A new camera gets `Sky`.
 - **The Lighting section** (`LightingSettings`): the sky material
@@ -295,7 +291,7 @@ ambient light comes from the sky, a gradient or a colour.
   `Gradient`, `Color`), its multiplier `ambientIntensity`, the gradient
   colours (sky, equator, ground) and the colour for `Color`.
 - **Ambient light from the sky** is second order spherical harmonics (9
-  coefficients), as in Unity: the ambient pass calls `sky(direction)` of
+  coefficients): the ambient pass calls `sky(direction)` of
   the same shader over a set of directions (a shader variant with the
   `YQLORA_SKY_AMBIENT` define) and writes the coefficients into a small
   texture. It runs only when the sky material, its shader or the sun
@@ -303,7 +299,7 @@ ambient light comes from the sky, a gradient or a colour.
   night cycle does not stall the frame. `Gradient` and `Color` need no
   pass. `lighting.glsl` takes the ambient light along the normal
   (`ambientLight(normal)`) the same way for all three sources.
-- **Editor**: the viewport has its own sky toggle, as in Unity; the
+- **Editor**: the viewport has its own sky toggle; the
   material preview draws the sky behind the sphere; a sky shader shows the
   same fields in the material inspector as any other.
 - Sky reflections on metals (environment maps, IBL), clouds and fog come
@@ -311,13 +307,13 @@ ambient light comes from the sky, a gradient or a colour.
 
 ## Shadows [planned, step 5]
 
-As in Unity: lights give shadows, their meshes cast and receive them.
+Lights give shadows, their meshes cast and receive them.
 
-- **Lights**: every light has `shadows` (`None`, `Hard`, `Soft`, like
-  Shadow Type in Unity), `shadowStrength` (0..1), `shadowBias` and
+- **Lights**: every light has `shadows` (`None`, `Hard`, `Soft`),
+  `shadowStrength` (0..1), `shadowBias` and
   `shadowNormalBias` (against shadow acne and peter panning). A new
   `DirectionalLight3D` and the sun of a new scene use `Soft`, point and
-  spot lights use `None`, as in Unity.
+  spot lights use `None`.
 - **Meshes**: `MeshRenderer::castShadows` and `receiveShadows`, both on by
   default.
 - **A directional light** uses cascaded shadow maps (CSM): up to 4
@@ -346,7 +342,7 @@ As in Unity: lights give shadows, their meshes cast and receive them.
 - **After the MVP**: contact shadows, softness by light size (PCSS),
   shadows from transparent surfaces, ray tracing.
 
-## Editor [planned, step 5]
+## Editor [done]
 
 - "Create resource" in Files gets **Shader** (from the template
   `assets/templates/shader`, a lit shader with a colour, a texture,
@@ -549,35 +545,49 @@ As in Unity: lights give shadows, their meshes cast and receive them.
   an sRGB texture is decoded, an override changes one of two cubes with
   one material.
 
-### 5.4 Materials in the editor
+### 5.4 Materials in the editor [done]
 
-- **"Create resource > Material"**: `Standard`, white, the window with a
-  name.
-- **Material inspector**: preview, shader field (shaders only), blend and
-  cull, the fields of the material block with the widgets of their
-  attributes, the texture fields (textures only, with preview). A change
-  updates the material in the cache at once, so every object using it and
+- **"Create resource > Material"** (`ProjectFiles::createMaterial`, a row
+  of `newResourceTypes()`): `Standard`, white, the window with a name.
+- **Material inspector** (`MaterialInspector`): the preview, the shader
+  field (shaders only), blend and cull, the fields of the `Material` block
+  with the widgets of their annotations (colour, range, integer, vector),
+  texture fields (textures only, with a preview). An edit goes through
+  `MaterialEditing`: the material in the cache is replaced at once
+  (`ResourceCache::replace`, a new revision), so every object with it and
   the preview change while a slider moves; the file is written atomically
-  when the edit ends and at most twice a second during a long drag.
-- **Preview**: a sphere with the material, lit by one fixed directional
-  light and ambient, in its own render target at the top of the inspector;
-  drawn while the inspector shows it; its camera, sphere and light are not
-  in the scene.
-- **Shader inspector**: compiled or the errors (a click opens the file at
-  the line in the system editor), the fields and textures it declares,
-  "Open".
-- **`MeshRenderer` inspector**: one row per submesh with the slot name
-  (the material of the source file, or "Slot N") and a material field.
+  when the edit ends and at most `kWritesPerSecond` (2) times a second
+  during a long drag, and when the project closes.
+- **Preview** (`MaterialPreview`): a sphere with the material lit by one
+  fixed directional light and the ambient light, in its own render target
+  at the top of the inspector; its scene (camera, sphere, light) is its
+  own, not the document.
+- **Shader inspector** (`ShaderInspector`): compiled or the errors as
+  lines, the declared fields and textures, "Open". A click on an error
+  opens its file with the system program; the system cannot open a file at
+  a line.
+- **`MeshRenderer` inspector**: a row per submesh named after the material
+  of the source file (`SubMesh::sourceMaterialName`) or "Element N", with a
+  material field. Rows come from `Property::ElementLabels`, a general means:
+  a component gives the labels of the elements of its list property.
 - **Dropping a material** from Files onto a slot, or onto an object in the
-  viewport: picking returns the submesh under the cursor and the slot is
-  set in one undo step (a change of the scene, unlike edits of the
-  material file).
-- **A material from a script**: `materialData.set...` changes the material
-  in the cache with a new revision for all objects at once, through the
-  same path as an edit in the inspector, without writing the file.
-- **Tests**: slot names; dropping onto an object sets the right slot and is
-  undone; an edit in the inspector updates the material at once and writes
-  the file when the edit ends, not on every frame of a drag.
+  viewport: `raycastSurfaces` returns the submesh under the cursor and
+  `SceneEditing::dropMaterial` sets the slot in one undo step (a change of
+  the scene, unlike edits of the material file).
+- **A material from a script**: `SharedMaterial` changes the material in
+  the cache for all objects at once, through `ResourceCache::replace`, as
+  the inspector does, without writing the file.
+- **Resource kinds for scripts**: `kinds::kMaterial`, `kinds::kShader`,
+  `kinds::kTexture` and the others are public
+  (`yqlora/resource/ResourceKinds.hpp`), the data types take their kind
+  from there, so a script field can hold a material, a shader or a texture:
+  `field("look", &Player::look).resource(kinds::kMaterial)`.
+- **Tests**: slot names from glTF and the labels of the `materials`
+  property; dropping onto an object sets the right slot and is undone; an
+  edit reaches the cache at once and writes the file when the edit ends or
+  twice a second, not every frame; the preview scene; a shared material
+  changes the cache and not the file; resource fields of a script know
+  their kind.
 
 ### 5.5 Sky and environment
 

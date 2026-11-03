@@ -108,7 +108,7 @@ The checks themselves are free functions in `ComponentRules.hpp` (`canAttach`,
   error in the log; a missing required component is added with a warning
   **[done]**.
 - `Node::addComponent` itself, for a node in a scene: it adds missing required
-  components first, like `AddComponent` in Unity, and a broken rule is an error
+  components first, and a broken rule is an error
   of the program, so game code cannot bypass them either **[done]**.
 
 ### Built-in components
@@ -140,7 +140,7 @@ A spatial node creates its transform in the constructor (`Transform3D` for
 - Order inside a phase: the **execution order** of the type (default 0, lower
   first), then the order in which components entered the list. A type sets its
   default in code (`.executionOrder(-100)`); the project settings can override
-  it per type, like Script Execution Order in Unity (see
+  it per type (see
   [project settings](project-settings.md)). One rule: the setting if present,
   else the default from code (`executionOrderOf`) **[done]**.
 - A component added during a phase is called from the next phase on; a removed
@@ -149,8 +149,6 @@ A spatial node creates its transform in the constructor (`Transform3D` for
 
 ### Active and enabled [done]
 
-As in Unity:
-
 - A node has `active` (its own flag) and `activeInHierarchy()` (it and all its
   parents are active). An inactive node switches off its whole branch:
   components get `onDisable`, leave the phase lists, renderers are not drawn,
@@ -158,7 +156,7 @@ As in Unity:
 - A component has `enabled`. It takes part in the game only while enabled and
   its node is active in hierarchy; `onEnable` / `onDisable` mark the change.
 - There is no separate `visible` flag: hiding a mesh is disabling its
-  `MeshRenderer`, like `Renderer.enabled` in Unity.
+  `MeshRenderer`.
 - A node has a **layer** (one of 32, names in the project settings). Camera
   masks and physics collisions filter by layers **[done]**; until the layer
   names come, the inspector shows numbers.
@@ -201,8 +199,8 @@ scene.setParent(node, newParent, KeepWorld::No); // last child of newParent
 Both are needed: a sword taken into a hand gets a new position relative to
 the hand; a wagon hooked to a train must not move in the world.
 
-- **Scripts** say it in every call, there is no default (Unity and Godot have
-  opposite ones, any default would surprise someone) **[done]**:
+- **Scripts** say it in every call, there is no default (any
+  default would surprise someone) **[done]**:
 
   ```cpp
   scene.setParent(sword, hand, KeepWorld::No);    // local values stay, the node jumps
@@ -218,7 +216,7 @@ the hand; a wagon hooked to a train must not move in the world.
   tree" **[done]**.
 - Keeping the world position is not always exact: under a parent with
   non-uniform scale and rotation the world matrix has a skew that position,
-  rotation and scale cannot hold; the nearest values are taken, as in Unity.
+  rotation and scale cannot hold; the nearest values are taken.
 - Nodes without a transform (`Node`) and parents that are not `Node3D` have
   nothing to recompute: the flag changes nothing there.
 

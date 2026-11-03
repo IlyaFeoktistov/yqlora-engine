@@ -9,6 +9,7 @@
 #include <yqlora/input/Input.hpp>
 #include <yqlora/material/MaterialData.hpp>
 #include <yqlora/material/MaterialFile.hpp>
+#include <yqlora/material/SharedMaterial.hpp>
 #include <yqlora/platform/Files.hpp>
 #include <yqlora/project/Project.hpp>
 #include <yqlora/render/FrameBuilder.hpp>
@@ -263,4 +264,35 @@ TEST_CASE("Extract: a slot draws its material, a broken shader draws Error until
     CHECK(frame.drawItems[0].overrides == 0);
     CHECK(frame.overrides[0].values == renderer.overrides(0));
     CHECK(frame.overrides[0].textures.size() == frame.materials[0].textures.size());
+}
+
+TEST_CASE(
+    "SharedMaterial: a change reaches every object at once with a new revision, the file stays, built-ins do not change"
+)
+{
+    const fs::path directory = test::freshDirectory("materials_shared");
+    test::EngineRegistry registry;
+    REQUIRE(Project::create(directory, "Game", registry));
+    auto project = Project::open(directory, registry);
+    REQUIRE(project);
+    REQUIRE(writeMaterialFile(directory / "red.ymat", {.values = {{"roughness", {0.5f}}}}));
+    const ResourceId red = project->resources().add("red.ymat");
+    Input input;
+    EngineServices services{input, registry};
+    services.setProject(&*project);
+    ResourceCache& cache = services.resources();
+    const std::uint64_t before = cache.get<MaterialData>(red).revision;
+    const std::string file = *platform::readFile(directory / "red.ymat");
+
+    SharedMaterial material(services, {red});
+    REQUIRE(material.setFloat("roughness", 0.1f));
+    REQUIRE(material.setTexture("baseColorMap", {builtin::kFirstProjectId + 1}));
+    const LoadedData<MaterialData> after = cache.get<MaterialData>(red);
+    CHECK(after.revision > before);
+    CHECK(after.data->values.at("roughness")[0] == doctest::Approx(0.1f));
+    CHECK(after.data->textures.at("baseColorMap") == builtin::kFirstProjectId + 1);
+    CHECK(*platform::readFile(directory / "red.ymat") == file);
+
+    CHECK_FALSE(SharedMaterial(services, {builtin::kDefaultMaterial}).setFloat("roughness", 0.1f));
+    CHECK_FALSE(SharedMaterial(services, {123}).setFloat("roughness", 0.1f));
 }

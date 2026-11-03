@@ -44,7 +44,7 @@ Status marks: see [README](README.md).
 
 ### Decisions
 
-- **The source file is the resource**, as in Godot and Unity: `.glb`,
+- **The source file is the resource**: `.glb`,
   `.gltf`, `.png`, `.jpg` lie anywhere in the project and are seen in Files.
   The engine reads the source file itself; an import cache and a binary
   format come with step 9, between the source file and `ResourceCache`,

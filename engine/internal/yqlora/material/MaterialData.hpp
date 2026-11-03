@@ -4,6 +4,7 @@
 #include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/resource/BuiltinResources.hpp"
 #include "yqlora/resource/ResourceId.hpp"
+#include "yqlora/resource/ResourceKinds.hpp"
 
 #include <cstdint>
 #include <map>
@@ -44,7 +45,7 @@ namespace yqlora {
 // у шейдера нет, хранятся и пишутся обратно: вернётся поле - вернётся и
 // значение. Цвета (поля с пометкой color) - в sRGB, как их выбирает человек.
 struct MaterialData {
-    static constexpr std::string_view kResourceKind = "material";
+    static constexpr std::string_view kResourceKind = kinds::kMaterial;
 
     ResourceId shader = builtin::kStandardShader;
     MaterialBlend blend = MaterialBlend::Opaque;

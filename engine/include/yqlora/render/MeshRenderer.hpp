@@ -6,6 +6,7 @@
 #include "yqlora/scene/Component.hpp"
 
 #include <cstddef>
+#include <string>
 #include <vector>
 
 namespace yqlora {
@@ -53,10 +54,17 @@ public:
     // nullptr, если у слота нет замен.
     const MaterialOverrides* findOverrides(std::size_t slot) const;
 
+    // Имена слотов по подмешам меша: имя материала исходного файла, пусто -
+    // без имени. Без загруженного меша или вне сцены - пусто.
+    std::vector<std::string> slotNames() const;
+
 private:
     ResourceRef m_mesh;
     std::vector<ResourceRef> m_materials;
     std::vector<MaterialOverrides> m_overrides;
 };
+
+// Имя свойства materials в реестре: по нему редактор ставит слот командой с отменой.
+inline constexpr char kMaterialsProperty[] = "materials";
 
 } // namespace yqlora

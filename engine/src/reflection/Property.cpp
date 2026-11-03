@@ -79,6 +79,12 @@ PropertyValue defaultPropertyValue(PropertyType type)
     return false;
 }
 
+void Property::setElementLabels(ElementLabels labels)
+{
+    assert(m_type == PropertyType::List && m_componentGet && "setElementLabels: not a list of a component");
+    m_elementLabels = std::move(labels);
+}
+
 void Property::setElementType(PropertyType type)
 {
     assert(m_type == PropertyType::List && "setElementType: the property is not a list");

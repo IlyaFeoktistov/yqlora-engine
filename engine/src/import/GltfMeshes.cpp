@@ -134,6 +134,7 @@ std::string addPrimitive(const cgltf_data& data, const cgltf_primitive& primitiv
     submesh.indexCount = static_cast<std::uint32_t>(indices.size());
     if (primitive.material) {
         submesh.sourceMaterial = static_cast<int>(cgltf_material_index(&data, primitive.material));
+        submesh.sourceMaterialName = primitive.material->name ? primitive.material->name : "";
     }
     mesh.vertices.insert(mesh.vertices.end(), vertices.begin(), vertices.end());
     for (const std::uint32_t index : indices) {

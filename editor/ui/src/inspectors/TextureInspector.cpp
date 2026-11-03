@@ -2,6 +2,7 @@
 
 #include "yqlora/editor/ui/core/EditorContext.hpp"
 #include "yqlora/editor/ui/core/EditorHost.hpp"
+#include "yqlora/editor/ui/widgets/EnumCombo.hpp"
 
 #include "yqlora/editor/TextureInspection.hpp"
 #include "yqlora/i18n/Translate.hpp"
@@ -10,8 +11,6 @@
 #include <imgui.h>
 
 #include <algorithm>
-#include <cstddef>
-#include <iterator>
 #include <string>
 
 namespace yqlora::editor {
@@ -20,24 +19,6 @@ namespace {
 
 // Превью не выше этой доли ширины панели.
 constexpr float kPreviewMaxAspect = 1.0f;
-
-template <NamedEnum E>
-bool enumCombo(const char* label, E& value)
-{
-    bool changed = false;
-    if (ImGui::BeginCombo(label, std::string(enumName(value)).c_str())) {
-        for (std::size_t i = 0; i < std::size(EnumNames<E>::names); ++i) {
-            const auto option = static_cast<E>(i);
-            if (ImGui::Selectable(std::string(EnumNames<E>::names[i]).c_str(), option == value)) {
-                value = option;
-                changed = true;
-            }
-        }
-        ImGui::EndCombo();
-    }
-
-    return changed;
-}
 
 void drawPreview(EditorContext& context, ResourceId id, const LoadedData<TextureData>& texture)
 {

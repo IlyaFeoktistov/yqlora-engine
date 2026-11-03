@@ -6,8 +6,7 @@ The engine holds the subsystems every game is built on: scene, rendering,
 physics, audio, the HUD, scripting. Plugins hold ready-made pieces built with
 the engine: a camera that follows the player, a player movement script, a
 door, a day and night cycle, editor tools, asset packs. A developer takes
-what fits the game from the plugin repository instead of writing it again,
-like the Godot Asset Library or the Unity Asset Store.
+what fits the game from the plugin repository instead of writing it again.
 
 Status marks: see [README](README.md).
 

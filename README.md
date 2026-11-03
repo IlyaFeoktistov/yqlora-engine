@@ -28,7 +28,7 @@ MVP: everything needed to build a small game prototype.
 - [ ] Running a game without the editor
 - [ ] Documentation: public API, engine internals, editor user guide
 
-After the MVP: a photorealistic picture by default, as in Unreal Engine
+After the MVP: a photorealistic picture by default
 ([post-processing and photorealism](docs/architecture/rendering.md#photorealism-by-default-planned-after-the-mvp)),
 then Luau scripts, then 2D, then visual scripting (blocks and links
 instead of code, attached to a node like any other script).

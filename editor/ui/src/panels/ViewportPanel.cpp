@@ -18,9 +18,11 @@
 #include "yqlora/editor/Snapping.hpp"
 #include "yqlora/editor/ui/core/EditorHost.hpp"
 #include "yqlora/i18n/Translate.hpp"
+#include "yqlora/material/MaterialData.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/FrameBuilder.hpp"
 #include "yqlora/render/Renderer.hpp"
+#include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/scene/Scene.hpp"
 
 #include <imgui.h>
@@ -90,7 +92,12 @@ void ViewportPanel::draw(EditorContext& context)
     if (const auto dropped = acceptResourceDrop()) {
         const ImVec2 mouse = ImGui::GetMousePos();
         const Ray ray = m_camera.screenRay({mouse.x - origin.x, mouse.y - origin.y}, {size.x, size.y});
-        session.editing().addResource(*dropped, nullptr, dropPoint(session.scene(), ray, context.settings.snap));
+        // Материал ложится в слот объекта под курсором, остальное ставится в сцену.
+        if (session.resources().loadedKind(*dropped) == MaterialData::kResourceKind) {
+            session.editing().dropMaterial(ray, {*dropped});
+        } else {
+            session.editing().addResource(*dropped, nullptr, dropPoint(session.scene(), ray, context.settings.snap));
+        }
     }
 
     // Превью и его кнопка лежат поверх сцены: клики по ним до сцены не доходят.

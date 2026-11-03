@@ -115,8 +115,6 @@ registry.registerSettings<PhysicsSettings>("physics")  // settings/physics.json
 
 ## Слои
 
-Как Tags and Layers в Unity:
-
 - 32 слоя. Слой 0 - `Default`, есть всегда и не переименовывается; остальным
   имена даёт проект. Слой без имени не используется и в списках не
   показывается.

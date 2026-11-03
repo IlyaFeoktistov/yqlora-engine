@@ -2,10 +2,12 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
+#include "yqlora/resource/ResourceKinds.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -28,7 +30,9 @@ struct SubMesh {
     std::uint32_t indexCount = 0;
     // Материал исходного файла (индекс материала в glTF); nullopt - без
     // материала. По нему импорт материалов найдёт, что куда положить.
-    std::optional<int> sourceMaterial;
+    std::optional<int> sourceMaterial{};
+    // Его имя в файле: так называется слот в инспекторе. Пусто - без имени.
+    std::string sourceMaterialName{};
 };
 
 struct Bounds {
@@ -40,7 +44,7 @@ struct Bounds {
 // файл модели, код игры. Треугольники перечислены против часовой стрелки,
 // если смотреть снаружи: задние грани отсекаются.
 struct MeshData {
-    static constexpr std::string_view kResourceKind = "mesh";
+    static constexpr std::string_view kResourceKind = kinds::kMesh;
     // Индексов на треугольник.
     static constexpr std::size_t kTriangleCorners = 3;
 
