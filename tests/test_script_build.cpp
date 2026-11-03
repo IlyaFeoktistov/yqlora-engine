@@ -1,3 +1,5 @@
+#include "TestFiles.hpp"
+
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineServices.hpp>
@@ -71,9 +73,7 @@ struct BuildFixture {
     {
         registerEngineTypes(registry);
         const SceneSerializer serializer(registry);
-        const auto location = fs::temp_directory_path() / "yqlora_tests" / fromUtf8(name);
-        fs::remove_all(location);
-        fs::create_directories(location);
+        const auto location = test::freshDirectory(fromUtf8(name));
         std::string error;
         auto created = createProject(location, "Game", serializer, error);
         REQUIRE(created);
@@ -126,7 +126,7 @@ struct BuildFixture {
     // хранит время грубо.
     void touchAfter(const fs::path& file, const fs::path& output)
     {
-        fs::last_write_time(file, fs::last_write_time(output) + std::chrono::seconds(2));
+        test::markRewritten(file, fs::last_write_time(output));
     }
 };
 

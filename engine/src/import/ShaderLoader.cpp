@@ -1,14 +1,13 @@
 #include "yqlora/import/ShaderLoader.hpp"
 
 #include "yqlora/core/Utf8Path.hpp"
+#include "yqlora/platform/Files.hpp"
 #include "yqlora/render/EngineUniforms.hpp"
 #include "yqlora/shader/EngineShaders.hpp"
 #include "yqlora/shader/ShaderDataBuild.hpp"
 #include "yqlora/shader/ShaderProfile.hpp"
 
 #include <array>
-#include <fstream>
-#include <sstream>
 
 namespace yqlora {
 
@@ -28,18 +27,6 @@ fs::path projectRoot(const LoadRequest& request)
     }
 
     return root;
-}
-
-std::optional<std::string> readFile(const fs::path& file)
-{
-    std::ifstream stream(file, std::ios::binary);
-    if (!stream) {
-        return std::nullopt;
-    }
-    std::ostringstream text;
-    text << stream.rdbuf();
-
-    return text.str();
 }
 
 } // namespace
@@ -76,7 +63,7 @@ LoadResult ShaderLoader::load(const LoadRequest& request) const
             return std::nullopt;
         }
 
-        return readFile(root / relative);
+        return platform::readFile(root / relative);
     });
     const std::string path = toGenericUtf8(request.relative);
     ShaderDataResult built = buildShaderData(compiler, path, toUtf8(request.relative.stem()), kEngineBlocks);

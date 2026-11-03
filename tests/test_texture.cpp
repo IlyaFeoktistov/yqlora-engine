@@ -1,4 +1,5 @@
 #include "EngineRegistry.hpp"
+#include "TestFiles.hpp"
 
 #include <doctest/doctest.h>
 
@@ -85,15 +86,6 @@ void writeJpg(const fs::path& file)
     save(file, bytes);
 }
 
-fs::path freshDirectory(const char* name)
-{
-    const auto directory = fs::temp_directory_path() / "yqlora_tests" / name;
-    fs::remove_all(directory);
-    fs::create_directories(directory);
-
-    return directory;
-}
-
 const TextureData& texture(const LoadResult& result)
 {
     REQUIRE(result.error.empty());
@@ -107,7 +99,7 @@ const TextureData& texture(const LoadResult& result)
 
 TEST_CASE("ImageLoader: PNG keeps alpha and rows go from the top")
 {
-    const fs::path file = freshDirectory("texture_png") / "four.png";
+    const fs::path file = test::freshDirectory("texture_png") / "four.png";
     writePng(file);
     const LoadResult result = ImageLoader{}.load({file});
     const TextureData& data = texture(result);
@@ -119,7 +111,7 @@ TEST_CASE("ImageLoader: PNG keeps alpha and rows go from the top")
 
 TEST_CASE("ImageLoader: JPG becomes RGBA, opaque")
 {
-    const fs::path file = freshDirectory("texture_jpg") / "gray.JPG";
+    const fs::path file = test::freshDirectory("texture_jpg") / "gray.JPG";
     writeJpg(file);
     const LoadResult result = ImageLoader{}.load({file});
     const TextureData& data = texture(result);
@@ -132,7 +124,7 @@ TEST_CASE("ImageLoader: JPG becomes RGBA, opaque")
 
 TEST_CASE("ImageLoader: broken and missing files give an error")
 {
-    const fs::path directory = freshDirectory("texture_broken");
+    const fs::path directory = test::freshDirectory("texture_broken");
     std::ofstream(directory / "text.png") << "not a picture";
     CHECK_FALSE(ImageLoader{}.load({directory / "text.png"}).error.empty());
     CHECK_FALSE(ImageLoader{}.load({directory / "missing.png"}).error.empty());
@@ -153,7 +145,7 @@ TEST_CASE("TextureImport: settings go to JSON and back, defaults are not written
 
 TEST_CASE("ResourceCache: a picture is a texture, new import settings give a new revision")
 {
-    const fs::path directory = freshDirectory("texture_cache");
+    const fs::path directory = test::freshDirectory("texture_cache");
     writePng(directory / "icon.png");
     test::EngineRegistry registry;
     REQUIRE(Project::create(directory, "Game", registry));
@@ -193,7 +185,7 @@ TEST_CASE("Texture inspection: the picture and its import settings, applied with
     test::EngineRegistry registry;
     SceneSerializer serializer{registry};
     std::string error;
-    const auto created = editor::createProject(freshDirectory("texture_inspection"), "Game", serializer, error);
+    const auto created = editor::createProject(test::freshDirectory("texture_inspection"), "Game", serializer, error);
     REQUIRE(created);
     const fs::path directory = created->directory();
     writePng(directory / "icon.png");

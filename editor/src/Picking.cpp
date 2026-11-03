@@ -1,6 +1,7 @@
 #include "yqlora/editor/Picking.hpp"
 
 #include "yqlora/core/EngineServices.hpp"
+#include "yqlora/editor/ViewportProjection.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/Light3D.hpp"
 #include "yqlora/render/MeshData.hpp"
@@ -216,14 +217,11 @@ std::optional<ScreenVertex> nearestVertex(
         }
         const Mat4 toClip = viewProjection * node.worldMatrix();
         for (const Vertex& vertex : mesh.vertices) {
-            const Vec4 clip = toClip * Vec4(vertex.position, 1.0f);
-            // За камерой вершину не видно.
-            if (clip.w <= 0.0f) {
+            const auto screen = projectToViewport(toClip, vertex.position, viewportSize);
+            if (!screen) {
                 continue;
             }
-            const Vec2 ndc = Vec2(clip) / clip.w;
-            const Vec2 screen((ndc.x * 0.5f + 0.5f) * viewportSize.x, (0.5f - ndc.y * 0.5f) * viewportSize.y);
-            const float distance = glm::length(screen - point);
+            const float distance = glm::length(*screen - point);
             if (!best || distance < best->screenDistance) {
                 best = ScreenVertex{node.toWorld(vertex.position), distance};
             }

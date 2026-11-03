@@ -5,7 +5,6 @@
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
-#include <fstream>
 #include <optional>
 
 namespace yqlora {
@@ -19,11 +18,11 @@ inline constexpr int kJsonIndent = 4;
 // nullopt, если файла нет или в нём не JSON.
 inline std::optional<nlohmann::json> readJsonFile(const std::filesystem::path& file)
 {
-    std::ifstream in(file);
-    if (!in) {
+    const auto text = platform::readFile(file);
+    if (!text) {
         return std::nullopt;
     }
-    nlohmann::json json = nlohmann::json::parse(in, nullptr, /*allow_exceptions=*/false);
+    nlohmann::json json = nlohmann::json::parse(*text, nullptr, /*allow_exceptions=*/false);
     if (json.is_discarded()) {
         return std::nullopt;
     }

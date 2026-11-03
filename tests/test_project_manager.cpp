@@ -1,3 +1,5 @@
+#include "TestFiles.hpp"
+
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineTypes.hpp>
@@ -16,9 +18,7 @@ namespace {
 // Пустая папка теста. Чистится до того, как менеджер прочитает в ней список проектов.
 std::filesystem::path freshFolder()
 {
-    const auto folder = std::filesystem::temp_directory_path() / "yqlora_tests" / "manager";
-    std::filesystem::remove_all(folder);
-    std::filesystem::create_directories(folder);
+    const auto folder = test::freshDirectory("manager");
 
     return folder;
 }

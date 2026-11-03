@@ -1,7 +1,9 @@
 #include "yqlora/editor/ui/dialogs/AddNodeDialog.hpp"
 
 #include "yqlora/editor/ui/style/Icons.hpp"
+#include "yqlora/editor/ui/style/NodeIcons.hpp"
 
+#include "yqlora/core/Text.hpp"
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
@@ -10,7 +12,6 @@
 #include <imgui_stdlib.h>
 
 #include <algorithm>
-#include <cctype>
 
 namespace yqlora::editor {
 
@@ -23,15 +24,6 @@ constexpr float kFooterRows = 4.0f;
 bool isCreatableNode(const TypeInfo& type)
 {
     return type.kind() == TypeKind::Node && type.creatable();
-}
-
-std::string lowercase(std::string text)
-{
-    std::ranges::transform(text, text.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
-
-    return text;
 }
 
 } // namespace
@@ -116,13 +108,8 @@ bool AddNodeDialog::drawType(const TypeRegistry& registry, const TypeInfo& type)
         flags |= ImGuiTreeNodeFlags_Selected;
     }
 
-    const bool open = ImGui::TreeNodeEx(
-        type.name().c_str(),
-        flags,
-        "%s  %s",
-        icons::forNodeType(type.name()),
-        type.name().c_str()
-    );
+    const bool
+        open = ImGui::TreeNodeEx(type.name().c_str(), flags, "%s  %s", nodeIcon(type.name()), type.name().c_str());
     bool chosen = false;
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
         m_selectedType = type.name();
@@ -144,7 +131,7 @@ bool AddNodeDialog::drawType(const TypeRegistry& registry, const TypeInfo& type)
 
 bool AddNodeDialog::matchesSearch(const TypeInfo& type) const
 {
-    return lowercase(type.name()).find(lowercase(m_search)) != std::string::npos;
+    return containsIgnoringCase(type.name(), m_search);
 }
 
 } // namespace yqlora::editor

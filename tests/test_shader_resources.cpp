@@ -1,4 +1,5 @@
 #include "EngineRegistry.hpp"
+#include "TestFiles.hpp"
 
 #include <doctest/doctest.h>
 
@@ -60,26 +61,10 @@ bool hasError(const ShaderDataResult& result, int line, const std::string& part)
     });
 }
 
-void write(const fs::path& file, std::string_view content)
-{
-    fs::create_directories(file.parent_path());
-    std::ofstream(file, std::ios::binary | std::ios::trunc) << content;
-}
-
-// Изменение, которое заметит сравнение времени записи и на грубых отметках.
-void rewrite(const fs::path& file, std::string_view content)
-{
-    const auto before = fs::last_write_time(file);
-    write(file, content);
-    fs::last_write_time(file, before + std::chrono::seconds(2));
-}
-
 struct ProjectFixture {
     ProjectFixture()
     {
-        directory = fs::temp_directory_path() / "yqlora_tests" / "shader_resources";
-        fs::remove_all(directory);
-        fs::create_directories(directory);
+        directory = test::freshDirectory("shader_resources");
         REQUIRE(Project::create(directory, "Game", registry));
         project.emplace(*Project::open(directory, registry));
         cache.addLoader(std::make_unique<ShaderLoader>());
@@ -89,7 +74,7 @@ struct ProjectFixture {
 
     ResourceId add(const fs::path& relative, std::string_view content)
     {
-        write(directory / relative, content);
+        test::writeFile(directory / relative, content);
 
         return project->resources().add(relative);
     }
@@ -258,7 +243,7 @@ TEST_CASE_FIXTURE(ProjectFixture, "ShaderLoader: one file gives both stages, the
 
 TEST_CASE_FIXTURE(ProjectFixture, "ShaderLoader: an error inside an include names that file and line")
 {
-    write(directory / "shaders" / "common.glsl", "// first line\nfloat broken = undefinedName;\n");
+    test::writeFile(directory / "shaders" / "common.glsl", "// first line\nfloat broken = undefinedName;\n");
     const ResourceId id = add(
         "shaders/lit.yshader",
         "#version 450\n#include \"common.glsl\"\n#ifdef YQLORA_FRAGMENT\nlayout(location = 0) out vec4 c;\n"
@@ -273,7 +258,7 @@ TEST_CASE_FIXTURE(ProjectFixture, "ShaderLoader: an error inside an include name
 
 TEST_CASE_FIXTURE(ProjectFixture, "ShaderLoader: a changed include reloads the shaders that use it")
 {
-    write(directory / "shaders" / "common.glsl", "const float kValue = 0.5;\n");
+    test::writeFile(directory / "shaders" / "common.glsl", "const float kValue = 0.5;\n");
     const ResourceId id = add(
         "shaders/lit.yshader",
         "#version 450\n#include \"common.glsl\"\n#ifdef YQLORA_FRAGMENT\nlayout(location = 0) out vec4 c;\n"
@@ -283,12 +268,12 @@ TEST_CASE_FIXTURE(ProjectFixture, "ShaderLoader: a changed include reloads the s
     REQUIRE(first);
     CHECK(cache.reloadChanged() == 0);
 
-    rewrite(directory / "shaders" / "common.glsl", "const float kValue = undefinedName;\n");
+    test::rewriteFile(directory / "shaders" / "common.glsl", "const float kValue = undefinedName;\n");
     CHECK(cache.reloadChanged() == 1);
     CHECK(cache.status(id)->state == ResourceState::Error);
 
     // Исправленный файл подхватывается так же.
-    rewrite(directory / "shaders" / "common.glsl", "const float kValue = 0.25;\n");
+    test::rewriteFile(directory / "shaders" / "common.glsl", "const float kValue = 0.25;\n");
     CHECK(cache.reloadChanged() == 1);
     const auto fixed = cache.get<ShaderData>(id);
     REQUIRE(fixed);

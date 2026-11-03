@@ -1,5 +1,6 @@
 #include "yqlora/editor/ui/style/Theme.hpp"
 
+#include "yqlora/core/JsonFile.hpp"
 #include "yqlora/core/Log.hpp"
 #include "yqlora/core/Utf8Path.hpp"
 
@@ -8,7 +9,6 @@
 #include <ImGuizmo.h>
 #include <nlohmann/json.hpp>
 
-#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -215,8 +215,7 @@ bool Theme::load(const std::filesystem::path& file, const std::filesystem::path&
     ImGuiStyle& style = ImGui::GetStyle();
     ImGui::StyleColorsDark(&style);
 
-    std::ifstream in(file);
-    const Json json = in ? Json::parse(in, nullptr, /*allow_exceptions=*/false) : Json();
+    const Json json = readJsonFile(file).value_or(Json());
     if (!json.is_object()) {
         log::warn("Theme '{}' is not found or broken, using the default look", toUtf8(file));
 

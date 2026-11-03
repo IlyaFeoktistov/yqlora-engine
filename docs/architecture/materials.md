@@ -517,35 +517,6 @@ only if every scene was read, as `upgradeProject` already does.
   include names that file and line; a changed include reloads the shader;
   a new shader is a copy of the template.
 
-### 5.2a Audit fixes [next, temporary]
-
-A temporary section: a list of work, not a description of the
-architecture. Each item leaves it once done, and how things work then is
-described in the document of its subsystem; after the last item the whole
-section is removed.
-
-An audit of steps 3-5 (2026-11-02): what is costly to change later. Done
-before 5.3, a commit per group, each followed by a build and tests on
-Linux and Windows.
-
-1. **Clean code**:
-   - reading a whole file is one platform function instead of five
-     (images, glTF, shaders, the script template, the build record);
-   - ASCII lowercase is one function instead of five;
-   - a world point on the screen is one editor function (`Picking` and the
-     gizmos);
-   - test helpers (writing and rewriting a file) go into a shared test
-     header;
-   - the life of the game library (copies, load, unload, reload) moves out
-     of `EditorSession` into its own class;
-   - `ScriptBuild::buildOnce` is split into steps (paths, configure
-     arguments, running);
-   - `PropertyEditor.cpp` is split into a file per widget (before the
-     material fields of 5.4);
-   - node icons are a table by type, not a chain of `if`;
-   - small ones: trimming the selection to existing nodes is one function;
-     `LogFilter::levels` is filled by `kLogLevelCount`.
-
 ### 5.3 Materials
 
 - **`MaterialData`** (resource kind `material`, format `material` version

@@ -1,6 +1,7 @@
 #include "yqlora/platform/Files.hpp"
 
 #include <fstream>
+#include <iterator>
 #include <system_error>
 
 namespace yqlora::platform {
@@ -10,6 +11,20 @@ namespace {
 constexpr std::string_view kTemporarySuffix = ".tmp";
 
 } // namespace
+
+std::optional<std::string> readFile(const std::filesystem::path& file)
+{
+    std::ifstream stream(file, std::ios::binary);
+    if (!stream) {
+        return std::nullopt;
+    }
+    std::string bytes{std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+    if (stream.bad()) {
+        return std::nullopt;
+    }
+
+    return bytes;
+}
 
 bool writeFileAtomically(const std::filesystem::path& file, std::string_view bytes)
 {

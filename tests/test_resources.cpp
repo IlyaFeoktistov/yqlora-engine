@@ -1,3 +1,5 @@
+#include "TestFiles.hpp"
+
 #include <doctest/doctest.h>
 
 #include <yqlora/resource/BuiltinResources.hpp>
@@ -19,30 +21,15 @@ namespace {
 // Как файл проекта: в корне, но не ресурс.
 constexpr std::array<std::string_view, 1> kNotResources{"project.yqlora"};
 
-std::filesystem::path freshDirectory(const char* name)
-{
-    const auto directory = std::filesystem::temp_directory_path() / "yqlora_tests" / name;
-    std::filesystem::remove_all(directory);
-    std::filesystem::create_directories(directory);
-
-    return directory;
-}
-
-void touch(const std::filesystem::path& file)
-{
-    std::filesystem::create_directories(file.parent_path());
-    std::ofstream(file) << "data";
-}
-
 } // namespace
 
 TEST_CASE("ResourceDatabase: files get ids that survive a rescan")
 {
-    const auto root = freshDirectory("resources_scan");
-    touch(root / "player.png");
-    touch(root / "levels" / "one.yscene");
-    touch(root / ".hidden" / "secret.txt");
-    touch(root / "project.yqlora");
+    const auto root = test::freshDirectory("resources_scan");
+    test::writeFile(root / "player.png", "data");
+    test::writeFile(root / "levels" / "one.yscene", "data");
+    test::writeFile(root / ".hidden" / "secret.txt", "data");
+    test::writeFile(root / "project.yqlora", "data");
 
     ResourceDatabase database;
     database.scan(root, kNotResources);
@@ -63,8 +50,8 @@ TEST_CASE("ResourceDatabase: files get ids that survive a rescan")
 
 TEST_CASE("ResourceDatabase: a copied file with its .meta gets a new id")
 {
-    const auto root = freshDirectory("resources_copy");
-    touch(root / "a.png");
+    const auto root = test::freshDirectory("resources_copy");
+    test::writeFile(root / "a.png", "data");
     ResourceDatabase database;
     database.scan(root);
     std::filesystem::copy_file(root / "a.png", root / "b.png");
@@ -77,9 +64,9 @@ TEST_CASE("ResourceDatabase: a copied file with its .meta gets a new id")
 
 TEST_CASE("ResourceDatabase: ids follow renamed files and folders, removed ones are forgotten")
 {
-    const auto root = freshDirectory("resources_move");
-    touch(root / "art" / "hero.png");
-    touch(root / "notes.txt");
+    const auto root = test::freshDirectory("resources_move");
+    test::writeFile(root / "art" / "hero.png", "data");
+    test::writeFile(root / "notes.txt", "data");
     ResourceDatabase database;
     database.scan(root);
     const ResourceId hero = database.id("art/hero.png");
@@ -100,7 +87,7 @@ TEST_CASE("ResourceDatabase: ids follow renamed files and folders, removed ones 
     CHECK_FALSE(database.path(hero));
 
     // Новый файл получает ID сразу, без повторного обхода.
-    touch(root / "new.png");
+    test::writeFile(root / "new.png", "data");
     const ResourceId created = database.add("new.png");
     CHECK(created != 0);
     CHECK(database.add("new.png") == created);
@@ -119,8 +106,8 @@ std::string readText(const std::filesystem::path& file)
 
 TEST_CASE("ResourceDatabase: nested ids are made once, kept in .meta and survive a rescan and a rename")
 {
-    const auto root = freshDirectory("resources_nested");
-    touch(root / "door.glb");
+    const auto root = test::freshDirectory("resources_nested");
+    test::writeFile(root / "door.glb", "data");
     ResourceDatabase database;
     database.scan(root);
     const ResourceId file = database.id("door.glb");
@@ -161,8 +148,8 @@ TEST_CASE("ResourceDatabase: nested ids are made once, kept in .meta and survive
 
 TEST_CASE("ResourceDatabase: a copy of a model gets a new id for the file and every nested resource")
 {
-    const auto root = freshDirectory("resources_nested_copy");
-    touch(root / "a.glb");
+    const auto root = test::freshDirectory("resources_nested_copy");
+    test::writeFile(root / "a.glb", "data");
     ResourceDatabase database;
     database.scan(root);
     const ResourceId original = database.id("a.glb");
@@ -182,8 +169,8 @@ TEST_CASE("ResourceDatabase: a copy of a model gets a new id for the file and ev
 
 TEST_CASE("ResourceDatabase: import settings are kept in .meta, a .meta without a format version is broken")
 {
-    const auto root = freshDirectory("resources_import");
-    touch(root / "grass.png");
+    const auto root = test::freshDirectory("resources_import");
+    test::writeFile(root / "grass.png", "data");
     ResourceDatabase database;
     database.scan(root);
     const ResourceId file = database.id("grass.png");

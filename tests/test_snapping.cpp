@@ -6,6 +6,7 @@
 #include <yqlora/editor/EditorSettings.hpp>
 #include <yqlora/editor/Picking.hpp>
 #include <yqlora/editor/Snapping.hpp>
+#include <yqlora/editor/ViewportProjection.hpp>
 #include <yqlora/input/Input.hpp>
 #include <yqlora/render/MeshRenderer.hpp>
 #include <yqlora/resource/BuiltinResources.hpp>
@@ -154,4 +155,17 @@ TEST_CASE("EditorSettings: snapping survives a restart, a broken step stays defa
     broken.load();
     CHECK(broken.snap.moveStep == SnapSettings::kDefaultMoveStep);
     CHECK(broken.snap.rotateStepDegrees == SnapSettings::kDefaultRotateStepDegrees);
+}
+
+TEST_CASE("projectToViewport: the centre of the view is the centre of the window, behind the camera is nothing")
+{
+    const Vec2 size(200.0f, 100.0f);
+    const Mat4 projection = glm::perspectiveRH_ZO(glm::radians(60.0f), size.x / size.y, 0.1f, 100.0f);
+    const auto centre = editor::projectToViewport(projection, Vec3(0.0f, 0.0f, -5.0f), size);
+    REQUIRE(centre);
+    CHECK(centre->x == doctest::Approx(100.0f));
+    CHECK(centre->y == doctest::Approx(50.0f));
+    // Выше центра в мире - выше на экране, то есть меньше y.
+    CHECK(editor::projectToViewport(projection, Vec3(0.0f, 1.0f, -5.0f), size)->y < 50.0f);
+    CHECK_FALSE(editor::projectToViewport(projection, Vec3(0.0f, 0.0f, 5.0f), size));
 }

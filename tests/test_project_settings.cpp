@@ -1,4 +1,5 @@
 #include "EngineRegistry.hpp"
+#include "TestFiles.hpp"
 
 #include <doctest/doctest.h>
 
@@ -76,9 +77,7 @@ std::string readText(const std::filesystem::path& file)
 struct Fixture {
     Fixture()
     {
-        const auto location = std::filesystem::temp_directory_path() / "yqlora_tests" / "settings";
-        std::filesystem::remove_all(location);
-        std::filesystem::create_directories(location);
+        const auto location = test::freshDirectory("settings");
         std::string error;
         directory = createProject(location, "Game", serializer, error)->directory();
     }

@@ -1,3 +1,5 @@
+#include "TestFiles.hpp"
+
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineTypes.hpp>
@@ -65,9 +67,7 @@ TEST_CASE_FIXTURE(Fixture, "PlayMode: the game runs in a copy that is thrown awa
 
 TEST_CASE_FIXTURE(Fixture, "SceneDocument: a scene that cannot be read leaves the current one")
 {
-    const auto location = std::filesystem::temp_directory_path() / "yqlora_tests" / "document";
-    std::filesystem::remove_all(location);
-    std::filesystem::create_directories(location);
+    const auto location = test::freshDirectory("document");
     std::string error;
     Project project = *createProject(location, "Game", serializer, error);
 

@@ -1,5 +1,6 @@
 #include "EngineRegistry.hpp"
 #include "GltfBuilder.hpp"
+#include "TestFiles.hpp"
 
 #include <doctest/doctest.h>
 
@@ -36,6 +37,7 @@
 #include <chrono>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 using namespace yqlora;
 using namespace yqlora::editor;
@@ -70,9 +72,7 @@ GltfBuilder house()
 struct Fixture {
     Fixture()
     {
-        const auto location = fs::temp_directory_path() / "yqlora_tests" / "resource_editor";
-        fs::remove_all(location);
-        fs::create_directories(location);
+        const auto location = test::freshDirectory("resource_editor");
         std::string error;
         const auto created = createProject(location, "Game", serializer, error);
         REQUIRE(created);
@@ -206,7 +206,7 @@ TEST_CASE_FIXTURE(Fixture, "Re-export keeps references; a deleted file leaves th
     const fs::path file = directory / "models" / "house.glb";
     const auto time = fs::last_write_time(file);
     gltf.writeGlb(file);
-    fs::last_write_time(file, time + std::chrono::seconds(2));
+    test::markRewritten(file, time);
     session.refreshResources();
     CHECK(mesh("mesh:Door") == door);
     CHECK(session.resources().find<MeshData>(door));
@@ -257,6 +257,19 @@ TEST_CASE_FIXTURE(Fixture, "Resource inspection: meshes of a model, import setti
     // Масштаб 1 - значение по умолчанию, в .meta его нет.
     REQUIRE(applyModelImport(session, model, ModelImport{}));
     CHECK(session.project()->resources().importSettings(model) == "{}");
+}
+
+TEST_CASE("Selection: keepNodes drops the nodes that are gone and keeps the order")
+{
+    Selection selection;
+    selection.select(3);
+    selection.toggle(5);
+    selection.toggle(7);
+    selection.keepNodes([](NodeId id) {
+        return id != 5;
+    });
+    CHECK(std::vector<NodeId>(selection.nodes().begin(), selection.nodes().end()) == std::vector<NodeId>{3, 7});
+    CHECK(selection.selected() == 7);
 }
 
 TEST_CASE("Selection: a resource and nodes are not selected together")
@@ -342,7 +355,7 @@ TEST_CASE_FIXTURE(Fixture, "resourceChoices: nested resources follow the file or
     const fs::path file = directory / "models" / "house.glb";
     const auto time = fs::last_write_time(file);
     gltf.writeGlb(file);
-    fs::last_write_time(file, time + std::chrono::seconds(2));
+    test::markRewritten(file, time);
     session.refreshResources();
 
     // Door остался в .meta, но в файле его больше нет.

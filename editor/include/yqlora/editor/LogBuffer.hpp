@@ -77,7 +77,13 @@ private:
 // Что панель "Лог" показывает: выбранные уровни и записи с текстом (без учёта
 // регистра латиницы).
 struct LogFilter {
-    std::array<bool, kLogLevelCount> levels{true, true, true};
+    // Сначала видны все уровни, сколько бы их ни было.
+    std::array<bool, kLogLevelCount> levels = [] {
+        std::array<bool, kLogLevelCount> all{};
+        all.fill(true);
+
+        return all;
+    }();
     std::string text;
 
     bool matches(const LogEntry& entry) const;

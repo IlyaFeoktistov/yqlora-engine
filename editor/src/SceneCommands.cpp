@@ -36,13 +36,11 @@ DetachedBranch detach(EditorSession& session, Node& node)
 {
     Scene& scene = session.scene();
     DetachedBranch branch;
-    const Selection selected = session.selection();
-    for (const NodeId id : selected.nodes()) {
+    session.selection().keepNodes([&](NodeId id) {
         const Node* selectedNode = session.findNode(id);
-        if (selectedNode && isInBranch(node, *selectedNode)) {
-            session.selection().deselect(id);
-        }
-    }
+
+        return !selectedNode || !isInBranch(node, *selectedNode);
+    });
 
     Node* parent = node.parent();
     if (!parent) {

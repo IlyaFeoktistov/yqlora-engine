@@ -1,3 +1,5 @@
+#include "TestFiles.hpp"
+
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineServices.hpp>
@@ -27,9 +29,7 @@ struct Fixture {
     Fixture()
     {
         registerEngineTypes(registry);
-        const auto location = std::filesystem::temp_directory_path() / "yqlora_tests" / "files";
-        std::filesystem::remove_all(location);
-        std::filesystem::create_directories(location);
+        const auto location = test::freshDirectory("files");
         std::string error;
         project = *createProject(location, "Game", serializer, error);
     }

@@ -51,10 +51,9 @@ bool EditorSession::open(Project project, const std::filesystem::path& gameLibra
     close();
     m_project = std::move(project);
     m_services.setProject(&*m_project);
-    m_copies.emplace(m_project->directory());
-    m_copies->removeUnused();
+    m_library.emplace(m_gameModule, m_project->directory());
     if (!gameLibrary.empty()) {
-        loadGameLibrary(gameLibrary);
+        m_library->load(gameLibrary);
     } else {
         log::info("Project '{}' has no built game module yet", m_project->name());
     }
@@ -77,10 +76,7 @@ void EditorSession::close()
     m_document.reset(0);
     m_history.clear();
     unloadGameModule();
-    if (m_copies) {
-        m_copies->removeUnused();
-        m_copies.reset();
-    }
+    m_library.reset();
     m_services.setProject(nullptr);
     m_project.reset();
     m_selection.clear();
@@ -100,17 +96,14 @@ bool EditorSession::reloadGameModule(const std::filesystem::path& gameLibrary)
     }
     m_history.clear();
     unloadGameModule();
-    const bool loaded = loadGameLibrary(gameLibrary);
+    const bool loaded = m_library->load(gameLibrary);
     // Без модуля скрипты возвращаются заглушками со всеми данными.
     if (!m_serializer.fromJson(m_document.scene(), scene)) {
         log::error("The scene is not restored after reloading the game module");
     }
-    const std::vector<NodeId> selected(m_selection.nodes().begin(), m_selection.nodes().end());
-    for (const NodeId id : selected) {
-        if (!findNode(id)) {
-            m_selection.deselect(id);
-        }
-    }
+    m_selection.keepNodes([this](NodeId id) {
+        return findNode(id) != nullptr;
+    });
     if (loaded) {
         log::info("Game module reloaded");
     }
@@ -118,25 +111,19 @@ bool EditorSession::reloadGameModule(const std::filesystem::path& gameLibrary)
     return loaded;
 }
 
-bool EditorSession::loadGameLibrary(const std::filesystem::path& library)
-{
-    const auto copy = m_copies->copy(library);
-    if (!copy || !m_gameModule.load(*copy)) {
-        m_copies->removeUnused();
-
-        return false;
-    }
-    m_gameLibrary = library;
-    m_copies->removeUnused(*copy);
-
-    return true;
-}
-
 void EditorSession::unloadGameModule()
 {
-    Scene* const scenes[] = {&m_document.scene()};
-    m_gameModule.unload(scenes);
-    m_gameLibrary.clear();
+    if (m_library) {
+        Scene* const scenes[] = {&m_document.scene()};
+        m_library->unload(scenes);
+    }
+}
+
+const std::filesystem::path& EditorSession::gameLibrary() const
+{
+    static const std::filesystem::path kNone;
+
+    return m_library ? m_library->library() : kNone;
 }
 
 ResourceCache& EditorSession::resources() const
@@ -254,16 +241,12 @@ void EditorSession::stop()
     if (!playing()) {
         return;
     }
-    const Selection selected = m_selection;
     m_play.stop();
     // Узлов, созданных в игре, в редактируемой сцене нет. Если не осталось
     // ни одного выбранного, возвращаем выделение, каким оно было до Play.
-    m_selection.clear();
-    for (const NodeId id : selected.nodes()) {
-        if (findNode(id)) {
-            m_selection.toggle(id);
-        }
-    }
+    m_selection.keepNodes([this](NodeId id) {
+        return findNode(id) != nullptr;
+    });
     if (m_selection.empty()) {
         m_selection = m_selectionBeforePlay;
     }

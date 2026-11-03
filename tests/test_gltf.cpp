@@ -1,5 +1,6 @@
 #include "EngineRegistry.hpp"
 #include "GltfBuilder.hpp"
+#include "TestFiles.hpp"
 
 #include <doctest/doctest.h>
 
@@ -29,15 +30,6 @@ using Json = nlohmann::json;
 
 namespace {
 
-fs::path freshDirectory(const char* name)
-{
-    const auto directory = fs::temp_directory_path() / "yqlora_tests" / name;
-    fs::remove_all(directory);
-    fs::create_directories(directory);
-
-    return directory;
-}
-
 LoadResult load(const fs::path& file, Json import = Json::object())
 {
     return GltfLoader{}.load({.file = file, .import = std::move(import)});
@@ -66,7 +58,7 @@ GltfBuilder plainTriangle()
 
 TEST_CASE("GltfLoader: embedded buffer, no indices, no normals: normals are computed, indices go in order")
 {
-    const fs::path file = freshDirectory("gltf_plain") / "tri.gltf";
+    const fs::path file = test::freshDirectory("gltf_plain") / "tri.gltf";
     plainTriangle().writeGltf(file);
 
     const LoadResult result = load(file);
@@ -136,7 +128,7 @@ TEST_CASE("GltfLoader: GLB with interleaved data, shared and same-named meshes, 
     };
     gltf.json["scenes"] = {{{"nodes", {0}}}};
     gltf.json["scene"] = 0;
-    const fs::path file = freshDirectory("gltf_glb") / "house.glb";
+    const fs::path file = test::freshDirectory("gltf_glb") / "house.glb";
     gltf.writeGlb(file);
 
     const LoadResult result = load(file);
@@ -168,7 +160,7 @@ TEST_CASE("GltfLoader: GLB with interleaved data, shared and same-named meshes, 
 
 TEST_CASE("GltfLoader: an external buffer next to the file, in a folder with a non-ASCII name")
 {
-    const fs::path directory = freshDirectory("gltf_external") / fromUtf8("модели");
+    const fs::path directory = test::freshDirectory("gltf_external") / fromUtf8("модели");
     fs::create_directories(directory);
     plainTriangle().writeGltfWithBin(directory / "tri.gltf", "tri.bin");
 
@@ -179,7 +171,7 @@ TEST_CASE("GltfLoader: an external buffer next to the file, in a folder with a n
 
 TEST_CASE("GltfLoader: an external buffer is a dependency, and when it is missing too")
 {
-    const fs::path directory = freshDirectory("gltf_dependency") / fromUtf8("модели");
+    const fs::path directory = test::freshDirectory("gltf_dependency") / fromUtf8("модели");
     fs::create_directories(directory);
     plainTriangle().writeGltfWithBin(directory / "tri.gltf", "tri%20data.bin");
     // URI в glTF закодирован: файл рядом называется с пробелом.
@@ -230,7 +222,7 @@ TEST_CASE("GltfLoader: sparse positions and normalized integer texture coordinat
         {{"normalized", true}}
     );
     gltf.json["meshes"] = {{{"primitives", {{{"attributes", {{"POSITION", positions}, {"TEXCOORD_0", uvs}}}}}}}};
-    const fs::path file = freshDirectory("gltf_sparse") / "sparse.gltf";
+    const fs::path file = test::freshDirectory("gltf_sparse") / "sparse.gltf";
     gltf.writeGltf(file);
 
     const LoadResult result = load(file);
@@ -245,7 +237,7 @@ TEST_CASE("GltfLoader: sparse positions and normalized integer texture coordinat
 
 TEST_CASE("GltfLoader: the scale import setting scales vertices and node positions")
 {
-    const fs::path file = freshDirectory("gltf_scale") / "tri.gltf";
+    const fs::path file = test::freshDirectory("gltf_scale") / "tri.gltf";
     plainTriangle().writeGltf(file);
 
     const LoadResult result = load(file, {{"scale", 0.5}});
@@ -258,7 +250,7 @@ TEST_CASE("GltfLoader: the scale import setting scales vertices and node positio
 
 TEST_CASE("GltfLoader: broken files give an error, not a crash")
 {
-    const fs::path directory = freshDirectory("gltf_broken");
+    const fs::path directory = test::freshDirectory("gltf_broken");
     std::ofstream(directory / "text.gltf") << "not json";
     CHECK_FALSE(load(directory / "text.gltf").error.empty());
 
@@ -284,7 +276,7 @@ TEST_CASE("GltfLoader: broken files give an error, not a crash")
 
 TEST_CASE("ResourceCache: meshes of a glTF file are nested resources with ids in .meta")
 {
-    const fs::path directory = freshDirectory("gltf_cache");
+    const fs::path directory = test::freshDirectory("gltf_cache");
     plainTriangle().writeGlb(directory / "tri.glb");
     test::EngineRegistry registry;
     REQUIRE(Project::create(directory, "Game", registry));

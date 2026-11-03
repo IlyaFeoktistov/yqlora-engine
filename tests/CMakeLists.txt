@@ -3,6 +3,7 @@ add_subdirectory(game_module)
 
 add_executable(yqlora_tests
     main.cpp
+    test_text_files.cpp
     test_transform.cpp
     test_component.cpp
     test_node.cpp

@@ -1,3 +1,5 @@
+#include "TestFiles.hpp"
+
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineServices.hpp>
@@ -26,15 +28,6 @@ using namespace yqlora::editor;
 namespace {
 
 // Своя пустая папка на каждый тест, чтобы тесты не мешали друг другу.
-std::filesystem::path freshDirectory(const char* name)
-{
-    const auto directory = std::filesystem::temp_directory_path() / "yqlora_tests" / name;
-    std::filesystem::remove_all(directory);
-    std::filesystem::create_directories(directory);
-
-    return directory;
-}
-
 } // namespace
 
 TEST_CASE("Project: create makes a folder with the project file and a starter scene")
@@ -42,7 +35,7 @@ TEST_CASE("Project: create makes a folder with the project file and a starter sc
     TypeRegistry registry;
     registerEngineTypes(registry);
     const SceneSerializer serializer(registry);
-    const auto location = freshDirectory("project_create");
+    const auto location = test::freshDirectory("project_create");
 
     std::string error;
     const auto project = createProject(location, "My Game", serializer, error);
@@ -77,7 +70,7 @@ TEST_CASE("Project: starter folders; C++ sources anywhere are files, not resourc
     const SceneSerializer serializer(registry);
 
     std::string error;
-    const auto project = createProject(freshDirectory("project_sources"), "Game", serializer, error);
+    const auto project = createProject(test::freshDirectory("project_sources"), "Game", serializer, error);
     REQUIRE(project);
     for (const char* folder : {"scenes", "scripts", "assets"}) {
         CHECK(std::filesystem::is_directory(project->directory() / folder));
@@ -112,13 +105,13 @@ TEST_CASE("isValidFileName: names must be usable as file and folder names everyw
 TEST_CASE("Project: a folder without a project file is not a project")
 {
     const TypeRegistry registry;
-    CHECK_FALSE(Project::open(freshDirectory("project_missing"), registry));
-    CHECK_FALSE(Project::readInfo(freshDirectory("project_missing")));
+    CHECK_FALSE(Project::open(test::freshDirectory("project_missing"), registry));
+    CHECK_FALSE(Project::readInfo(test::freshDirectory("project_missing")));
 }
 
 TEST_CASE("ProjectList: recently opened first, saved between runs")
 {
-    const auto file = freshDirectory("project_list") / "projects.json";
+    const auto file = test::freshDirectory("project_list") / "projects.json";
 
     ProjectList list(file);
     list.add("/games/a");
@@ -143,7 +136,7 @@ TEST_CASE("ProjectList: recently opened first, saved between runs")
 
 TEST_CASE("ProjectList: missing file means an empty list")
 {
-    ProjectList list(freshDirectory("project_list_missing") / "projects.json");
+    ProjectList list(test::freshDirectory("project_list_missing") / "projects.json");
     list.load();
     CHECK(list.entries().empty());
 }
@@ -154,7 +147,7 @@ TEST_CASE("EditorSession: open, change, save and reopen a project")
     registerEngineTypes(registry);
     const SceneSerializer serializer(registry);
     std::string error;
-    const auto project = createProject(freshDirectory("session"), "Game", serializer, error);
+    const auto project = createProject(test::freshDirectory("session"), "Game", serializer, error);
     REQUIRE(project);
 
     Input input;
@@ -187,7 +180,7 @@ TEST_CASE("EditorSession: a project with a broken scene opens with an empty scen
     registerEngineTypes(registry);
     const SceneSerializer serializer(registry);
     std::string error;
-    const auto project = createProject(freshDirectory("session_broken"), "Game", serializer, error);
+    const auto project = createProject(test::freshDirectory("session_broken"), "Game", serializer, error);
     REQUIRE(project);
     std::filesystem::remove(project->directory() / *project->startupScenePath());
 
@@ -209,7 +202,7 @@ TEST_CASE("deleteProjectFolder: removes only real project folders")
     TypeRegistry registry;
     registerEngineTypes(registry);
     const SceneSerializer serializer(registry);
-    const auto location = freshDirectory("project_delete");
+    const auto location = test::freshDirectory("project_delete");
     std::string error;
     const auto project = createProject(location, "Game", serializer, error);
     REQUIRE(project);
@@ -230,7 +223,7 @@ TEST_CASE("Project: the version tells whether a project opens, needs an upgrade 
     registerEngineTypes(registry);
     const SceneSerializer serializer(registry);
     std::string error;
-    const auto project = createProject(freshDirectory("project_version"), "Game", serializer, error);
+    const auto project = createProject(test::freshDirectory("project_version"), "Game", serializer, error);
     REQUIRE(project);
 
     const auto info = Project::readInfo(project->directory());
@@ -261,7 +254,7 @@ TEST_CASE("Project: upgrading a current project rewrites it and keeps it working
     registerEngineTypes(registry);
     const SceneSerializer serializer(registry);
     std::string error;
-    const auto project = createProject(freshDirectory("project_upgrade"), "Game", serializer, error);
+    const auto project = createProject(test::freshDirectory("project_upgrade"), "Game", serializer, error);
     REQUIRE(project);
 
     REQUIRE(upgradeProject(project->directory(), serializer));

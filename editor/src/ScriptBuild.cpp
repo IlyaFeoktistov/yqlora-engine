@@ -3,6 +3,7 @@
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/editor/CompilerDiagnostics.hpp"
 #include "yqlora/editor/LogBuffer.hpp"
+#include "yqlora/platform/Files.hpp"
 #include "yqlora/platform/Platform.hpp"
 #include "yqlora/platform/Process.hpp"
 #include "yqlora/project/Project.hpp"
@@ -10,8 +11,7 @@
 #include <chrono>
 #include <cstdint>
 #include <format>
-#include <fstream>
-#include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -62,14 +62,148 @@ std::string trimmed(std::string text)
 
 std::optional<fs::path> readModuleRecord(const fs::path& buildDirectory)
 {
-    std::ifstream file(buildDirectory / kModuleRecordFile, std::ios::binary);
-    if (!file) {
+    const auto text = platform::readFile(buildDirectory / kModuleRecordFile);
+    if (!text) {
         return std::nullopt;
     }
-    std::stringstream text;
-    text << file.rdbuf();
 
-    return fromUtf8(trimmed(text.str()));
+    return fromUtf8(trimmed(*text));
+}
+
+// Сообщения одной сборки в лог редактора. Тихая сборка, которой нечего
+// делать, не оставляет в логе ни строки: начало пишется перед первым
+// сообщением, а у обычной - сразу.
+class BuildMessages {
+public:
+    BuildMessages(LogBuffer& log, const ScriptBuildSetup& setup)
+        : m_log(log)
+        , m_configuration(setup.configuration)
+    {
+        if (!setup.quiet) {
+            announce();
+        }
+    }
+
+    bool announced() const
+    {
+        return m_announced;
+    }
+
+    // Строка лога как есть.
+    void add(log::Level level, std::string message)
+    {
+        m_log.add({.level = level, .source = LogSource::Build, .message = std::move(message)});
+    }
+
+    // Строка о сборке: перед первой - начало сборки.
+    void note(log::Level level, std::string message)
+    {
+        announce();
+        add(level, std::move(message));
+    }
+
+private:
+    void announce()
+    {
+        if (!m_announced) {
+            m_announced = true;
+            add(log::Level::Info, std::format("Building scripts ({})", m_configuration));
+        }
+    }
+
+    LogBuffer& m_log;
+    std::string m_configuration;
+    bool m_announced = false;
+};
+
+// Папка сборки и пути, которые получают CMake и Ninja.
+struct BuildPaths {
+    fs::path directory;
+    // Ninja на Windows не находит файлы по путям не из ASCII и пересобирал бы
+    // всё каждый раз: CMake и Ninja получают короткие пути (8.3).
+    fs::path project{};
+    fs::path build{};
+    fs::path sdk{};
+};
+
+// Создаёт папку сборки; без коротких путей - предупреждение в лог.
+BuildPaths buildPaths(const ScriptBuildSetup& setup, BuildMessages& messages)
+{
+    BuildPaths paths{.directory = scriptBuildDirectory(setup)};
+    std::error_code ec;
+    fs::create_directories(paths.directory, ec);
+    const auto project = platform::asciiPath(setup.projectDirectory);
+    const auto build = platform::asciiPath(paths.directory);
+    const auto sdk = platform::asciiPath(setup.sdkDirectory);
+    paths.project = project.value_or(setup.projectDirectory);
+    paths.build = build.value_or(paths.directory);
+    paths.sdk = sdk.value_or(setup.sdkDirectory);
+    if (!project || !build || !sdk) {
+        messages.note(
+            log::Level::Warning,
+            "The project or editor path has non-ASCII characters and no short name: Ninja may rebuild "
+            "everything every time. Move the project to a path in Latin letters"
+        );
+    }
+
+    return paths;
+}
+
+// Аргументы CMake, которые настраивают папку сборки модуля игры.
+std::vector<std::string> configureArguments(const ScriptBuildSetup& setup, const BuildPaths& paths)
+{
+    std::vector<std::string> arguments{
+        "-S",
+        toUtf8(paths.sdk / kGameProjectFolder),
+        "-B",
+        toUtf8(paths.build),
+        "-G",
+        setup.toolchain.generator,
+        // C-компилятор передаётся всегда, а проект может быть только на C++.
+        "--no-warn-unused-cli",
+        "-DCMAKE_BUILD_TYPE=" + setup.configuration,
+        "-Dyqlora_DIR=" + toUtf8(paths.sdk / kSdkCmakeFolder),
+        "-DYQLORA_PROJECT_DIR=" + toUtf8(paths.project),
+    };
+    if (!setup.toolchain.makeProgram.empty()) {
+        arguments.push_back("-DCMAKE_MAKE_PROGRAM=" + toUtf8(setup.toolchain.makeProgram));
+    }
+    if (!setup.toolchain.cCompiler.empty()) {
+        arguments.push_back("-DCMAKE_C_COMPILER=" + toUtf8(setup.toolchain.cCompiler));
+    }
+    arguments.push_back("-DCMAKE_CXX_COMPILER=" + toUtf8(setup.toolchain.cxxCompiler));
+
+    return arguments;
+}
+
+// Запускает CMake из набора инструментов; его строки идут в лог, кроме
+// тех, что не новость. true, если он отработал без ошибки.
+bool runCMake(
+    const ScriptBuildSetup& setup,
+    std::vector<std::string> arguments,
+    BuildMessages& messages,
+    std::stop_token stop
+)
+{
+    const platform::ProcessOptions options{
+        .program = setup.toolchain.cmake,
+        .arguments = std::move(arguments),
+        .workingDirectory = {},
+    };
+    const platform::ProcessResult result = platform::runProcess(
+        options,
+        [&](std::string_view line) {
+            if (line != kNothingToDo && !line.ends_with(kGlobCheck)) {
+                messages.note(parseCompilerOutput(line).level, std::string(line));
+            }
+        },
+        stop
+    );
+    if (!result.started) {
+        messages.note(log::Level::Error, std::format("Cannot run '{}': {}", toUtf8(options.program), result.error));
+    }
+
+    return result.succeeded();
 }
 
 } // namespace
@@ -190,123 +324,48 @@ void ScriptBuild::run(ScriptBuildSetup setup, std::stop_token stop)
 
 ScriptBuildResult ScriptBuild::buildOnce(const ScriptBuildSetup& setup, std::stop_token stop)
 {
-    // Тихая сборка, которой нечего делать, не оставляет в логе ни строки:
-    // начало пишется перед первым сообщением.
-    bool announced = false;
-    const auto add = [this](log::Level level, std::string message) {
-        m_log.add({.level = level, .source = LogSource::Build, .message = std::move(message)});
-    };
-    const auto note = [&](log::Level level, std::string message) {
-        if (!announced) {
-            announced = true;
-            add(log::Level::Info, std::format("Building scripts ({})", setup.configuration));
-        }
-        add(level, std::move(message));
-    };
-    const auto runTool = [&](std::vector<std::string> arguments) {
-        const platform::ProcessOptions options{
-            .program = setup.toolchain.cmake,
-            .arguments = std::move(arguments),
-            .workingDirectory = {},
-        };
-        const platform::ProcessResult result = platform::runProcess(
-            options,
-            [&](std::string_view line) {
-                if (line != kNothingToDo && !line.ends_with(kGlobCheck)) {
-                    note(parseCompilerOutput(line).level, std::string(line));
-                }
-            },
-            stop
-        );
-        if (!result.started) {
-            note(log::Level::Error, std::format("Cannot run '{}': {}", toUtf8(options.program), result.error));
-        }
-
-        return result.succeeded();
-    };
-
     const auto started = std::chrono::steady_clock::now();
-    if (!setup.quiet) {
-        announced = true;
-        add(log::Level::Info, std::format("Building scripts ({})", setup.configuration));
-    }
+    BuildMessages messages(m_log, setup);
     ScriptBuildResult result;
     // vcvarsall.bat ставит окружение только в своём cmd: запуск CMake через
     // него ещё не сделан, поэтому движок, собранный MSVC, проекты пока не собирает.
     if (!setup.toolchain.vcvarsall.empty()) {
-        note(log::Level::Error, "Building scripts with MSVC from the editor is not supported yet");
+        messages.note(log::Level::Error, "Building scripts with MSVC from the editor is not supported yet");
 
         return result;
     }
-    std::error_code ec;
 
-    const fs::path buildDirectory = scriptBuildDirectory(setup);
-    fs::create_directories(buildDirectory, ec);
-    // Ninja на Windows не находит файлы по путям не из ASCII и пересобирал бы
-    // всё каждый раз: CMake и Ninja получают короткие пути (8.3).
-    const auto projectAscii = platform::asciiPath(setup.projectDirectory);
-    const auto buildAscii = platform::asciiPath(buildDirectory);
-    const auto sdkAscii = platform::asciiPath(setup.sdkDirectory);
-    const fs::path projectPath = projectAscii.value_or(setup.projectDirectory);
-    const fs::path buildPath = buildAscii.value_or(buildDirectory);
-    const fs::path sdkPath = sdkAscii.value_or(setup.sdkDirectory);
-    if (!projectAscii || !buildAscii || !sdkAscii) {
-        note(
-            log::Level::Warning,
-            "The project or editor path has non-ASCII characters and no short name: Ninja may rebuild "
-            "everything every time. Move the project to a path in Latin letters"
-        );
-    }
+    const BuildPaths paths = buildPaths(setup, messages);
+    std::error_code ec;
     // Запись появляется, только когда CMake настроил папку до конца: после
     // неудачной настройки следующая сборка настроит её снова. Дальше CMake
     // перенастраивает сам, когда меняются CMakeLists.txt.
-    if (!fs::exists(buildDirectory / kModuleRecordFile, ec)) {
-        std::vector<std::string> arguments{
-            "-S",
-            toUtf8(sdkPath / kGameProjectFolder),
-            "-B",
-            toUtf8(buildPath),
-            "-G",
-            setup.toolchain.generator,
-            // C-компилятор передаётся всегда, а проект может быть только на C++.
-            "--no-warn-unused-cli",
-            "-DCMAKE_BUILD_TYPE=" + setup.configuration,
-            "-Dyqlora_DIR=" + toUtf8(sdkPath / kSdkCmakeFolder),
-            "-DYQLORA_PROJECT_DIR=" + toUtf8(projectPath),
-        };
-        if (!setup.toolchain.makeProgram.empty()) {
-            arguments.push_back("-DCMAKE_MAKE_PROGRAM=" + toUtf8(setup.toolchain.makeProgram));
-        }
-        if (!setup.toolchain.cCompiler.empty()) {
-            arguments.push_back("-DCMAKE_C_COMPILER=" + toUtf8(setup.toolchain.cCompiler));
-        }
-        arguments.push_back("-DCMAKE_CXX_COMPILER=" + toUtf8(setup.toolchain.cxxCompiler));
-        if (!runTool(std::move(arguments))) {
-            note(log::Level::Error, stop.stop_requested() ? "Build stopped" : "Configuring scripts failed");
+    if (!fs::exists(paths.directory / kModuleRecordFile, ec)
+        && !runCMake(setup, configureArguments(setup, paths), messages, stop)) {
+        messages.note(log::Level::Error, stop.stop_requested() ? "Build stopped" : "Configuring scripts failed");
 
-            return result;
-        }
+        return result;
     }
-    const auto previous = readModuleRecord(buildDirectory);
+    const auto previous = readModuleRecord(paths.directory);
     const auto previousTime = previous ? fs::last_write_time(*previous, ec) : fs::file_time_type{};
-    if (!runTool({"--build", toUtf8(buildPath)})) {
-        note(log::Level::Error, stop.stop_requested() ? "Build stopped" : "Building scripts failed");
+    if (!runCMake(setup, {"--build", toUtf8(paths.build)}, messages, stop)) {
+        messages.note(log::Level::Error, stop.stop_requested() ? "Build stopped" : "Building scripts failed");
 
         return result;
     }
 
-    const auto library = readModuleRecord(buildDirectory);
+    const auto library = readModuleRecord(paths.directory);
     if (!library || !fs::exists(*library, ec)) {
-        note(log::Level::Error, "The build did not produce the game module");
+        messages.note(log::Level::Error, "The build did not produce the game module");
 
         return result;
     }
     result.succeeded = true;
     result.library = *library;
     result.changed = library != previous || fs::last_write_time(*library, ec) != previousTime;
-    if (announced) {
+    if (messages.announced()) {
         const std::chrono::duration<float> elapsed = std::chrono::steady_clock::now() - started;
-        add(log::Level::Info, std::format("Scripts built in {:.1f} s", elapsed.count()));
+        messages.add(log::Level::Info, std::format("Scripts built in {:.1f} s", elapsed.count()));
     }
 
     return result;

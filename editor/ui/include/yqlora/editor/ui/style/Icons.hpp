@@ -1,13 +1,5 @@
 #pragma once
 
-#include "yqlora/render/Camera3D.hpp"
-#include "yqlora/render/DirectionalLight3D.hpp"
-#include "yqlora/render/PointLight3D.hpp"
-#include "yqlora/render/SpotLight3D.hpp"
-#include "yqlora/scene/Node3D.hpp"
-
-#include <string_view>
-
 // Иконки из шрифта Lucide (assets/fonts/lucide.ttf, пакет lucide-static 1.54.0).
 // Шрифт подмешан к основному, поэтому иконку можно ставить прямо в текст:
 // std::string(icons::kFolder) + " Assets". Коды взяты из font/info.json пакета,
@@ -68,27 +60,5 @@ inline constexpr const char* kLog = "\uE45F";     // scroll-text
 inline constexpr const char* kInfo = "\uE0F9";    // info
 inline constexpr const char* kWarning = "\uE193"; // alert-triangle (triangle-alert)
 inline constexpr const char* kError = "\uE084";   // circle-x
-
-// Иконка для типа узла; для неизвестного типа - иконка простого Node.
-inline const char* forNodeType(std::string_view type)
-{
-    if (type == Camera3D::staticTypeName()) {
-        return kCamera3D;
-    }
-    if (type == DirectionalLight3D::staticTypeName()) {
-        return kDirectionalLight3D;
-    }
-    if (type == PointLight3D::staticTypeName()) {
-        return kPointLight3D;
-    }
-    if (type == SpotLight3D::staticTypeName()) {
-        return kSpotLight3D;
-    }
-    if (type == Node3D::staticTypeName()) {
-        return kNode3D;
-    }
-
-    return kNode;
-}
 
 } // namespace yqlora::editor::icons

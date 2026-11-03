@@ -2,6 +2,7 @@
 
 #include "yqlora/core/JsonFile.hpp"
 #include "yqlora/core/Log.hpp"
+#include "yqlora/core/Text.hpp"
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/project/Project.hpp"
 #include "yqlora/resource/BuiltinResourceTable.hpp"
@@ -9,7 +10,6 @@
 #include "yqlora/resource/ResourceLoader.hpp"
 
 #include <algorithm>
-#include <cctype>
 
 namespace yqlora {
 
@@ -19,12 +19,7 @@ namespace {
 
 std::string lowerExtension(const fs::path& file)
 {
-    std::string extension = toUtf8(file.extension());
-    std::ranges::transform(extension, extension.begin(), [](char c) {
-        return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    });
-
-    return extension;
+    return toLowerAscii(toUtf8(file.extension()));
 }
 
 } // namespace

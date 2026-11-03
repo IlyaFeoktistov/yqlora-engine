@@ -256,16 +256,15 @@ std::optional<fs::path> ProjectFiles::createScript(
 
             return std::nullopt;
         }
-        std::ifstream in(
-            templateDirectory / (std::string(kTemplateFileName) + std::string(extension)),
-            std::ios::binary
+        auto templateText = platform::readFile(
+            templateDirectory / (std::string(kTemplateFileName) + std::string(extension))
         );
-        if (!in) {
+        if (!templateText) {
             log::error("Script template is missing in '{}'", toUtf8(templateDirectory));
 
             return std::nullopt;
         }
-        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        std::string text = std::move(*templateText);
         for (std::size_t at = text.find(kNamePlaceholder); at != std::string::npos;
              at = text.find(kNamePlaceholder, at + name.size())) {
             text.replace(at, kNamePlaceholder.size(), name);

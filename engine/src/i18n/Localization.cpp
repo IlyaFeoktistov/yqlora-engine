@@ -1,13 +1,13 @@
 #include "yqlora/i18n/Localization.hpp"
 
+#include "yqlora/core/JsonFile.hpp"
 #include "yqlora/core/Log.hpp"
+#include "yqlora/core/Text.hpp"
 #include "yqlora/core/Utf8Path.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
-#include <cctype>
-#include <fstream>
 
 namespace yqlora {
 
@@ -33,15 +33,8 @@ void flatten(
 
 std::string normalizeLanguageCode(std::string_view code)
 {
-    std::string result;
-    for (const char c : code) {
-        if (c == '_' || c == '-' || c == '.') {
-            break;
-        }
-        result += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-
-    return result;
+    // Язык - часть до региона и кодировки: "ru_RU.UTF-8" -> "ru".
+    return toLowerAscii(code.substr(0, std::min(code.find_first_of("_-."), code.size())));
 }
 
 } // namespace
@@ -54,20 +47,14 @@ Localization::Localization(std::filesystem::path localesDir)
 bool Localization::loadFile(std::string_view language, Strings& out) const
 {
     const auto file = m_dir / (std::string(language) + ".json");
-    std::ifstream in(file);
-    if (!in) {
-        log::error("Locale file '{}' not found", toUtf8(file));
-
-        return false;
-    }
-    const auto json = nlohmann::json::parse(in, nullptr, /*allow_exceptions=*/false);
-    if (json.is_discarded() || !json.is_object()) {
-        log::error("Locale file '{}' is not a valid JSON object", toUtf8(file));
+    const auto json = readJsonFile(file);
+    if (!json || !json->is_object()) {
+        log::error("Locale file '{}' is not found or not a JSON object", toUtf8(file));
 
         return false;
     }
     out.clear();
-    flatten(json, {}, out);
+    flatten(*json, {}, out);
 
     return true;
 }

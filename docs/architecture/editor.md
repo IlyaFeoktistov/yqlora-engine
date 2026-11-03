@@ -72,6 +72,13 @@ Status marks: see [README](README.md).
   - Reset and paste are ordinary edits and are undone with Ctrl+Z.
 - The label column of a property table fits the longest label, up to half
   the width; a clipped label shows its full text as a tooltip.
+- **Fields are a file per widget**: `NumberFields` (dragged labels, numbers,
+  vectors), `LayerFields`, `ChoiceFields` (enum, node, component type),
+  `InputControlField`, `ResourceField`. `PropertyEditor` picks the field by
+  the property type and hint and draws the row with its menu.
+- **Icons are tables**: of node types (`nodeIcon`) and of resource kinds
+  (`resourceIcon`); a new type or kind is a row. A point of the world on the
+  screen of a view is `projectToViewport`, for picking and for the gizmos.
 
 ## Log [done]
 
@@ -126,6 +133,8 @@ Status marks: see [README](README.md).
   table (`resourceIcon`) shared by Files, the resource field and the
   Create menu. A file whose loader has nested kinds (a model) opens into
   its nested resources (`nestedResources`). Any resource can be dragged.
+  A click on an empty place clears the selection, so a new resource is
+  made in the project root; a right click there opens the create menu.
 - **Selection**: clicking a resource in Files selects it instead of nodes,
   as in Unity (`Selection::selectResource`), and the inspector shows the
   file. `ResourceInspector` shows what every file has (name, kind, the

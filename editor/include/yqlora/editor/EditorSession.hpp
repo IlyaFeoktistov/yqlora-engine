@@ -2,7 +2,7 @@
 
 #include "yqlora/editor/Command.hpp"
 #include "yqlora/editor/EditHistory.hpp"
-#include "yqlora/editor/ModuleCopies.hpp"
+#include "yqlora/editor/GameLibrary.hpp"
 #include "yqlora/editor/PlayMode.hpp"
 #include "yqlora/editor/SceneDocument.hpp"
 #include "yqlora/editor/SceneEditing.hpp"
@@ -145,7 +145,7 @@ public:
 
     // Открывает проект: сначала собранную библиотеку игры gameLibrary (пусто -
     // её ещё нет), чтобы скрипты в сцене были настоящими, потом стартовую
-    // сцену. Загружается копия библиотеки, см. ModuleCopies. Если сцена не
+    // сцену. Загружается копия библиотеки, см. GameLibrary. Если сцена не
     // читается, проект всё равно открывается с пустой сценой, а метод
     // возвращает false.
     bool open(Project project, const std::filesystem::path& gameLibrary = {});
@@ -163,10 +163,7 @@ public:
     bool reloadGameModule(const std::filesystem::path& gameLibrary);
 
     // Собранная библиотека, копия которой загружена; пусто - модуль не загружен.
-    const std::filesystem::path& gameLibrary() const
-    {
-        return m_gameLibrary;
-    }
+    const std::filesystem::path& gameLibrary() const;
 
     // Файлы проекта могли поменять мимо редактора (вернулись из другой
     // программы): обходит папку проекта и перечитывает изменённые ресурсы.
@@ -227,8 +224,6 @@ private:
     bool execute(std::unique_ptr<Command> command);
     // Сцену сравнивают с файлом не каждый кадр: см. sceneModified.
     void updateModified(float deltaSeconds);
-    // Загружает копию собранной библиотеки, лишние копии удаляет.
-    bool loadGameLibrary(const std::filesystem::path& library);
     // Уничтожает экземпляры модуля в сцене документа и выгружает его.
     void unloadGameModule();
 
@@ -237,8 +232,7 @@ private:
     GameModule& m_gameModule;
     std::optional<Project> m_project;
     // Есть, пока открыт проект.
-    std::optional<ModuleCopies> m_copies;
-    std::filesystem::path m_gameLibrary;
+    std::optional<GameLibrary> m_library;
     SceneDocument m_document;
     PlayMode m_play;
     Selection m_selection;

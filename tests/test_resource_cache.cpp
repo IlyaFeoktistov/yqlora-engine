@@ -1,4 +1,5 @@
 #include "EngineRegistry.hpp"
+#include "TestFiles.hpp"
 
 #include <doctest/doctest.h>
 
@@ -92,29 +93,12 @@ private:
     static constexpr std::array<std::string_view, 1> kExtensions{".tmesh"};
 };
 
-void write(const fs::path& file, std::string_view content)
-{
-    fs::create_directories(file.parent_path());
-    std::ofstream(file, std::ios::trunc) << content;
-}
-
-// Изменение, которое заметит сравнение времени записи даже на файловой
-// системе с грубыми отметками времени.
-void rewrite(const fs::path& file, std::string_view content)
-{
-    const auto before = fs::last_write_time(file);
-    write(file, content);
-    fs::last_write_time(file, before + std::chrono::seconds(2));
-}
-
 struct Fixture {
     Fixture()
     {
-        directory = fs::temp_directory_path() / "yqlora_tests" / "resource_cache";
-        fs::remove_all(directory);
-        fs::create_directories(directory);
-        write(directory / "models" / "box.TMESH", "abc");
-        write(directory / "notes.unknown", "text");
+        directory = test::freshDirectory("resource_cache");
+        test::writeFile(directory / "models" / "box.TMESH", "abc");
+        test::writeFile(directory / "notes.unknown", "text");
         REQUIRE(Project::create(directory, "Game", registry));
         project.emplace(*Project::open(directory, registry));
         cache.addLoader(std::make_unique<TestLoader>());
@@ -176,14 +160,14 @@ TEST_CASE_FIXTURE(Fixture, "ResourceCache: a file loads on first use by the load
 TEST_CASE_FIXTURE(Fixture, "ResourceCache: a reload replaces the data with a new revision, a broken file is an error")
 {
     const std::uint64_t loaded = cache.get<MeshData>(box).revision;
-    write(directory / "models" / "box.TMESH", "abcde");
+    test::writeFile(directory / "models" / "box.TMESH", "abcde");
     REQUIRE(cache.reload(box));
     const auto reloaded = cache.get<MeshData>(box);
     CHECK(reloaded.revision > loaded);
     CHECK(height(box) == doctest::Approx(5.0f));
 
     // Прежние данные не выдаются за текущие.
-    rewrite(directory / "models" / "box.TMESH", "broken");
+    test::rewriteFile(directory / "models" / "box.TMESH", "broken");
     CHECK(cache.reloadChanged() == 1);
     CHECK(cache.find<MeshData>(box) == nullptr);
     CHECK(cache.status(box)->state == ResourceState::Error);
@@ -192,7 +176,7 @@ TEST_CASE_FIXTURE(Fixture, "ResourceCache: a reload replaces the data with a new
 
     // Без изменений ничего не перечитывается.
     CHECK(cache.reloadChanged() == 0);
-    rewrite(directory / "models" / "box.TMESH", "ab");
+    test::rewriteFile(directory / "models" / "box.TMESH", "ab");
     CHECK(cache.reloadChanged() == 1);
     CHECK(height(box) == doctest::Approx(2.0f));
 }
@@ -205,7 +189,7 @@ TEST_CASE_FIXTURE(Fixture, "ResourceCache: a deleted file is missing and comes b
     CHECK(cache.find<MeshData>(box) == nullptr);
     CHECK(cache.status(box)->state == ResourceState::Missing);
 
-    write(directory / "models" / "box.TMESH", "abcd");
+    test::writeFile(directory / "models" / "box.TMESH", "abcd");
     CHECK(cache.reloadChanged() == 1);
     CHECK(height(box) == doctest::Approx(4.0f));
 }
@@ -216,7 +200,7 @@ TEST_CASE_FIXTURE(Fixture, "ResourceCache: a renamed file is found by its new pa
     fs::rename(directory / "models" / "box.TMESH", directory / "crate.tmesh");
     project->resources().moved("models/box.TMESH", "crate.tmesh");
     CHECK(cache.reloadChanged() == 0);
-    rewrite(directory / "crate.tmesh", "abcdef");
+    test::rewriteFile(directory / "crate.tmesh", "abcdef");
     CHECK(height(box) == doctest::Approx(6.0f));
     CHECK(cache.status(box)->state == ResourceState::Ready);
 }
@@ -292,7 +276,7 @@ TEST_CASE("GpuResourceCache: a new revision replaces the copy, an unused copy is
 
 TEST_CASE_FIXTURE(Fixture, "ResourceCache: nested resources get ids from .meta, a removed one is missing")
 {
-    write(directory / "door.tmesh", "parts:Door,Door,,Frame");
+    test::writeFile(directory / "door.tmesh", "parts:Door,Door,,Frame");
     const ResourceId door = project->resources().add("door.tmesh");
     REQUIRE(cache.find<MeshData>(door));
     const auto& nested = project->resources().subresources(door);
@@ -304,7 +288,7 @@ TEST_CASE_FIXTURE(Fixture, "ResourceCache: nested resources get ids from .meta, 
     CHECK(height(frame) == doctest::Approx(4.0f));
 
     // Перевыгрузка без второй двери: ID остальных те же, её ID ждёт в .meta.
-    rewrite(directory / "door.tmesh", "parts:Door,,Frame");
+    test::rewriteFile(directory / "door.tmesh", "parts:Door,,Frame");
     CHECK(cache.reloadChanged() == 1);
     CHECK(cache.find<MeshData>(second) == nullptr);
     CHECK(cache.status(second)->state == ResourceState::Missing);
@@ -312,14 +296,14 @@ TEST_CASE_FIXTURE(Fixture, "ResourceCache: nested resources get ids from .meta, 
     // Безымянный меш ищется по индексу, а индекс сдвинулся: у него новый ключ.
     CHECK(project->resources().subresources(door).size() == 5);
 
-    rewrite(directory / "door.tmesh", "parts:Door,Door,,Frame");
+    test::rewriteFile(directory / "door.tmesh", "parts:Door,Door,,Frame");
     cache.reloadChanged();
     CHECK(height(second) == doctest::Approx(2.0f));
 }
 
 TEST_CASE_FIXTURE(Fixture, "ResourceCache: a read-only cache does not write .meta and skips not imported nested ones")
 {
-    write(directory / "door.tmesh", "parts:Door,Frame");
+    test::writeFile(directory / "door.tmesh", "parts:Door,Frame");
     const ResourceId door = project->resources().add("door.tmesh");
     const auto metaText = [&] {
         std::ifstream in(metaPathOf(directory / "door.tmesh"));

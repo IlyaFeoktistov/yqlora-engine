@@ -1,13 +1,12 @@
 #include "yqlora/import/GltfDocument.hpp"
 
 #include "yqlora/core/Utf8Path.hpp"
+#include "yqlora/platform/Files.hpp"
 
 #include <cgltf.h>
 
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
-#include <iterator>
 #include <string_view>
 
 namespace yqlora {
@@ -19,16 +18,6 @@ namespace fs = std::filesystem;
 // Буфер, вписанный в сам файл (base64), а не лежащий рядом.
 constexpr std::string_view kDataUriPrefix = "data:";
 
-std::vector<char> readBytes(const std::filesystem::path& file)
-{
-    std::ifstream stream(file, std::ios::binary);
-    if (!stream) {
-        return {};
-    }
-
-    return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
-}
-
 // cgltf открывает внешние буферы сам через fopen, который на Windows не
 // понимает путей не из ASCII. Путь он даёт в UTF-8, а читаем мы.
 cgltf_result readFile(
@@ -39,7 +28,7 @@ cgltf_result readFile(
     void** data
 )
 {
-    const std::vector<char> bytes = readBytes(fromUtf8(path));
+    const std::string bytes = platform::readFile(fromUtf8(path)).value_or(std::string());
     if (bytes.empty()) {
         return cgltf_result_file_not_found;
     }
@@ -101,7 +90,7 @@ GltfDocument::Opened GltfDocument::open(const fs::path& file)
 {
     Opened opened;
     std::unique_ptr<GltfDocument> document(new GltfDocument());
-    document->m_bytes = readBytes(file);
+    document->m_bytes = platform::readFile(file).value_or(std::string());
     if (document->m_bytes.empty()) {
         opened.error = "the file is empty or not readable";
 

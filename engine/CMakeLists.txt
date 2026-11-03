@@ -51,6 +51,7 @@ add_library(yqlora SHARED
     src/core/FrameClock.cpp
     src/core/FrameLoop.cpp
     src/core/Log.cpp
+    src/core/Text.cpp
     src/core/Settings.cpp
     src/core/Version.cpp
     src/i18n/Language.cpp

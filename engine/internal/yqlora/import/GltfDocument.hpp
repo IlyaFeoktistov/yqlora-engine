@@ -37,7 +37,7 @@ public:
 private:
     GltfDocument() = default;
 
-    std::vector<char> m_bytes;
+    std::string m_bytes;
     cgltf_data* m_data = nullptr;
 };
 

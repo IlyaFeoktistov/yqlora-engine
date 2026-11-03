@@ -4,6 +4,7 @@
 #include "yqlora/editor/ui/style/ResourceIcons.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
 
+#include "yqlora/core/Text.hpp"
 #include "yqlora/editor/ResourceChoices.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
 #include "yqlora/i18n/Translate.hpp"
@@ -15,7 +16,6 @@
 #include <imgui_stdlib.h>
 
 #include <algorithm>
-#include <cctype>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -31,16 +31,6 @@ constexpr float kPickerListLines = 12.0f;
 // Превью выбранной текстуры под полем и картинки в окне выбора, в строках поля.
 constexpr float kPreviewLines = 3.0f;
 constexpr float kThumbnailLines = 1.5f;
-
-std::string lower(std::string_view text)
-{
-    std::string result(text);
-    std::ranges::transform(result, result.begin(), [](char c) {
-        return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    });
-
-    return result;
-}
 
 void textureImage(ResourceId id, const PropertyEditorContext& context, float lines)
 {
@@ -68,7 +58,6 @@ bool drawPicker(std::string_view kind, ResourceRef& value, const PropertyEditorC
     }
     ImGui::SetNextItemWidth(-FLT_MIN);
     ImGui::InputTextWithHint("##search", tr("editor.resourceField.search").c_str(), &search);
-    const std::string needle = lower(search);
 
     bool chosen = false;
     const auto choose = [&](ResourceId id) {
@@ -78,14 +67,14 @@ bool drawPicker(std::string_view kind, ResourceRef& value, const PropertyEditorC
     };
     const float listHeight = ImGui::GetFrameHeight() * kPickerListLines;
     if (ImGui::BeginChild("##choices", ImVec2(0.0f, listHeight))) {
-        if (needle.empty() && ImGui::Selectable(tr("editor.inspector.none").c_str(), value.id == 0)) {
+        if (search.empty() && ImGui::Selectable(tr("editor.inspector.none").c_str(), value.id == 0)) {
             choose(0);
         }
         bool builtinHeader = false;
         bool assetsHeader = false;
         std::string group;
         for (const ResourceChoice& choice : resourceChoices(kind, context.resources, context.cache)) {
-            if (!needle.empty() && lower(choice.label + " " + choice.group).find(needle) == std::string::npos) {
+            if (!containsIgnoringCase(choice.label + " " + choice.group, search)) {
                 continue;
             }
             if (choice.builtin && !builtinHeader) {
@@ -112,7 +101,7 @@ bool drawPicker(std::string_view kind, ResourceRef& value, const PropertyEditorC
             }
             ImGui::PopID();
         }
-        if (!builtinHeader && !assetsHeader && !needle.empty()) {
+        if (!builtinHeader && !assetsHeader && !search.empty()) {
             ImGui::TextDisabled("%s", tr("editor.resourceField.nothing").c_str());
         }
     }

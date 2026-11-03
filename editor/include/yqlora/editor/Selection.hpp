@@ -64,6 +64,16 @@ public:
         std::erase(m_nodes, node);
     }
 
+    // Оставляет выбранными только узлы, для которых keep(id) - true, в
+    // прежнем порядке: так выделение не держит удалённых узлов.
+    template <typename Keep>
+    void keepNodes(Keep keep)
+    {
+        std::erase_if(m_nodes, [&](NodeId id) {
+            return !keep(id);
+        });
+    }
+
     void clear()
     {
         m_nodes.clear();

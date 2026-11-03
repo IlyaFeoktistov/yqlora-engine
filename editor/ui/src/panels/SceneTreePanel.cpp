@@ -2,6 +2,7 @@
 
 #include "yqlora/editor/ui/core/EditorContext.hpp"
 #include "yqlora/editor/ui/style/Icons.hpp"
+#include "yqlora/editor/ui/style/NodeIcons.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
 
 #include "yqlora/editor/EditorSession.hpp"
@@ -116,7 +117,7 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection)
     if (inactive) {
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     }
-    const bool open = ImGui::TreeNodeEx(id, flags, "%s  %s", icons::forNodeType(node.typeName()), node.name().c_str());
+    const bool open = ImGui::TreeNodeEx(id, flags, "%s  %s", nodeIcon(node.typeName()), node.name().c_str());
     if (inactive) {
         ImGui::PopStyleColor();
     }
@@ -126,7 +127,7 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection)
     }
     // Корень не переносится: он единственный.
     if (node.parent()) {
-        nodeDragSource(node.id(), std::string(icons::forNodeType(node.typeName())) + "  " + node.name());
+        nodeDragSource(node.id(), std::string(nodeIcon(node.typeName())) + "  " + node.name());
     }
     if (const auto moved = acceptNodeDrop()) {
         m_move = Move{*moved, node.id(), ImGui::GetIO().KeyAlt};

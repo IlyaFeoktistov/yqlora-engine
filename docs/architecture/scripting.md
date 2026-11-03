@@ -316,7 +316,9 @@ field values; compiler errors show in the editor log.
 - **Each load is a fresh copy.** The built library is copied to
   `.build/reload/game_<n>` before loading, so a loaded file is never
   overwritten (Windows locks it) and every reload is visible on disk. Copies
-  that are not loaded are removed when the project opens or closes.
+  that are not loaded are removed when the project opens or closes. The
+  copies, loading and unloading are `GameLibrary`; what to do with the scene
+  and the edit history around a reload is `EditorSession::reloadGameModule`.
 - **The log is a buffer, not callbacks into the interface.** Subscribers of
   the log are called outside its lock and unsubscribe through an owning
   handle; the build writes into a thread-safe `LogBuffer` from its thread,

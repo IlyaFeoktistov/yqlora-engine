@@ -53,6 +53,8 @@ private:
     // Пункты "Создать ресурс" для папки folder. Файл появляется только после
     // кнопки "Создать" в окне с именем: отмена ничего не оставляет.
     void drawNewResourceItems(const ProjectFiles& files, const std::filesystem::path& folder);
+    // Снимает выделение файла и выбор ресурса в сессии.
+    void clearSelection(EditorSession& session);
     void drawCreateDialog(EditorSession& session, const SceneSerializer& serializer, const EditorColors& colors);
     void drawRenameDialog(EditorSession& session, const EditorColors& colors);
     void drawDeleteDialog(EditorSession& session);

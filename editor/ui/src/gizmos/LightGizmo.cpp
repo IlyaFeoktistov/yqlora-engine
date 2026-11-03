@@ -2,6 +2,7 @@
 
 #include "yqlora/editor/ui/gizmos/GizmoDrawing.hpp"
 #include "yqlora/editor/ui/style/Icons.hpp"
+#include "yqlora/editor/ui/style/NodeIcons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 
 #include "yqlora/editor/EditorSession.hpp"
@@ -115,7 +116,7 @@ void drawLightsRecursive(ImDrawList& list, const GizmoContext& context, const No
             drawShape(list, context, *light, color);
         }
         if (const auto screen = worldToScreen(context, light->worldPosition())) {
-            const char* icon = icons::forNodeType(light->typeName());
+            const char* icon = nodeIcon(light->typeName());
             const ImVec2 size = ImGui::CalcTextSize(icon);
             list.AddText(ImVec2(screen->x - size.x * 0.5f, screen->y - size.y * 0.5f), color, icon);
         }

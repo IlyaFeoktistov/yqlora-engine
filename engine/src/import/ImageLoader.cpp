@@ -1,12 +1,11 @@
 #include "yqlora/import/ImageLoader.hpp"
 
 #include "yqlora/import/TextureImport.hpp"
+#include "yqlora/platform/Files.hpp"
 
 #include <stb_image.h>
 
 #include <array>
-#include <fstream>
-#include <iterator>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -39,8 +38,7 @@ std::string_view ImageLoader::kind() const
 
 LoadResult ImageLoader::load(const LoadRequest& request) const
 {
-    std::ifstream stream(request.file, std::ios::binary);
-    const std::vector<char> bytes{std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
+    const std::string bytes = platform::readFile(request.file).value_or(std::string());
     if (bytes.empty() || bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         return loadError("the file is empty, too large or not readable");
     }

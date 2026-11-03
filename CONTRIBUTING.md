@@ -40,6 +40,10 @@ systems before it is merged.
   one place and everything else is derived from it (the type name from
   `YQLORA_TYPE`, the property type from `std::variant`, record fields from
   `YQLORA_RECORD`). The same for documents: a decision lives in one document.
+  Common chores have one function each: a whole file is
+  `platform::readFile`, an atomic write `platform::writeFileAtomically`,
+  ASCII case `toLowerAscii` and `containsIgnoringCase` (`core/Text.hpp`);
+  test helpers are in `tests/TestFiles.hpp`.
 - **No magic values.** Numbers and strings that mean something (sizes,
   limits, JSON keys, file names, action IDs) are named constants, one set per
   format or subsystem, shared by reading and writing.

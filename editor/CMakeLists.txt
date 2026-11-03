@@ -32,6 +32,7 @@ add_library(yqlora_editor STATIC
     src/PropertyValues.cpp
     src/EditorSession.cpp
     src/EditorSettings.cpp
+    src/GameLibrary.cpp
     src/Inspection.cpp
     src/LayerUsage.cpp
     src/PlayMode.cpp
@@ -39,6 +40,7 @@ add_library(yqlora_editor STATIC
     src/ModelInspection.cpp
     src/ResourceInspection.cpp
     src/TextureInspection.cpp
+    src/ViewportProjection.cpp
     src/ResourceInstance.cpp
     src/ResourceLabel.cpp
     src/SceneDocument.cpp
@@ -103,9 +105,14 @@ add_library(yqlora_editor_ui STATIC
     ui/src/panels/ResourceInspector.cpp
     ui/src/panels/SceneTreePanel.cpp
     ui/src/panels/ViewportPanel.cpp
+    ui/src/style/NodeIcons.cpp
     ui/src/style/ResourceIcons.cpp
     ui/src/style/Theme.cpp
     ui/src/widgets/Checkbox.cpp
+    ui/src/widgets/ChoiceFields.cpp
+    ui/src/widgets/InputControlField.cpp
+    ui/src/widgets/LayerFields.cpp
+    ui/src/widgets/NumberFields.cpp
     ui/src/widgets/PlayFrame.cpp
     ui/src/widgets/PropertyContext.cpp
     ui/src/widgets/PropertyEditor.cpp

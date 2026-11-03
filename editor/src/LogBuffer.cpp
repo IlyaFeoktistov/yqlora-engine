@@ -1,23 +1,11 @@
 #include "yqlora/editor/LogBuffer.hpp"
 
+#include "yqlora/core/Text.hpp"
+
 #include <algorithm>
-#include <cctype>
 #include <utility>
 
 namespace yqlora::editor {
-
-namespace {
-
-bool containsIgnoringCase(std::string_view text, std::string_view part)
-{
-    const auto lower = [](char c) {
-        return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    };
-
-    return !std::ranges::search(text, part, {}, lower, lower).empty();
-}
-
-} // namespace
 
 LogBuffer::LogBuffer(std::size_t capacity)
     : m_capacity(capacity)

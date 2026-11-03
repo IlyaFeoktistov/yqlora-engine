@@ -63,6 +63,7 @@ void drawNestedResources(ResourceId file, const std::filesystem::path& path, Edi
 }
 
 constexpr const char* kNewResourcePopup = "##newResource";
+constexpr const char* kRootMenuPopup = "##rootMenu";
 
 // Кнопка с иконкой; текст - во всплывающей подсказке.
 bool iconButton(const char* icon, const std::string& hint)
@@ -119,6 +120,20 @@ void FileSystemPanel::draw(EditorContext& context)
         }
         if (m_root.children.empty()) {
             ImGui::TextDisabled("%s", tr("editor.files.empty").c_str());
+        }
+        // Щелчок мимо файлов снимает выделение: новый ресурс тогда создаётся
+        // в корне проекта. Правый щелчок там же открывает меню создания.
+        const bool emptyClicked = ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered();
+        if (emptyClicked
+            && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
+            clearSelection(session);
+        }
+        if (emptyClicked && ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+            ImGui::OpenPopup(kRootMenuPopup);
+        }
+        if (ImGui::BeginPopup(kRootMenuPopup)) {
+            drawNewResourceItems(files, {});
+            ImGui::EndPopup();
         }
     }
     ImGui::EndChild();
@@ -253,6 +268,16 @@ void FileSystemPanel::drawContextMenu(const ProjectFiles::Entry& entry, EditorSe
     ImGui::EndPopup();
 }
 
+void FileSystemPanel::clearSelection(EditorSession& session)
+{
+    m_selected.clear();
+    m_selectedIsDirectory = false;
+    // Узлы сцены не трогаем: сбрасывается только выбранный в Файлах ресурс.
+    if (session.selection().resource() != 0) {
+        session.selection().selectResource(0);
+    }
+}
+
 void FileSystemPanel::drawNewResourceItems(const ProjectFiles& files, const std::filesystem::path& folder)
 {
     for (const NewResourceType& type : newResourceTypes()) {
@@ -380,6 +405,7 @@ void FileSystemPanel::drawDeleteDialog(EditorSession& session)
         ProjectFiles(*session.project()).remove(m_deleting);
         if (m_selected == m_deleting) {
             m_selected.clear();
+            m_selectedIsDirectory = false;
         }
         m_dirty = true;
         ImGui::CloseCurrentPopup();

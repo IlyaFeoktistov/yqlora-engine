@@ -3,47 +3,38 @@
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 #include "yqlora/editor/ui/widgets/Checkbox.hpp"
+#include "yqlora/editor/ui/widgets/ChoiceFields.hpp"
+#include "yqlora/editor/ui/widgets/InputControlField.hpp"
+#include "yqlora/editor/ui/widgets/LayerFields.hpp"
+#include "yqlora/editor/ui/widgets/NumberFields.hpp"
 #include "yqlora/editor/ui/widgets/ResourceField.hpp"
 
 #include "yqlora/editor/PropertyValues.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
 
 #include "yqlora/i18n/Translate.hpp"
-#include "yqlora/input/Input.hpp"
-#include "yqlora/input/InputControl.hpp"
 #include "yqlora/project/SettingsSection.hpp"
 #include "yqlora/reflection/Property.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
-#include "yqlora/scene/Layers.hpp"
 #include "yqlora/scene/Scene.hpp"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
 #include <algorithm>
-#include <bit>
-#include <cctype>
 #include <optional>
-#include <string_view>
 #include <utility>
-#include <vector>
 
 namespace yqlora::editor {
 
 namespace {
 
-constexpr float kFastFactor = 10.0f; // с Shift
-constexpr float kSlowFactor = 0.1f;  // с Ctrl
-
 constexpr const char* kRowMenu = "##propertyMenu";
-constexpr const char* kWaitingForControl = "##waitingForControl";
-// Число вектора, по которому кликнули правой кнопкой в этом кадре, и то, для
-// которого открыто меню; -1 - всё значение. Хранятся в памяти окна ImGui.
-constexpr const char* kClickedComponent = "##clickedComponent";
+// Число вектора, для которого открыто меню строки; -1 - всё значение.
+// Хранится в памяти окна ImGui, как kClickedComponent.
 constexpr const char* kMenuComponent = "##menuComponent";
 constexpr int kWholeValue = -1;
-constexpr const char* kComponentNames[] = {"X", "Y", "Z", "W"};
 
 // Значение элемента и кнопка его удаления.
 constexpr int kListColumnCount = 2;
@@ -61,271 +52,6 @@ float dragSpeed(const Property& property)
     case PropertyHint::Angle: return kAngleDragSpeed;
     default: return property.type() == PropertyType::Float ? kFloatDragSpeed : kVectorDragSpeed;
     }
-}
-
-// Подпись, которую можно тянуть мышью, как в Unity. Меняет value и
-// отмечает в result, что значение тянут.
-void dragLabel(const char* id, const char* text, const ImVec4& color, float& value, float speed, PropertyResult& result)
-{
-    const ImVec2 textSize = ImGui::CalcTextSize(text);
-    const ImVec2 padding = ImGui::GetStyle().FramePadding;
-    const ImVec2 size(textSize.x + padding.x * 2.0f, ImGui::GetFrameHeight());
-    const ImVec2 position = ImGui::GetCursorScreenPos();
-
-    ImGui::InvisibleButton(id, size);
-    const bool active = ImGui::IsItemActive();
-    if (active || ImGui::IsItemHovered()) {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-    }
-    const ImVec2 textPosition(position.x + padding.x, position.y + padding.y);
-    ImGui::GetWindowDrawList()->AddText(textPosition, ImGui::GetColorU32(color), text);
-
-    if (!active) {
-        return;
-    }
-    result.dragging = true;
-    const ImGuiIO& io = ImGui::GetIO();
-    const float factor = io.KeyShift ? kFastFactor : io.KeyCtrl ? kSlowFactor : 1.0f;
-    const float delta = io.MouseDelta.x * speed * factor;
-    if (delta != 0.0f) {
-        value += delta;
-        result.changed = true;
-    }
-}
-
-// Поле числа без подписи заданной ширины. format влияет только на показ:
-// введённое значение сохраняется с полной точностью.
-void floatField(const char* id, float& value, float width, const char* format, PropertyResult& result)
-{
-    ImGui::SetNextItemWidth(width);
-    if (ImGui::InputFloat(id, &value, 0.0f, 0.0f, format)) {
-        result.changed = true;
-    }
-}
-
-// Компоненты вектора в одну строку: у каждой своя цветная подпись.
-void vectorFields(float* values, int count, float speed, const EditorColors& colors, PropertyResult& result)
-{
-    const ImVec4 axisColors[] =
-        {toImVec4(colors.axisX), toImVec4(colors.axisY), toImVec4(colors.axisZ), toImVec4(colors.axisW)};
-
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const float labelWidth = ImGui::CalcTextSize("X").x + style.FramePadding.x * 2.0f;
-    const float total = ImGui::GetContentRegionAvail().x;
-    const float spacing = style.ItemInnerSpacing.x;
-    const float fieldWidth = (total - static_cast<float>(count) * labelWidth - static_cast<float>(count - 1) * spacing)
-                             / static_cast<float>(count);
-
-    // Правый клик по числу: меню строки предложит пункты и для него одного.
-    const ImGuiID clickedKey = ImGui::GetID(kClickedComponent);
-    const bool rightReleased = ImGui::IsMouseReleased(ImGuiMouseButton_Right);
-    for (int i = 0; i < count; ++i) {
-        ImGui::PushID(i);
-        if (i > 0) {
-            ImGui::SameLine(0.0f, spacing);
-        }
-        dragLabel("##drag", kComponentNames[i], axisColors[i], values[i], speed, result);
-        const bool labelHovered = ImGui::IsItemHovered();
-        ImGui::SameLine(0.0f, 0.0f);
-        floatField("##value", values[i], fieldWidth, "%.2f", result);
-        if (rightReleased && (labelHovered || ImGui::IsItemHovered())) {
-            ImGui::GetStateStorage()->SetInt(clickedKey, i);
-        }
-        ImGui::PopID();
-    }
-}
-
-// Имя слоя, а у слоя без имени - номер.
-std::string layerLabel(int layer, std::span<const std::string> names)
-{
-    const auto index = static_cast<std::size_t>(layer);
-
-    return index < names.size() && !names[index].empty() ? names[index] : std::to_string(layer);
-}
-
-// Слой без имени не используется и в списках не показывается, если он не выбран
-// сейчас. Без проекта имён нет вовсе, тогда видны все.
-bool layerListed(int layer, std::span<const std::string> names, bool selected)
-{
-    const auto index = static_cast<std::size_t>(layer);
-
-    return selected || names.empty() || (index < names.size() && !names[index].empty());
-}
-
-// Последний пункт списков слоёв. Вызывается внутри открытого списка.
-void editLayersItem(const PropertyEditorContext& context, bool& requested)
-{
-    if (!context.editLayers) {
-        return;
-    }
-    ImGui::Separator();
-    if (ImGui::Selectable(tr("editor.layers.edit").c_str())) {
-        requested = true;
-    }
-}
-
-bool layerCombo(int& layer, const PropertyEditorContext& context)
-{
-    bool changed = false;
-    bool editRequested = false;
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("##value", layerLabel(layer, context.layerNames).c_str())) {
-        for (int i = 0; i < kLayerCount; ++i) {
-            if (!layerListed(i, context.layerNames, i == layer)) {
-                continue;
-            }
-            if (ImGui::Selectable(layerLabel(i, context.layerNames).c_str(), i == layer)) {
-                layer = i;
-                changed = true;
-            }
-        }
-        editLayersItem(context, editRequested);
-        ImGui::EndCombo();
-    }
-    if (editRequested) {
-        context.editLayers();
-    }
-
-    return changed;
-}
-
-std::string maskPreview(LayerMask mask, std::span<const std::string> names)
-{
-    if (mask == kAllLayers) {
-        return tr("editor.layers.everything");
-    }
-    if (mask == 0) {
-        return tr("editor.layers.nothing");
-    }
-    std::string result;
-    for (int i = 0; i < kLayerCount; ++i) {
-        if (inMask(mask, i)) {
-            result += (result.empty() ? "" : ", ") + layerLabel(i, names);
-        }
-    }
-
-    return result;
-}
-
-// Маска хранится в int с теми же битами, см. PropertyStorage<std::uint32_t>.
-bool layerMaskCombo(int& stored, const PropertyEditorContext& context)
-{
-    auto mask = std::bit_cast<LayerMask>(stored);
-    bool changed = false;
-    bool editRequested = false;
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("##value", maskPreview(mask, context.layerNames).c_str())) {
-        if (ImGui::Selectable(tr("editor.layers.everything").c_str(), mask == kAllLayers)) {
-            mask = kAllLayers;
-            changed = true;
-        }
-        if (ImGui::Selectable(tr("editor.layers.nothing").c_str(), mask == 0)) {
-            mask = 0;
-            changed = true;
-        }
-        ImGui::Separator();
-        for (int i = 0; i < kLayerCount; ++i) {
-            bool on = inMask(mask, i);
-            if (!layerListed(i, context.layerNames, on)) {
-                continue;
-            }
-            ImGui::PushID(i);
-            if (checkbox(layerLabel(i, context.layerNames).c_str(), &on, context.metrics.checkboxPadding)) {
-                mask ^= LayerMask{1} << i;
-                changed = true;
-            }
-            ImGui::PopID();
-        }
-        editLayersItem(context, editRequested);
-        ImGui::EndCombo();
-    }
-    stored = std::bit_cast<int>(mask);
-    if (editRequested) {
-        context.editLayers();
-    }
-
-    return changed;
-}
-
-// Имена слоёв по номеру: число строк постоянное, слой 0 не переименовывается.
-bool layerNamesField(ListValue& list)
-{
-    bool changed = false;
-    for (std::size_t i = 0; i < list.items.size(); ++i) {
-        ImGui::PushID(static_cast<int>(i));
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%2zu", i);
-        ImGui::SameLine();
-        ImGui::BeginDisabled(i == 0);
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        changed = ImGui::InputText("##name", &std::get<std::string>(list.items[i])) || changed;
-        ImGui::EndDisabled();
-        ImGui::PopID();
-    }
-
-    return changed;
-}
-
-bool enumCombo(const Property& property, EnumValue& value)
-{
-    const auto& names = property.enumNames();
-    const auto current = static_cast<std::size_t>(value.value);
-    const std::string preview = value.value >= 0 && current < names.size() ? names[current]
-                                                                           : std::to_string(value.value);
-
-    bool changed = false;
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("##value", preview.c_str())) {
-        for (std::size_t i = 0; i < names.size(); ++i) {
-            if (ImGui::Selectable(names[i].c_str(), i == current)) {
-                value.value = static_cast<int>(i);
-                changed = true;
-            }
-        }
-        ImGui::EndCombo();
-    }
-
-    return changed;
-}
-
-void collectNodes(const Node& node, std::vector<const Node*>& out)
-{
-    out.push_back(&node);
-    for (const auto& child : node.children()) {
-        collectNodes(*child, out);
-    }
-}
-
-// Узел сцены по имени. Удалённый узел показывается как "нет".
-bool nodeCombo(const Scene& scene, NodeRef& value)
-{
-    std::vector<const Node*> nodes;
-    if (const Node* root = scene.root()) {
-        collectNodes(*root, nodes);
-    }
-    const auto current = std::ranges::find(nodes, value.id, &Node::id);
-    const std::string none = tr("editor.inspector.none");
-    const char* preview = current != nodes.end() ? (*current)->name().c_str() : none.c_str();
-
-    bool changed = false;
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("##value", preview)) {
-        if (ImGui::Selectable(none.c_str(), value.id == 0)) {
-            value.id = 0;
-            changed = true;
-        }
-        for (const Node* node : nodes) {
-            ImGui::PushID(node);
-            if (ImGui::Selectable(node->name().c_str(), node->id() == value.id)) {
-                value.id = node->id();
-                changed = true;
-            }
-            ImGui::PopID();
-        }
-        ImGui::EndCombo();
-    }
-
-    return changed;
 }
 
 // Подпись строки. У одиночного числа её можно тянуть, у остальных - просто текст.
@@ -366,91 +92,6 @@ void valueField(
     const PropertyEditorContext& context,
     PropertyResult& result
 );
-
-// Типы компонентов, у которых есть порядок выполнения: только те, что
-// переопределяют фазы кадра. Выбранный виден всегда, даже если его модуль не загружен.
-bool componentTypeCombo(std::string& value, const TypeRegistry& registry)
-{
-    bool changed = false;
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("##value", value.empty() ? tr("editor.inspector.none").c_str() : value.c_str())) {
-        for (const auto& type : registry.types()) {
-            if (type->kind() != TypeKind::Component || type->phases() == 0) {
-                continue;
-            }
-            if (ImGui::Selectable(type->name().c_str(), type->name() == value)) {
-                value = type->name();
-                changed = true;
-            }
-            ImGui::SetItemTooltip("%s", tr(type->descriptionKey()).c_str());
-        }
-        ImGui::EndCombo();
-    }
-
-    return changed;
-}
-
-// Первый орган, заданный в этом кадре нажатием (см. wasControlActivated);
-// Escape не считается: им отменяют ожидание.
-std::optional<InputControl> activatedControl(const Input& input)
-{
-    for (const InputControl& control : allInputControls()) {
-        if (control != InputControl{Key::Escape} && wasControlActivated(input, control)) {
-            return control;
-        }
-    }
-
-    return std::nullopt;
-}
-
-// Привязка действия: кнопка с именем органа управления и список всех органов.
-// Нажали кнопку - она ждёт следующего нажатия клавиши, кнопки мыши или
-// геймпада или отклонения стика и запоминает его; Escape отменяет. Оси мыши
-// нажатием не задать - их выбирают из списка. Какое поле ждёт, хранится в
-// памяти окна ImGui.
-bool inputControlField(std::string& value, const Input& input)
-{
-    ImGuiStorage& storage = *ImGui::GetStateStorage();
-    const ImGuiID waitingKey = ImGui::GetID(kWaitingForControl);
-    const bool waiting = storage.GetBool(waitingKey, false);
-    bool changed = false;
-
-    const float listWidth = ImGui::GetFrameHeight();
-    std::string label = waiting         ? tr("editor.inspector.pressControl")
-                        : value.empty() ? tr("editor.inspector.none")
-                                        : value;
-    label += "##control";
-    if (ImGui::Button(label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - listWidth, 0.0f))) {
-        storage.SetBool(waitingKey, !waiting);
-    }
-    ImGui::SameLine(0.0f, 0.0f);
-    ImGui::SetNextItemWidth(listWidth);
-    if (ImGui::BeginCombo("##controls", nullptr, ImGuiComboFlags_NoPreview | ImGuiComboFlags_PopupAlignLeft)) {
-        for (const InputControl& control : allInputControls()) {
-            const std::string name(controlName(control));
-            if (ImGui::Selectable(name.c_str(), name == value)) {
-                value = name;
-                changed = true;
-            }
-        }
-        ImGui::EndCombo();
-    }
-    if (!waiting) {
-        return changed;
-    }
-    if (input.wasKeyPressed(Key::Escape)) {
-        storage.SetBool(waitingKey, false);
-
-        return changed;
-    }
-    if (const auto activated = activatedControl(input)) {
-        storage.SetBool(waitingKey, false);
-        value = std::string(controlName(*activated));
-        changed = true;
-    }
-
-    return changed;
-}
 
 // Поля записи таблицей, как свойства в инспекторе. Описание полей - у свойства
 // (Property::fields): и у самой записи, и у списка записей.
