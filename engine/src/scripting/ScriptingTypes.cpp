@@ -11,9 +11,7 @@ void registerScriptingTypes(TypeRegistry& registry)
     // База в реестре нужна, чтобы скрипты игры встали в цепочку типов; сама
     // она не создаётся и в "Добавить компонент" не попадает.
     registry.registerComponent<Script>();
-    registry.registerSettings<ScriptsSettings>("scripts")
-        .property("configuration", &ScriptsSettings::configuration)
-        .enumNames(kScriptConfigurationNames);
+    registry.registerSettings<ScriptsSettings>("scripts").property("configuration", &ScriptsSettings::configuration);
 }
 
 } // namespace yqlora

@@ -288,8 +288,8 @@ void Application::applyGraphicsSettings()
         } else {
             log::warn(
                 "Graphics API {} is not built into this engine, staying on {}",
-                graphicsApiName(api),
-                graphicsApiName(m_renderer->api())
+                enumName(api),
+                enumName(m_renderer->api())
             );
             m_unavailableApi = api;
         }
@@ -320,7 +320,7 @@ void Application::applyGameIcon()
 void Application::rebuildRenderer(GraphicsApi api)
 {
     const GraphicsApi previous = m_renderer->api();
-    log::info("Graphics API: {} -> {}", graphicsApiName(previous), graphicsApiName(api));
+    log::info("Graphics API: {} -> {}", enumName(previous), enumName(api));
 
     // Сначала всё, что создано через рендерер, потом он сам: ресурсы
     // удаляются, пока жив их контекст.
@@ -352,12 +352,7 @@ void Application::rebuildRenderer(GraphicsApi api)
         create(api);
     } catch (const std::exception& e) {
         // API собран, но система его не дала: остаёмся на прежнем.
-        log::error(
-            "Graphics API {} cannot start: {}. Staying on {}",
-            graphicsApiName(api),
-            e.what(),
-            graphicsApiName(previous)
-        );
+        log::error("Graphics API {} cannot start: {}. Staying on {}", enumName(api), e.what(), enumName(previous));
         m_unavailableApi = api;
         create(previous);
     }

@@ -25,7 +25,6 @@ namespace yqlora {
 namespace {
 
 constexpr std::array<std::string_view, 2> kExtensions{".gltf", ".glb"};
-constexpr std::size_t kTriangleCorners = 3;
 // Нормаль вершины, у которой все соседние треугольники вырождены.
 const Vec3 kFallbackNormal{0.0f, 1.0f, 0.0f};
 
@@ -127,7 +126,7 @@ void computeNormals(std::span<Vertex> vertices, std::span<const std::uint32_t> i
     for (Vertex& vertex : vertices) {
         vertex.normal = Vec3(0.0f);
     }
-    for (std::size_t i = 0; i + kTriangleCorners <= indices.size(); i += kTriangleCorners) {
+    for (std::size_t i = 0; i + MeshData::kTriangleCorners <= indices.size(); i += MeshData::kTriangleCorners) {
         Vertex& a = vertices[indices[i]];
         Vertex& b = vertices[indices[i + 1]];
         Vertex& c = vertices[indices[i + 2]];
@@ -196,7 +195,7 @@ std::string addPrimitive(const cgltf_data& data, const cgltf_primitive& primitiv
             indices[i] = static_cast<std::uint32_t>(i);
         }
     }
-    if (indices.size() % kTriangleCorners != 0) {
+    if (indices.size() % MeshData::kTriangleCorners != 0) {
         return "the index count of a primitive is not a multiple of 3";
     }
     for (const std::uint32_t index : indices) {
@@ -265,6 +264,13 @@ std::span<const std::string_view> GltfLoader::extensions() const
 std::string_view GltfLoader::kind() const
 {
     return ModelData::kResourceKind;
+}
+
+std::span<const std::string_view> GltfLoader::nestedKinds() const
+{
+    static constexpr std::string_view kNested[] = {MeshData::kResourceKind};
+
+    return kNested;
 }
 
 LoadResult GltfLoader::load(const LoadRequest& request) const

@@ -527,24 +527,7 @@ An audit of steps 3-5 (2026-11-02): what is costly to change later. Done
 before 5.3, a commit per group, each followed by a build and tests on
 Linux and Windows.
 
-1. **Resources in the editor** (before materials: they hit this at once):
-   - a resource reference is one hint `PropertyHint::Resource` with the
-     resource kind in the property attributes (from `T::kResourceKind`)
-     instead of a hint per kind (`Mesh`, `Texture`, `Scene`) and a `switch`
-     in `fieldKind`;
-   - choosing a resource in a field: built-ins come from the shared table
-     of built-in resources (its entry gets a name), not `builtinMeshes()`;
-     nested ones by the kind in their key (`mesh:`, later `material:`,
-     `texture:`), not only the meshes of a model;
-   - names of enum values are one table next to the enum, used by the
-     registry (`enumNames`) and by `.meta` JSON, instead of lists in the
-     registration (`CameraClear`), `kGraphicsApiNames` and `NamedValue`;
-   - a new kind of created resource is one table row (creation, extension,
-     icon), not five places (enum, `createX`, `switch` in the panel, file
-     name, icon);
-   - a resource inspector per kind instead of one `ResourceInspection`
-     struct holding all kinds at once.
-2. **Rendering**:
+1. **Rendering**:
    - `Renderer` owns the device and the frame (present, size, vsync,
      interface); building the frame graph (`drawScene`: views, output,
      owner passes) is a separate `SceneRenderer`;
@@ -558,7 +541,7 @@ Linux and Windows.
      `dynamic_cast` there;
    - the block check also compares the fields inside structs of arrays
      (lights), not only the element stride.
-3. **Resources and formats**:
+2. **Resources and formats**:
    - loading does not write `.meta`: nested IDs and the profile version are
      written on import in the editor, loading only reads (a built game in
      step 9 does not change its files);
@@ -570,12 +553,10 @@ Linux and Windows.
      `LoadResult::dependencies`, so a changed buffer reloads the model;
    - `GltfLoader.cpp` is split into files (meshes, nodes) before glTF
      materials.
-4. **Clean code**:
+3. **Clean code**:
    - reading a whole file is one platform function instead of five
      (images, glTF, shaders, the script template, the build record);
    - ASCII lowercase is one function instead of five;
-   - the vertex count of a triangle is one constant in `MeshData` instead
-     of three;
    - a world point on the screen is one editor function (`Picking` and the
      gizmos);
    - test helpers (writing and rewriting a file) go into a shared test

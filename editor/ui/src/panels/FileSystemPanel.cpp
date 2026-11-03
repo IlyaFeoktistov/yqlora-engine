@@ -1,26 +1,26 @@
 #include "yqlora/editor/ui/panels/FileSystemPanel.hpp"
 
 #include "yqlora/editor/ui/style/Icons.hpp"
+#include "yqlora/editor/ui/style/ResourceIcons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
 
 #include "yqlora/core/AppPaths.hpp"
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/editor/EditorSession.hpp"
-#include "yqlora/editor/ResourceLabel.hpp"
+#include "yqlora/editor/ResourceChoices.hpp"
 #include "yqlora/i18n/Translate.hpp"
-#include "yqlora/import/ModelData.hpp"
 #include "yqlora/platform/Platform.hpp"
 #include "yqlora/project/Project.hpp"
-#include "yqlora/render/TextureData.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
-#include "yqlora/shader/ShaderData.hpp"
+#include "yqlora/resource/ResourceLoader.hpp"
 
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
+#include <cstdint>
 #include <utility>
 
 namespace yqlora::editor {
@@ -29,62 +29,37 @@ namespace {
 
 constexpr float kNameFieldWidth = 360.0f;
 
-// kind - вид ресурса файла по его загрузчику (ResourceCache::kindOf).
+// kind - вид ресурса файла (fileKind).
 const char* iconFor(const ProjectFiles::Entry& entry, bool open, std::string_view kind)
 {
     if (entry.directory) {
         return open ? icons::kFolderOpen : icons::kFolder;
     }
-    if (ProjectFiles::isScene(entry.path)) {
-        return icons::kScene;
-    }
-    if (kind == ModelData::kResourceKind) {
-        return icons::kModelFile;
-    }
-    if (kind == TextureData::kResourceKind) {
-        return icons::kImageFile;
-    }
-    if (kind == ShaderData::kResourceKind) {
-        return icons::kShaderFile;
+    if (kind.empty() && Project::isSource(entry.path)) {
+        return resourceIcon(kCppScriptKind);
     }
 
-    return Project::isSource(entry.path) ? icons::kCodeFile : icons::kFile;
+    return resourceIcon(kind);
 }
 
-// Меши модели строками под её файлом: их тянут в сцену или на поле меша.
-void drawModelMeshes(ResourceId file, EditorSession& session)
+// Вложенные ресурсы строками под их файлом: их тянут в сцену или на поле.
+void drawNestedResources(ResourceId file, const std::filesystem::path& path, EditorSession& session)
 {
-    const ModelData* model = session.resources().find<ModelData>(file);
-    if (!model) {
-        return;
-    }
-    const auto& ids = session.project()->resources().subresources(file);
-    for (const std::string& key : model->meshes) {
-        const auto id = ids.find(key);
-        if (id == ids.end()) {
-            continue;
-        }
-        const std::string label = std::string(icons::kMesh) + "  " + subresourceLabel(key);
+    ResourceCache& cache = session.resources();
+    for (const ResourceId id : nestedResources(file, path, cache)) {
+        const std::string_view key = session.project()->resources().key(id);
+        const std::string label = std::string(resourceIcon(cache.loadedKind(id))) + "  "
+                                  + std::string(subresourceLocalKey(key));
+        ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(id)));
         ImGui::TreeNodeEx(
-            key.c_str(),
+            "##nested",
             ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth,
             "%s",
             label.c_str()
         );
-        resourceDragSource(id->second, label);
+        resourceDragSource(id, label);
+        ImGui::PopID();
     }
-}
-
-const char* iconFor(NewResourceKind kind)
-{
-    switch (kind) {
-    case NewResourceKind::Folder: return icons::kAddFolder;
-    case NewResourceKind::Scene: return icons::kScene;
-    case NewResourceKind::CppScript: return icons::kCodeFile;
-    case NewResourceKind::Shader: return icons::kShaderFile;
-    }
-
-    return icons::kFile;
 }
 
 constexpr const char* kNewResourcePopup = "##newResource";
@@ -184,11 +159,11 @@ void FileSystemPanel::drawEntry(
         ImGui::PushStyleColor(ImGuiCol_Text, toImVec4(colors.selectionOutline));
     }
     const std::string id = toUtf8(entry.path);
-    const std::string_view kind = entry.directory ? std::string_view() : session.resources().kindOf(entry.path);
+    const std::string_view kind = entry.directory ? std::string_view() : fileKind(entry.path, session.resources());
     const ResourceId resource = entry.directory ? 0 : session.project()->resources().id(entry.path);
-    // Модель раскрывается в свои меши.
-    const bool model = kind == ModelData::kResourceKind;
-    if (model) {
+    // Файл с вложенными ресурсами (модель) раскрывается в них.
+    const bool nested = !entry.directory && !session.resources().nestedKindsOf(entry.path).empty();
+    if (nested) {
         flags &= ~(ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen);
     }
     if (resource != 0 && resource == session.selection().resource()) {
@@ -212,8 +187,8 @@ void FileSystemPanel::drawEntry(
     }
     // Любой ресурс тянется: модель - в сцену, текстура - на поле текстуры.
     resourceDragSource(resource, std::string(icon) + "  " + entry.name);
-    // Модель по двойному щелчку раскрывается, как папка.
-    if (!entry.directory && !model && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+    // Файл с вложенными ресурсами по двойному щелчку раскрывается, как папка.
+    if (!entry.directory && !nested && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
         if (ProjectFiles::isScene(entry.path)) {
             m_openRequest = entry.path;
         } else {
@@ -233,8 +208,8 @@ void FileSystemPanel::drawEntry(
             drawEntry(child, session, serializer, colors);
         }
         ImGui::TreePop();
-    } else if (model && open) {
-        drawModelMeshes(resource, session);
+    } else if (nested && open) {
+        drawNestedResources(resource, entry.path, session);
         ImGui::TreePop();
     }
 }
@@ -281,13 +256,13 @@ void FileSystemPanel::drawContextMenu(const ProjectFiles::Entry& entry, EditorSe
 void FileSystemPanel::drawNewResourceItems(const ProjectFiles& files, const std::filesystem::path& folder)
 {
     for (const NewResourceType& type : newResourceTypes()) {
-        const std::string label = std::string(iconFor(type.kind)) + "  " + tr(type.labelKey) + "...";
+        const std::string label = std::string(resourceIcon(type.kind)) + "  " + tr(type.labelKey) + "...";
         if (!ImGui::MenuItem(label.c_str())) {
             continue;
         }
-        m_createKind = type.kind;
+        m_createType = &type;
         m_createFolder = folder;
-        m_createName = files.suggestName(type.kind, folder);
+        m_createName = files.suggestName(type, folder);
         m_error.clear();
         m_createRequested = true;
     }
@@ -299,10 +274,12 @@ void FileSystemPanel::drawCreateDialog(
     const EditorColors& colors
 )
 {
-    const bool script = m_createKind == NewResourceKind::CppScript;
-    const auto& types = newResourceTypes();
-    const auto type = std::ranges::find(types, m_createKind, &NewResourceType::kind);
-    const std::string title = tr(type->labelKey) + "###NewResource";
+    if (!m_createType) {
+        return;
+    }
+    const NewResourceType& type = *m_createType;
+    const bool script = type.className;
+    const std::string title = tr(type.labelKey) + "###NewResource";
     if (m_createRequested) {
         ImGui::OpenPopup(title.c_str());
         m_createRequested = false;
@@ -316,7 +293,7 @@ void FileSystemPanel::drawCreateDialog(
     }
     ImGui::SetNextItemWidth(kNameFieldWidth);
     const bool entered = ImGui::InputText("##name", &m_createName, ImGuiInputTextFlags_EnterReturnsTrue);
-    const bool valid = isValidResourceName(m_createKind, m_createName);
+    const bool valid = isValidResourceName(type, m_createName);
     if (!valid) {
         ImGui::TextColored(
             toImVec4(colors.errorText),
@@ -330,20 +307,10 @@ void FileSystemPanel::drawCreateDialog(
     ImGui::BeginDisabled(!valid);
     if (ImGui::Button(tr("editor.files.create").c_str()) || (entered && valid)) {
         ProjectFiles files(*session.project());
-        std::optional<std::filesystem::path> created;
-        switch (m_createKind) {
-        case NewResourceKind::Folder: created = files.createFolder(m_createFolder, m_createName); break;
-        case NewResourceKind::Scene: created = files.createScene(m_createFolder, m_createName, serializer); break;
-        case NewResourceKind::CppScript:
-            created = files.createScript(m_createFolder, m_createName, cppScriptTemplateDirectory(assetsDirectory()));
-            break;
-        case NewResourceKind::Shader:
-            created = files.createShader(m_createFolder, m_createName, shaderTemplateFile(assetsDirectory()));
-            break;
-        }
+        const auto created = type.create(files, m_createFolder, m_createName, {serializer, assetsDirectory()});
         if (created) {
             m_selected = *created;
-            m_selectedIsDirectory = m_createKind == NewResourceKind::Folder;
+            m_selectedIsDirectory = type.extension.empty();
             m_dirty = true;
             ImGui::CloseCurrentPopup();
         } else {

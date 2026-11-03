@@ -255,8 +255,6 @@
             "restore": "Restore layout"
         },
         "resource": {
-            "model": "Model",
-            "texture": "Texture",
             "file": "File",
             "nodes": "Nodes",
             "meshes": "Meshes",
@@ -282,12 +280,14 @@
             "assets": "Assets",
             "nothing": "Nothing found",
             "pick": "Choose",
-            "choose": "Choose",
-            "kind": {
-                "mesh": "Mesh",
-                "texture": "Texture",
-                "scene": "Scene"
-            }
+            "choose": "Choose"
+        },
+        "resourceKind": {
+            "mesh": "Mesh",
+            "texture": "Texture",
+            "scene": "Scene",
+            "shader": "Shader",
+            "model": "Model"
         }
     },
     "projects": {

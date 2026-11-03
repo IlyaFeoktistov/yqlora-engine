@@ -36,7 +36,9 @@ add_library(yqlora_editor STATIC
     src/LayerUsage.cpp
     src/PlayMode.cpp
     src/ResourceChoices.cpp
+    src/ModelInspection.cpp
     src/ResourceInspection.cpp
+    src/TextureInspection.cpp
     src/ResourceInstance.cpp
     src/ResourceLabel.cpp
     src/SceneDocument.cpp
@@ -88,6 +90,9 @@ add_library(yqlora_editor_ui STATIC
     ui/src/gizmos/GridGizmo.cpp
     ui/src/gizmos/ManipulatorGizmo.cpp
     ui/src/gizmos/SelectionGizmo.cpp
+    ui/src/inspectors/ModelInspector.cpp
+    ui/src/inspectors/ResourceKindInspector.cpp
+    ui/src/inspectors/TextureInspector.cpp
     ui/src/menu/MainMenu.cpp
     ui/src/panels/FileSystemPanel.cpp
     ui/src/panels/GamePanel.cpp
@@ -98,6 +103,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/panels/ResourceInspector.cpp
     ui/src/panels/SceneTreePanel.cpp
     ui/src/panels/ViewportPanel.cpp
+    ui/src/style/ResourceIcons.cpp
     ui/src/style/Theme.cpp
     ui/src/widgets/Checkbox.cpp
     ui/src/widgets/PlayFrame.cpp

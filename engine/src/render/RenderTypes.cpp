@@ -6,6 +6,7 @@
 #include "yqlora/render/GraphicsSettings.hpp"
 #include "yqlora/render/Light3D.hpp"
 #include "yqlora/render/LightingSettings.hpp"
+#include "yqlora/render/MeshData.hpp"
 #include "yqlora/render/MeshRenderer.hpp"
 #include "yqlora/render/PointLight3D.hpp"
 #include "yqlora/render/RenderSystem.hpp"
@@ -22,7 +23,6 @@ void registerRenderTypes(TypeRegistry& registry)
         .property(kCameraOrderProperty, &Camera3D::order, &Camera3D::setOrder)
         .property("cullingMask", &Camera3D::cullingMask, &Camera3D::setCullingMask, PropertyHint::Layers)
         .property("clear", &Camera3D::clear, &Camera3D::setClear)
-        .enumNames({"ColorAndDepth", "DepthOnly", "Nothing"})
         .property("background", &Camera3D::background, &Camera3D::setBackground, PropertyHint::Color);
 
     registry.registerNode<Light3D>()
@@ -46,16 +46,15 @@ void registerRenderTypes(TypeRegistry& registry)
 
     registry.registerComponent<MeshRenderer>()
         .requiresNode<Node3D>()
-        .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh, PropertyHint::Mesh)
+        .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh)
+        .resource(MeshData::kResourceKind)
         .property("color", &MeshRenderer::color, &MeshRenderer::setColor, PropertyHint::Color);
 
     registry.registerSystem<RenderSystem>();
 
     registry.registerSettings<GraphicsSettings>("graphics")
         .property("windowsApi", &GraphicsSettings::windowsApi)
-        .enumNames(kGraphicsApiNames)
         .property("linuxApi", &GraphicsSettings::linuxApi)
-        .enumNames(kGraphicsApiNames)
         .property("vsync", &GraphicsSettings::vsync);
 
     registry.registerSettings<LightingSettings>("lighting")

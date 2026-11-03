@@ -54,8 +54,10 @@ std::vector<std::string> names(const ProjectFiles::Entry& entry)
 
 TEST_CASE_FIXTURE(Fixture, "ProjectFiles: folders first, the project file, settings and .meta are hidden")
 {
-    REQUIRE(files.createFolder({}, files.suggestName(NewResourceKind::Folder, {})));
-    REQUIRE(files.createScene({}, files.suggestName(NewResourceKind::Scene, {}), serializer));
+    REQUIRE(files.createFolder({}, files.suggestName(*findNewResourceType(kFolderKind), {})));
+    REQUIRE(
+        files.createScene({}, files.suggestName(*findNewResourceType(SceneSerializer::kResourceKind), {}), serializer)
+    );
 
     const auto root = files.scan();
     CHECK(names(root) == std::vector<std::string>{"New Folder", "assets", "scenes", "scripts", "New Scene.yscene"});
@@ -64,11 +66,15 @@ TEST_CASE_FIXTURE(Fixture, "ProjectFiles: folders first, the project file, setti
 
 TEST_CASE_FIXTURE(Fixture, "ProjectFiles: new resources get free suggested names, taken names are refused")
 {
-    CHECK(files.suggestName(NewResourceKind::CppScript, "scripts") == "NewScript");
-    const auto first = files.createScene({}, files.suggestName(NewResourceKind::Scene, {}), serializer);
+    CHECK(files.suggestName(*findNewResourceType(kCppScriptKind), "scripts") == "NewScript");
+    const auto first = files.createScene(
+        {},
+        files.suggestName(*findNewResourceType(SceneSerializer::kResourceKind), {}),
+        serializer
+    );
     REQUIRE(first);
     CHECK(*first == "New Scene.yscene");
-    CHECK(files.suggestName(NewResourceKind::Scene, {}) == "New Scene 2");
+    CHECK(files.suggestName(*findNewResourceType(SceneSerializer::kResourceKind), {}) == "New Scene 2");
     CHECK_FALSE(files.createScene({}, "New Scene", serializer));
     CHECK_FALSE(files.createScene({}, "bad/name", serializer));
     CHECK_FALSE(files.createFolder({}, "settings"));
@@ -174,4 +180,22 @@ TEST_CASE_FIXTURE(Fixture, "ProjectFiles: a C++ script from the template, a file
     // Шаблона нет - нет и половины файлов.
     CHECK_FALSE(files.createScript("scripts", "Lost", project.directory() / "no-template"));
     CHECK_FALSE(std::filesystem::exists(project.directory() / "scripts" / "Lost.hpp"));
+}
+
+TEST_CASE_FIXTURE(Fixture, "newResourceTypes: every kind is created from its row, and its name is then taken")
+{
+    const NewResourceContext context{serializer, YQLORA_ASSETS_DIR};
+    for (const NewResourceType& type : newResourceTypes()) {
+        CAPTURE(type.kind);
+        CHECK(findNewResourceType(type.kind) == &type);
+        const std::string name = files.suggestName(type, "scripts");
+        CHECK(name == type.defaultName);
+        const auto created = type.create(files, "scripts", name, context);
+        REQUIRE(created);
+        CHECK(std::filesystem::exists(project.directory() / *created));
+        CHECK(std::filesystem::is_directory(project.directory() / *created) == type.extension.empty());
+        CHECK(files.suggestName(type, "scripts") != name);
+        CHECK_FALSE(type.create(files, "scripts", name, context));
+    }
+    CHECK_FALSE(findNewResourceType("unknown"));
 }

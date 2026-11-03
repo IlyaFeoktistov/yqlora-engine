@@ -1,8 +1,8 @@
 #pragma once
 
-#include "yqlora/reflection/Property.hpp"
 #include "yqlora/resource/ResourceId.hpp"
 
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -18,29 +18,39 @@ namespace yqlora::editor {
 // Что можно выбрать в поле ссылки на ресурс (окно выбора, как в Unity).
 struct ResourceChoice {
     ResourceId id = 0;
-    // Имя в списке: имя встроенного меша, путь файла или имя меша в модели.
+    // Имя в списке: имя встроенного ресурса, путь файла или имя вложенного.
     std::string label;
-    // Файл модели, в которой лежит меш; пусто у встроенных и у файлов.
+    // Файл, в котором лежит вложенный ресурс; пусто у встроенных и у файлов.
     std::string group;
-    // Встроенный ресурс движка (cube, sphere, plane), а не файл проекта.
+    // Встроенный ресурс движка (cube, Standard), а не файл проекта.
     bool builtin = false;
 };
 
-// Вид ресурса, который ждёт поле с подсказкой hint: MeshData::kResourceKind,
-// TextureData::kResourceKind или kSceneKind. Пусто - поле не ссылка на ресурс.
-inline constexpr std::string_view kSceneKind = "scene";
-std::string_view fieldKind(PropertyHint hint);
+// Вид ресурса файла path: по загрузчику, а сцена - SceneSerializer::kResourceKind
+// (её загрузчик не читает). Пусто - движок такие файлы не читает.
+std::string_view fileKind(const std::filesystem::path& path, const ResourceCache& cache);
 
-// Всё, что подходит полю: встроенные ресурсы, затем ресурсы проекта по
-// путям (у мешей - по файлам моделей). Модели загружаются: ID их мешей
-// появляются при загрузке. resources - nullptr без проекта.
-std::vector<ResourceChoice> resourceChoices(PropertyHint hint, const ResourceDatabase* resources, ResourceCache& cache);
+// Вложенные ресурсы файла file (путь path), которые в нём сейчас есть, в
+// порядке файла. Файл читается, только если в таких файлах бывают вложенные
+// ресурсы (ResourceCache::nestedKindsOf).
+std::vector<ResourceId> nestedResources(ResourceId file, const std::filesystem::path& path, ResourceCache& cache);
 
-// Что положить в поле, если на него отпустили ресурс id: сам ресурс, если
-// он подходит, а модель на поле меша - её первый меш, как в Unity. nullopt -
+// Всё, что подходит полю ссылки на ресурсы вида kind (T::kResourceKind):
+// встроенные ресурсы, затем ресурсы проекта по путям, вложенные - под своим
+// файлом. Файлы с вложенными ресурсами этого вида загружаются: так видно,
+// какие из них ещё есть в файле. resources - nullptr без проекта.
+std::vector<ResourceChoice> resourceChoices(
+    std::string_view kind,
+    const ResourceDatabase* resources,
+    ResourceCache& cache
+);
+
+// Что положить в поле вида kind, если на него отпустили ресурс id: сам
+// ресурс, если он подходит, а файл с вложенными ресурсами этого вида -
+// первый из них (модель на поле меша - её первый меш, как в Unity). nullopt -
 // ресурс не подходит.
 std::optional<ResourceId> resourceForField(
-    PropertyHint hint,
+    std::string_view kind,
     ResourceId id,
     const ResourceDatabase* resources,
     ResourceCache& cache

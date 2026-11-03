@@ -22,9 +22,11 @@ Status marks: see [README](README.md).
   paths relative to the project folder.
 - A new ID is 64 random bits, so two projects practically never give the
   same ID; it is always at least `builtin::kFirstProjectId`.
-- **Built-in resources** (the cube, sphere and plane meshes) have small
-  constant IDs below `kFirstProjectId` and no file; a project ID never
-  collides with them.
+- **Built-in resources** (the cube, sphere and plane meshes, the `Standard`
+  and `Error` shaders) have small constant IDs below `kFirstProjectId` and
+  no file; a project ID never collides with them. They are one table,
+  `builtinResourceTable()`: ID, kind, name and how to make the data; the
+  cache makes them from it and the editor lists and names them from it.
 - In a property the reference is a `ResourceRef`; 0 means "none".
 
 ## Keeping IDs right [done]
@@ -93,6 +95,11 @@ own `ResourceId`, so a `ResourceRef` stays a single 64-bit number.
 - Rename and move: `.meta` follows the file, all IDs stay. A copy (a repeated
   file ID found by `scan`) gets a new file ID and new nested IDs.
 - `ResourceDatabase` knows, for every ID, the file and the key inside it.
+- A loader names the kinds of nested resources its files may hold
+  (`ResourceLoader::nestedKinds`, meshes for glTF): by them the editor knows
+  which files to read to show nested resources, without reading the rest.
+  The cache keeps the resources of a file in file order
+  (`ResourceCache::resourcesOf`).
 - `.meta` gets a format version (`FileFormat`), version 1.
 
 ### Cache and revisions

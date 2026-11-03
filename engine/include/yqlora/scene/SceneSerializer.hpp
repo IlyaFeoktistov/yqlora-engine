@@ -17,6 +17,10 @@ class TypeRegistry;
 // по именам типов из реестра, значения читаются и пишутся через их свойства.
 class YQLORA_API SceneSerializer {
 public:
+    // Вид ресурса файла сцены для ссылок на него. Кэш ресурсов сцены не
+    // читает: их загружает SceneSerializer.
+    static constexpr std::string_view kResourceKind = "scene";
+
     // Расширение файлов сцен.
     static constexpr std::string_view fileExtension()
     {

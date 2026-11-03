@@ -3,6 +3,7 @@
 #include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -40,6 +41,8 @@ struct Bounds {
 // если смотреть снаружи: задние грани отсекаются.
 struct MeshData {
     static constexpr std::string_view kResourceKind = "mesh";
+    // Индексов на треугольник.
+    static constexpr std::size_t kTriangleCorners = 3;
 
     std::vector<Vertex> vertices;
     std::vector<std::uint32_t> indices;

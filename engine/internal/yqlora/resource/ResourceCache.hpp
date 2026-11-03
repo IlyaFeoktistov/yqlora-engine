@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -89,6 +90,19 @@ public:
     // загрузчика для таких файлов нет.
     std::string_view kindOf(const std::filesystem::path& file) const;
 
+    // Ресурсы файла file в порядке файла и те, которых в нём уже нет; файл
+    // читается, если ещё не читался. Пусто, если файла нет в проекте.
+    std::span<const ResourceId> resourcesOf(ResourceId file);
+
+    // Виды вложенных ресурсов, которые бывают в таких файлах, по загрузчику
+    // (ResourceLoader::nestedKinds); файл не читается.
+    std::span<const std::string_view> nestedKindsOf(const std::filesystem::path& file) const;
+
+    // Вид данных ресурса id; его файл читается, если ещё не читался. Пусто,
+    // если ресурса нет или он не загрузился. Не пишет в лог: так проверяют,
+    // жив ли вложенный ресурс из .meta.
+    std::string_view loadedKind(ResourceId id);
+
     // nullptr, если к ресурсу ещё не обращались.
     const ResourceStatus* status(ResourceId id) const;
 
@@ -134,6 +148,8 @@ private:
     static FileStamp stampOf(const std::filesystem::path& full);
 
     Found getData(ResourceId id, std::string_view kind);
+    // Запись ресурса id: встроенный делается, файл читается. nullptr - ресурса нет.
+    const Entry* lookup(ResourceId id);
     // Встроенный ресурс id в записи; false, если такого нет.
     bool makeBuiltin(ResourceId id);
     // Поля, которые загрузчик пишет в настройки импорта файла.

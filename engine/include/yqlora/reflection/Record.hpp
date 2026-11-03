@@ -1,5 +1,6 @@
 #pragma once
 
+#include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/reflection/Property.hpp"
 
 #include <concepts>
@@ -49,20 +50,15 @@ struct RecordFields;
 template <typename T>
 concept Record = requires { RecordFields<T>::fields(); };
 
-// Одно поле записи или скрипта: имя, член класса, подсказка редактору, у
-// перечисления - имена значений, и атрибуты в цепочке: field(...).range(0, 100).
+// Одно поле записи или скрипта: имя, член класса, подсказка редактору и
+// атрибуты в цепочке: field(...).range(0, 100). Имена значений перечисления -
+// из его таблицы, см. EnumNames.
 template <typename Owner, typename Value>
 struct RecordField : PropertyAttributeSetters<RecordField<Owner, Value>> {
-    RecordField(
-        std::string_view fieldName,
-        Value Owner::* fieldMember,
-        PropertyHint fieldHint,
-        std::vector<std::string> names
-    )
+    RecordField(std::string_view fieldName, Value Owner::* fieldMember, PropertyHint fieldHint)
         : name(fieldName)
         , member(fieldMember)
         , hint(fieldHint)
-        , enumNames(std::move(names))
     {
     }
 
@@ -74,19 +70,13 @@ struct RecordField : PropertyAttributeSetters<RecordField<Owner, Value>> {
     std::string_view name;
     Value Owner::* member;
     PropertyHint hint = PropertyHint::None;
-    std::vector<std::string> enumNames;
     PropertyAttributes attributes;
 };
 
 template <typename Owner, typename Value>
-RecordField<Owner, Value> field(
-    std::string_view name,
-    Value Owner::* member,
-    PropertyHint hint = PropertyHint::None,
-    std::initializer_list<std::string_view> enumNames = {}
-)
+RecordField<Owner, Value> field(std::string_view name, Value Owner::* member, PropertyHint hint = PropertyHint::None)
 {
-    return {name, member, hint, std::vector<std::string>(enumNames.begin(), enumNames.end())};
+    return {name, member, hint};
 }
 
 // Запись хранится как RecordValue: поля по порядку описания.
@@ -151,9 +141,6 @@ std::vector<Property> recordFieldsOf()
             (result.push_back([&] {
                 using Value = std::remove_cvref_t<decltype(std::declval<T>().*(fields.member))>;
                 Property described = Property::field(std::string(fields.name), propertyTypeOf<Value>(), fields.hint);
-                if (!fields.enumNames.empty()) {
-                    described.setEnumNames(fields.enumNames);
-                }
                 described.attributes() = fields.attributes;
                 describeValue<Value>(described);
 
@@ -168,11 +155,16 @@ std::vector<Property> recordFieldsOf()
 }
 
 // Дописывает свойству со значением типа Value то, что не видно по одному
-// PropertyType: тип элементов списка и поля записи.
+// PropertyType: имена значений перечисления, тип элементов списка и поля записи.
 template <typename Value>
 void describeValue(Property& property)
 {
-    if constexpr (kIsListProperty<Value>) {
+    static_assert(!std::is_enum_v<Value> || NamedEnum<Value>, "Enum property: add YQLORA_ENUM_NAMES for its enum");
+    if constexpr (NamedEnum<Value>) {
+        property.setEnumNames(
+            std::vector<std::string>(std::begin(EnumNames<Value>::names), std::end(EnumNames<Value>::names))
+        );
+    } else if constexpr (kIsListProperty<Value>) {
         using Element = typename Value::value_type;
         property.setElementType(propertyTypeOf<Element>());
         if constexpr (Record<Element>) {

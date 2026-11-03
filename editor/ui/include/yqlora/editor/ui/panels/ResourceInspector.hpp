@@ -1,29 +1,31 @@
 #pragma once
 
+#include "yqlora/editor/ui/inspectors/ResourceKindInspector.hpp"
+
 #include "yqlora/editor/ResourceInspection.hpp"
 
-#include <optional>
+#include <functional>
+#include <map>
+#include <memory>
+#include <string_view>
 
 namespace yqlora::editor {
 
 struct EditorContext;
 
-// Инспектор выбранного в "Файлах" ресурса: что в файле (меши модели,
-// размер и превью текстуры) и настройки импорта. Правка настроек копится
-// здесь и попадает в .meta по кнопке "Применить", как в Unity.
+// Инспектор выбранного в "Файлах" ресурса: имя, вид и ошибка загрузки, а
+// дальше - инспектор его вида (ModelInspector, TextureInspector).
 class ResourceInspector {
 public:
+    ResourceInspector();
+    ~ResourceInspector();
+
     void draw(EditorContext& context, const ResourceInspection& inspection);
 
 private:
-    void drawModel(const ResourceInspection& inspection);
-    void drawTexture(EditorContext& context, const ResourceInspection& inspection);
-    void drawImportSettings(EditorContext& context, const ResourceInspection& inspection);
-
-    // Чьи настройки сейчас правятся: другой файл - правка начинается заново.
+    // Чей файл сейчас показан: другой файл - правка настроек начинается заново.
     ResourceId m_id = 0;
-    std::optional<ModelImport> m_model;
-    std::optional<TextureSampling> m_texture;
+    std::map<std::string_view, std::unique_ptr<ResourceKindInspector>, std::less<>> m_inspectors;
 };
 
 } // namespace yqlora::editor

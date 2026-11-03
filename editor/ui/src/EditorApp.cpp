@@ -239,13 +239,13 @@ std::optional<ScriptBuildSetup> EditorApp::scriptBuildSetup(const Project& proje
 
         return std::nullopt;
     }
-    const auto configuration = static_cast<std::size_t>(project.settings().get<ScriptsSettings>().configuration);
+    const ScriptConfiguration configuration = project.settings().get<ScriptsSettings>().configuration;
 
     return ScriptBuildSetup{
         .projectDirectory = project.directory(),
         .sdkDirectory = sdkDirectory(),
         .toolchain = *m_toolchain,
-        .configuration = std::string(kScriptConfigurationNames[configuration]),
+        .configuration = std::string(enumName(configuration)),
         .quiet = quiet,
     };
 }

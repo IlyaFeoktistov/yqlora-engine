@@ -72,7 +72,8 @@ private:
     std::filesystem::path m_renaming;
     std::string m_newName;
     bool m_createRequested = false;
-    NewResourceKind m_createKind = NewResourceKind::Folder;
+    // Что создаёт открытое окно создания; nullptr - окно ещё не открывали.
+    const NewResourceType* m_createType = nullptr;
     std::filesystem::path m_createFolder;
     std::string m_createName;
     bool m_deleteRequested = false;

@@ -16,7 +16,7 @@ namespace {
 
 [[noreturn]] void throwNotBuilt(GraphicsApi api)
 {
-    throw std::runtime_error(std::string("Renderer backend is not built: ") + std::string(graphicsApiName(api)));
+    throw std::runtime_error(std::string("Renderer backend is not built: ") + std::string(enumName(api)));
 }
 
 } // namespace

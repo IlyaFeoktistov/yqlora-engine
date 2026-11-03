@@ -59,6 +59,9 @@ private:
     std::set<std::string, std::less<>> m_used;
 };
 
+// Ключ без вида, с номером: "mesh:Door#1" -> "Door#1", "mesh:#2" -> "#2".
+YQLORA_API std::string_view subresourceLocalKey(std::string_view key);
+
 // Имя элемента файла по его ключу, без вида и номера: "mesh:Door#1" ->
 // "Door". У элемента без имени - пустое.
 YQLORA_API std::string_view subresourceName(std::string_view key);
@@ -87,6 +90,13 @@ public:
     // Вид ресурса самого файла (MeshData::kResourceKind и другие): по нему
     // редактор, не читая файл, знает, что в нём, например для списка текстур.
     virtual std::string_view kind() const = 0;
+
+    // Виды вложенных ресурсов, которые бывают в таких файлах (меши модели):
+    // по ним редактор знает, какие файлы читать для списка мешей.
+    virtual std::span<const std::string_view> nestedKinds() const
+    {
+        return {};
+    }
 
     virtual LoadResult load(const LoadRequest& request) const = 0;
 };

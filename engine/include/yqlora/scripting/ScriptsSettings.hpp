@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/project/SettingsSection.hpp"
+#include "yqlora/reflection/EnumNames.hpp"
 
 #include <array>
 #include <string_view>
@@ -15,10 +16,6 @@ enum class ScriptConfiguration {
     Release,
 };
 
-// Имена по порядку ScriptConfiguration: в файле настроек, в редакторе и как
-// CMAKE_BUILD_TYPE.
-inline constexpr std::array<std::string_view, 2> kScriptConfigurationNames{"Debug", "Release"};
-
 // Раздел Scripts настроек проекта: сборка модуля игры из папки scripts/.
 class YQLORA_API ScriptsSettings final : public SettingsSection {
 public:
@@ -28,3 +25,6 @@ public:
 };
 
 } // namespace yqlora
+
+// Имена конфигураций - они же CMAKE_BUILD_TYPE.
+YQLORA_ENUM_NAMES(yqlora::ScriptConfiguration, "Debug", "Release")

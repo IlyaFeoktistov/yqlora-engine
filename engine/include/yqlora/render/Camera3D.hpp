@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
+#include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/scene/Layers.hpp"
 #include "yqlora/scene/Node3D.hpp"
 
@@ -116,3 +117,5 @@ private:
 inline constexpr char kCameraOrderProperty[] = "order";
 
 } // namespace yqlora
+
+YQLORA_ENUM_NAMES(yqlora::CameraClear, "ColorAndDepth", "DepthOnly", "Nothing")

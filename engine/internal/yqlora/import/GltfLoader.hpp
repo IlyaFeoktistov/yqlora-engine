@@ -19,6 +19,7 @@ public:
 
     std::span<const std::string_view> extensions() const override;
     std::string_view kind() const override;
+    std::span<const std::string_view> nestedKinds() const override;
     LoadResult load(const LoadRequest& request) const override;
 };
 

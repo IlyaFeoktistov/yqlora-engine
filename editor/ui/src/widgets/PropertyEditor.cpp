@@ -6,7 +6,6 @@
 #include "yqlora/editor/ui/widgets/ResourceField.hpp"
 
 #include "yqlora/editor/PropertyValues.hpp"
-#include "yqlora/editor/ResourceChoices.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
 
 #include "yqlora/i18n/Translate.hpp"
@@ -606,8 +605,8 @@ void valueField(
         result.changed = nodeCombo(context.scene, std::get<NodeRef>(value)) || result.changed;
         break;
     case PropertyType::Resource:
-        if (!fieldKind(property.hint()).empty()) {
-            result.changed = resourceField(property.hint(), std::get<ResourceRef>(value), context) || result.changed;
+        if (const std::string& kind = property.attributes().resourceKind; !kind.empty()) {
+            result.changed = resourceField(kind, std::get<ResourceRef>(value), context) || result.changed;
         } else {
             ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted(resourceLabel(std::get<ResourceRef>(value), context.resources).c_str());

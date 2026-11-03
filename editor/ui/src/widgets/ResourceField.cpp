@@ -1,12 +1,12 @@
 #include "yqlora/editor/ui/widgets/ResourceField.hpp"
 
 #include "yqlora/editor/ui/style/Icons.hpp"
+#include "yqlora/editor/ui/style/ResourceIcons.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
 
 #include "yqlora/editor/ResourceChoices.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
 #include "yqlora/i18n/Translate.hpp"
-#include "yqlora/render/MeshData.hpp"
 #include "yqlora/render/Renderer.hpp"
 #include "yqlora/render/TextureData.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
@@ -31,18 +31,6 @@ constexpr float kPickerListLines = 12.0f;
 // Превью выбранной текстуры под полем и картинки в окне выбора, в строках поля.
 constexpr float kPreviewLines = 3.0f;
 constexpr float kThumbnailLines = 1.5f;
-
-const char* iconFor(std::string_view kind)
-{
-    if (kind == MeshData::kResourceKind) {
-        return icons::kMesh;
-    }
-    if (kind == TextureData::kResourceKind) {
-        return icons::kImageFile;
-    }
-
-    return kind == kSceneKind ? icons::kScene : icons::kFile;
-}
 
 std::string lower(std::string_view text)
 {
@@ -72,9 +60,8 @@ void textureImage(ResourceId id, const PropertyEditorContext& context, float lin
 }
 
 // Окно выбора; true, если выбрали.
-bool drawPicker(PropertyHint hint, ResourceRef& value, const PropertyEditorContext& context, std::string& search)
+bool drawPicker(std::string_view kind, ResourceRef& value, const PropertyEditorContext& context, std::string& search)
 {
-    const std::string_view kind = fieldKind(hint);
     if (ImGui::IsWindowAppearing()) {
         search.clear();
         ImGui::SetKeyboardFocusHere();
@@ -97,7 +84,7 @@ bool drawPicker(PropertyHint hint, ResourceRef& value, const PropertyEditorConte
         bool builtinHeader = false;
         bool assetsHeader = false;
         std::string group;
-        for (const ResourceChoice& choice : resourceChoices(hint, context.resources, context.cache)) {
+        for (const ResourceChoice& choice : resourceChoices(kind, context.resources, context.cache)) {
             if (!needle.empty() && lower(choice.label + " " + choice.group).find(needle) == std::string::npos) {
                 continue;
             }
@@ -119,7 +106,7 @@ bool drawPicker(PropertyHint hint, ResourceRef& value, const PropertyEditorConte
                 textureImage(choice.id, context, kThumbnailLines);
                 ImGui::SameLine();
             }
-            const std::string label = std::string(iconFor(kind)) + "  " + choice.label;
+            const std::string label = std::string(resourceIcon(kind)) + "  " + choice.label;
             if (ImGui::Selectable(label.c_str(), choice.id == value.id)) {
                 choose(choice.id);
             }
@@ -136,11 +123,10 @@ bool drawPicker(PropertyHint hint, ResourceRef& value, const PropertyEditorConte
 
 } // namespace
 
-bool resourceField(PropertyHint hint, ResourceRef& value, const PropertyEditorContext& context)
+bool resourceField(std::string_view kind, ResourceRef& value, const PropertyEditorContext& context)
 {
     static std::string search;
-    const std::string_view kind = fieldKind(hint);
-    const std::string kindName = tr("editor.resourceField.kind." + std::string(kind));
+    const std::string kindName = tr("editor.resourceKind." + std::string(kind));
     const std::string name = value.id == 0 ? tr("editor.inspector.none") + " (" + kindName + ")"
                                            : resourceLabel(value, context.resources);
     bool changed = false;
@@ -152,7 +138,7 @@ bool resourceField(PropertyHint hint, ResourceRef& value, const PropertyEditorCo
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
     ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_FrameBgHovered));
-    const std::string label = std::string(iconFor(kind)) + "  " + name + "##field";
+    const std::string label = std::string(resourceIcon(kind)) + "  " + name + "##field";
     const bool open = ImGui::Button(label.c_str(), ImVec2(fieldWidth, 0.0f));
     ImGui::PopStyleColor(2);
     ImGui::PopStyleVar();
@@ -170,7 +156,7 @@ bool resourceField(PropertyHint hint, ResourceRef& value, const PropertyEditorCo
 
     // Вся группа - цель для перетаскивания из "Файлов".
     if (const auto dropped = acceptResourceDrop()) {
-        if (const auto taken = resourceForField(hint, *dropped, context.resources, context.cache)) {
+        if (const auto taken = resourceForField(kind, *dropped, context.resources, context.cache)) {
             value.id = *taken;
             changed = true;
         }
@@ -179,7 +165,7 @@ bool resourceField(PropertyHint hint, ResourceRef& value, const PropertyEditorCo
     ImGui::SetNextWindowSize(ImVec2(ImGui::GetFrameHeight() * kPickerWidthLines, 0.0f));
     if (ImGui::BeginPopup(kPickerPopup)) {
         ImGui::TextDisabled("%s: %s", tr("editor.resourceField.choose").c_str(), kindName.c_str());
-        changed = drawPicker(hint, value, context, search) || changed;
+        changed = drawPicker(kind, value, context, search) || changed;
         ImGui::EndPopup();
     }
 

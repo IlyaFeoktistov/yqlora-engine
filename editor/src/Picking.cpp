@@ -22,8 +22,6 @@ namespace yqlora::editor {
 
 namespace {
 
-constexpr std::size_t kTriangleVertices = 3;
-
 // Пересечение луча с треугольником (алгоритм Мёллера - Трумбора).
 // Возвращает t точки пересечения; обе стороны треугольника считаются.
 std::optional<float> intersect(const Ray& ray, const Vec3& a, const Vec3& b, const Vec3& c)
@@ -144,7 +142,7 @@ void pickMesh(const Node3D& node, const MeshData& mesh, const Ray& worldRay, std
     // Нормали переводятся обратной транспонированной матрицей: так они
     // остаются перпендикулярны поверхности и при неравномерном масштабе.
     const Mat3 normalToWorld = glm::transpose(Mat3(toLocal));
-    for (std::size_t i = 0; i + kTriangleVertices <= mesh.indices.size(); i += kTriangleVertices) {
+    for (std::size_t i = 0; i + MeshData::kTriangleCorners <= mesh.indices.size(); i += MeshData::kTriangleCorners) {
         const Vec3& a = mesh.vertices[mesh.indices[i]].position;
         const Vec3& b = mesh.vertices[mesh.indices[i + 1]].position;
         const Vec3& c = mesh.vertices[mesh.indices[i + 2]].position;

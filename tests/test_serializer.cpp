@@ -155,6 +155,12 @@ enum class Mood {
     Angry,
 };
 
+} // namespace
+
+YQLORA_ENUM_NAMES(Mood, "Calm", "Angry")
+
+namespace {
+
 struct Guard final : Node3D {
     YQLORA_TYPE(Guard, Node3D)
 
@@ -171,7 +177,6 @@ TEST_CASE_FIXTURE(Fixture, "SceneSerializer: enums by name, node and resource re
 {
     registry.registerNode<Guard>()
         .property("mood", &Guard::mood)
-        .enumNames({"Calm", "Angry"})
         .property("target", &Guard::target)
         .property("weapon", &Guard::weapon);
 

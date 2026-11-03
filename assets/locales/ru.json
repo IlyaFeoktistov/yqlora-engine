@@ -255,8 +255,6 @@
             "restore": "Вернуть раскладку"
         },
         "resource": {
-            "model": "Модель",
-            "texture": "Текстура",
             "file": "Файл",
             "nodes": "Узлы",
             "meshes": "Меши",
@@ -282,12 +280,14 @@
             "assets": "Ассеты",
             "nothing": "Ничего не найдено",
             "pick": "Выбрать",
-            "choose": "Выбор",
-            "kind": {
-                "mesh": "Меш",
-                "texture": "Текстура",
-                "scene": "Сцена"
-            }
+            "choose": "Выбор"
+        },
+        "resourceKind": {
+            "mesh": "Меш",
+            "texture": "Текстура",
+            "scene": "Сцена",
+            "shader": "Шейдер",
+            "model": "Модель"
         }
     },
     "projects": {

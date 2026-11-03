@@ -5,12 +5,14 @@
 
 #include <yqlora/core/EngineServices.hpp>
 #include <yqlora/editor/EditorSession.hpp>
+#include <yqlora/editor/ModelInspection.hpp>
 #include <yqlora/editor/Picking.hpp>
 #include <yqlora/editor/ProjectSetup.hpp>
 #include <yqlora/editor/ResourceChoices.hpp>
 #include <yqlora/editor/ResourceInspection.hpp>
 #include <yqlora/editor/ResourceInstance.hpp>
 #include <yqlora/editor/ResourceLabel.hpp>
+#include <yqlora/editor/TextureInspection.hpp>
 #include <yqlora/i18n/Translate.hpp>
 #include <yqlora/import/ModelData.hpp>
 #include <yqlora/input/Input.hpp>
@@ -19,6 +21,7 @@
 #include <yqlora/render/BuiltinMeshes.hpp>
 #include <yqlora/render/MeshData.hpp>
 #include <yqlora/render/MeshRenderer.hpp>
+#include <yqlora/render/TextureData.hpp>
 #include <yqlora/resource/BuiltinResources.hpp>
 #include <yqlora/resource/ResourceCache.hpp>
 #include <yqlora/resource/ResourceLoader.hpp>
@@ -26,6 +29,8 @@
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
 #include <yqlora/scripting/GameModule.hpp>
+#include <yqlora/shader/BuiltinShaders.hpp>
+#include <yqlora/shader/ShaderData.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -224,22 +229,33 @@ TEST_CASE_FIXTURE(Fixture, "Resource inspection: meshes of a model, import setti
     const auto inspected = inspectResource(session, model);
     REQUIRE(inspected);
     CHECK(inspected->kind == ModelData::kResourceKind);
-    CHECK(inspected->nodes == 4);
-    REQUIRE(inspected->meshes.size() == 2);
-    CHECK(inspected->meshes[0].label == "Door");
-    CHECK(inspected->meshes[0].vertices == 3);
-    CHECK(inspected->meshes[0].triangles == 1);
-    CHECK(inspected->modelImport == ModelImport{});
+    REQUIRE(inspected->status);
+    CHECK(inspected->status->state == ResourceState::Ready);
     CHECK(inspectResource(session, mesh("mesh:Door")) == std::nullopt);
+    const auto scene = inspectResource(session, session.project()->settings().get<GeneralSettings>().startupScene.id);
+    REQUIRE(scene);
+    CHECK(scene->kind == SceneSerializer::kResourceKind);
+    CHECK_FALSE(scene->status);
+
+    const auto house = inspectModel(session, model);
+    REQUIRE(house);
+    CHECK(house->nodes == 4);
+    REQUIRE(house->meshes.size() == 2);
+    CHECK(house->meshes[0].label == "Door");
+    CHECK(house->meshes[0].vertices == 3);
+    CHECK(house->meshes[0].triangles == 1);
+    CHECK(house->import == ModelImport{});
+    CHECK_FALSE(inspectModel(session, mesh("mesh:Door")));
+    CHECK_FALSE(inspectTexture(session, model));
 
     const ResourceId door = mesh("mesh:Door");
     const std::uint64_t revision = session.resources().status(door)->revision;
-    REQUIRE(applyImportSettings(session, model, ModelImport{0.5f}));
+    REQUIRE(applyModelImport(session, model, ModelImport{0.5f}));
     CHECK(session.resources().status(door)->revision > revision);
     CHECK(session.resources().find<MeshData>(door)->vertices[1].position.x == doctest::Approx(0.5f));
-    CHECK(inspectResource(session, model)->modelImport == ModelImport{0.5f});
+    CHECK(inspectModel(session, model)->import == ModelImport{0.5f});
     // Масштаб 1 - значение по умолчанию, в .meta его нет.
-    REQUIRE(applyImportSettings(session, model, ModelImport{}));
+    REQUIRE(applyModelImport(session, model, ModelImport{}));
     CHECK(session.project()->resources().importSettings(model) == "{}");
 }
 
@@ -263,8 +279,8 @@ TEST_CASE("Labels of nested resources and placement in the viewport")
     CHECK(subresourceName("mesh:Door#1") == "Door");
     CHECK(subresourceName("mesh:Door#1#1") == "Door#1");
     CHECK(subresourceName("mesh:#2").empty());
-    CHECK(subresourceLabel("mesh:Door#1") == "Door#1");
-    CHECK(subresourceLabel("mesh:#2") == "#2");
+    CHECK(subresourceLocalKey("mesh:Door#1") == "Door#1");
+    CHECK(subresourceLocalKey("mesh:#2") == "#2");
 
     // Сверху на землю - точка на земле; вдоль земли - на фиксированном расстоянии.
     CHECK(placementPoint({Vec3(1.0f, 5.0f, 0.0f), Vec3(0.0f, -2.0f, 0.0f)}) == Vec3(1.0f, 0.0f, 0.0f));
@@ -274,10 +290,10 @@ TEST_CASE("Labels of nested resources and placement in the viewport")
     CHECK(far.y == doctest::Approx(1000.0f - kPlacementDistance));
 }
 
-TEST_CASE_FIXTURE(Fixture, "resourceChoices: built-in meshes first, then the meshes of models by file; files of a kind")
+TEST_CASE_FIXTURE(Fixture, "resourceChoices: built-in resources first, then nested ones by file; files of a kind")
 {
     const auto& resources = session.project()->resources();
-    const auto meshes = resourceChoices(PropertyHint::Mesh, &resources, session.resources());
+    const auto meshes = resourceChoices(MeshData::kResourceKind, &resources, session.resources());
     REQUIRE(meshes.size() == builtinMeshes().size() + 2);
     CHECK(meshes[0].builtin);
     CHECK(meshes[0].label == "cube");
@@ -288,25 +304,52 @@ TEST_CASE_FIXTURE(Fixture, "resourceChoices: built-in meshes first, then the mes
     CHECK(door.id == mesh("mesh:Door"));
 
     // Сцены - файлы верхнего уровня, без групп; текстур в проекте нет.
-    const auto scenes = resourceChoices(PropertyHint::Scene, &resources, session.resources());
+    const auto scenes = resourceChoices(SceneSerializer::kResourceKind, &resources, session.resources());
     REQUIRE(scenes.size() == 1);
     CHECK(scenes[0].group.empty());
-    CHECK(resourceChoices(PropertyHint::Texture, &resources, session.resources()).empty());
-    CHECK(resourceChoices(PropertyHint::Layer, &resources, session.resources()).empty());
+    CHECK(resourceChoices(TextureData::kResourceKind, &resources, session.resources()).empty());
+    // Встроенные ресурсы любого вида - из одной таблицы.
+    const auto shaders = resourceChoices(ShaderData::kResourceKind, nullptr, session.resources());
+    REQUIRE(shaders.size() == builtinShaders().size());
+    CHECK(shaders[0].label == "Standard");
     // Без проекта - только встроенные.
-    CHECK(resourceChoices(PropertyHint::Mesh, nullptr, session.resources()).size() == builtinMeshes().size());
+    CHECK(resourceChoices(MeshData::kResourceKind, nullptr, session.resources()).size() == builtinMeshes().size());
 }
 
 TEST_CASE_FIXTURE(Fixture, "resourceForField: a model on a mesh field gives its first mesh, a wrong kind is refused")
 {
     const auto& resources = session.project()->resources();
     ResourceCache& cache = session.resources();
-    CHECK(resourceForField(PropertyHint::Mesh, model, &resources, cache) == mesh("mesh:Door"));
-    CHECK(resourceForField(PropertyHint::Mesh, mesh("mesh:Frame"), &resources, cache) == mesh("mesh:Frame"));
-    CHECK(resourceForField(PropertyHint::Mesh, builtin::kCubeMesh, &resources, cache) == builtin::kCubeMesh);
+    CHECK(resourceForField(MeshData::kResourceKind, model, &resources, cache) == mesh("mesh:Door"));
+    CHECK(resourceForField(MeshData::kResourceKind, mesh("mesh:Frame"), &resources, cache) == mesh("mesh:Frame"));
+    CHECK(resourceForField(MeshData::kResourceKind, builtin::kCubeMesh, &resources, cache) == builtin::kCubeMesh);
     const ResourceId scene = session.project()->settings().get<GeneralSettings>().startupScene.id;
-    CHECK(resourceForField(PropertyHint::Scene, scene, &resources, cache) == scene);
-    CHECK_FALSE(resourceForField(PropertyHint::Mesh, scene, &resources, cache));
-    CHECK_FALSE(resourceForField(PropertyHint::Texture, model, &resources, cache));
-    CHECK_FALSE(resourceForField(PropertyHint::Texture, mesh("mesh:Door"), &resources, cache));
+    CHECK(resourceForField(SceneSerializer::kResourceKind, scene, &resources, cache) == scene);
+    CHECK_FALSE(resourceForField(MeshData::kResourceKind, scene, &resources, cache));
+    CHECK_FALSE(resourceForField(TextureData::kResourceKind, model, &resources, cache));
+    CHECK_FALSE(resourceForField(TextureData::kResourceKind, mesh("mesh:Door"), &resources, cache));
+    CHECK_FALSE(resourceForField(TextureData::kResourceKind, builtin::kCubeMesh, &resources, cache));
+}
+
+TEST_CASE_FIXTURE(Fixture, "resourceChoices: nested resources follow the file order, a removed one is not offered")
+{
+    const ResourceId frame = mesh("mesh:Frame");
+    GltfBuilder gltf = house();
+    gltf.json["meshes"] = {gltf.json["meshes"][1]};
+    gltf.json["nodes"][1].erase("mesh");
+    gltf.json["nodes"][2].erase("mesh");
+    gltf.json["nodes"][3]["mesh"] = 0;
+    const fs::path file = directory / "models" / "house.glb";
+    const auto time = fs::last_write_time(file);
+    gltf.writeGlb(file);
+    fs::last_write_time(file, time + std::chrono::seconds(2));
+    session.refreshResources();
+
+    // Door остался в .meta, но в файле его больше нет.
+    const auto& resources = session.project()->resources();
+    CHECK(resources.subresources(model).contains("mesh:Door"));
+    const auto meshes = resourceChoices(MeshData::kResourceKind, &resources, session.resources());
+    REQUIRE(meshes.size() == builtinMeshes().size() + 1);
+    CHECK(meshes.back().id == frame);
+    CHECK(resourceForField(MeshData::kResourceKind, model, &resources, session.resources()) == frame);
 }

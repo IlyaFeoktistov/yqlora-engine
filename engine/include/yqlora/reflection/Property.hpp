@@ -249,15 +249,12 @@ YQLORA_API PropertyValue defaultPropertyValue(PropertyType type);
 enum class PropertyHint {
     None,
     Color,         // Vec3 или Vec4 как цвет RGB или RGBA с палитрой
-    Mesh,          // ссылка на ресурс меша: выбор из доступных мешей
     Angle,         // градусы: при перетаскивании значение меняется медленнее
     Layer,         // int: один слой узла из списка
     Layers,        // int: набор слоёв (LayerMask), флажок на каждый
-    Scene,         // ссылка на ресурс сцены: выбор из сцен проекта
     LayerNames,    // список строк: имена слоёв по номеру, длина постоянная, слой 0 не меняется
     ComponentType, // строка: имя типа компонента, выбор из зарегистрированных
     InputControl,  // строка: имя клавиши или кнопки мыши, задаётся нажатием
-    Texture,       // ссылка на ресурс текстуры: выбор из картинок проекта с превью
 };
 
 // Как свойство показывается и сохраняется. Общее для всех языков, на которых
@@ -278,6 +275,10 @@ struct PropertyAttributes {
     bool shown = true;
     // Прежние имена: файл с таким именем читается, пишется уже новое.
     std::vector<std::string> formerly;
+    // Вид ресурса, на который ведёт ссылка (у списка ссылок - его элементы):
+    // T::kResourceKind. По нему инспектор предлагает ресурсы. Пусто - ссылка
+    // только показывается.
+    std::string resourceKind;
 };
 
 // Атрибуты в цепочке описания свойства: .range(0, 100).tooltip("..."). Одни
@@ -332,6 +333,14 @@ public:
     Self& formerly(std::string oldName)
     {
         edit().formerly.push_back(std::move(oldName));
+
+        return self();
+    }
+
+    // .resource(MeshData::kResourceKind), см. PropertyAttributes::resourceKind.
+    Self& resource(std::string_view kind)
+    {
+        edit().resourceKind = std::string(kind);
 
         return self();
     }

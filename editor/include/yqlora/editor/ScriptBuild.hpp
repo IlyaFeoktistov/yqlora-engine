@@ -18,7 +18,7 @@ struct ScriptBuildSetup {
     std::filesystem::path projectDirectory;
     std::filesystem::path sdkDirectory;
     ScriptToolchain toolchain;
-    // CMAKE_BUILD_TYPE, см. kScriptConfigurationNames.
+    // CMAKE_BUILD_TYPE, см. EnumNames<ScriptConfiguration>.
     std::string configuration;
     // Сборка не по просьбе человека (окно получило фокус): если собирать
     // нечего, в лог не пишется ничего.

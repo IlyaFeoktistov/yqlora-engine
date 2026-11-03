@@ -143,9 +143,6 @@ private:
     static void addField(Builder& builder, const Field& field)
     {
         builder.property(std::string(field.name), field.member, field.hint);
-        if (!field.enumNames.empty()) {
-            builder.enumNames(std::vector<std::string_view>(field.enumNames.begin(), field.enumNames.end()));
-        }
         builder.withAttributes(field.attributes);
     }
 

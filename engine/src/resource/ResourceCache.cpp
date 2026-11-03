@@ -54,6 +54,26 @@ std::string_view ResourceCache::kindOf(const fs::path& file) const
     return loader ? loader->kind() : std::string_view();
 }
 
+std::span<const ResourceId> ResourceCache::resourcesOf(ResourceId file)
+{
+    const auto path = m_project ? m_project->resources().path(file) : std::nullopt;
+    if (!path) {
+        return {};
+    }
+    if (!m_files.contains(*path)) {
+        loadFile(*path);
+    }
+
+    return m_files.at(*path).ids;
+}
+
+std::span<const std::string_view> ResourceCache::nestedKindsOf(const fs::path& file) const
+{
+    const ResourceLoader* loader = loaderFor(file);
+
+    return loader ? loader->nestedKinds() : std::span<const std::string_view>();
+}
+
 const ResourceStatus* ResourceCache::status(ResourceId id) const
 {
     const auto it = m_entries.find(id);
@@ -120,25 +140,42 @@ ResourceCache::Found ResourceCache::getData(ResourceId id, std::string_view kind
     if (id == 0) {
         return {nullptr, 0};
     }
+    const Entry* found = lookup(id);
+    if (!found) {
+        log::warn("Resource {:016x} is not in the project", id);
+        setEntry(id, {{}, nullptr, {ResourceState::Missing, 0, "The resource is not in the project"}});
+        found = &m_entries.at(id);
+    }
+    const Entry& entry = *found;
+    const bool fits = entry.data && entry.kind == kind;
+
+    return {fits ? entry.data.get() : nullptr, entry.status.revision};
+}
+
+std::string_view ResourceCache::loadedKind(ResourceId id)
+{
+    const Entry* entry = id != 0 ? lookup(id) : nullptr;
+
+    return entry && entry->data ? entry->kind : std::string_view();
+}
+
+const ResourceCache::Entry* ResourceCache::lookup(ResourceId id)
+{
     auto it = m_entries.find(id);
     if (it == m_entries.end() && builtin::isBuiltin(id) && makeBuiltin(id)) {
         it = m_entries.find(id);
     }
     if (it == m_entries.end()) {
-        if (const auto path = m_project ? m_project->resources().path(id) : std::nullopt) {
+        // Уже прочитанный файл, в котором ресурса нет, второй раз не читается:
+        // изменения файла подхватит reloadChanged.
+        const auto path = m_project ? m_project->resources().path(id) : std::nullopt;
+        if (path && !m_files.contains(*path)) {
             loadFile(*path);
         }
         it = m_entries.find(id);
     }
-    if (it == m_entries.end()) {
-        log::warn("Resource {:016x} is not in the project", id);
-        setEntry(id, {{}, nullptr, {ResourceState::Missing, 0, "The resource is not in the project"}});
-        it = m_entries.find(id);
-    }
-    const Entry& entry = it->second;
-    const bool fits = entry.data && entry.kind == kind;
 
-    return {fits ? entry.data.get() : nullptr, entry.status.revision};
+    return it != m_entries.end() ? &it->second : nullptr;
 }
 
 ResourceCache::FileStamp ResourceCache::stampOf(const fs::path& full)
@@ -155,9 +192,8 @@ ResourceCache::FileStamp ResourceCache::stampOf(const fs::path& full)
 
 bool ResourceCache::makeBuiltin(ResourceId id)
 {
-    const auto table = builtinResourceTable();
-    const auto found = std::ranges::find(table, id, &BuiltinResourceEntry::id);
-    if (found == table.end()) {
+    const BuiltinResourceEntry* found = findBuiltinResource(id);
+    if (!found) {
         return false;
     }
     setEntry(id, {found->kind, found->make(), {ResourceState::Ready, 0, {}}});
@@ -189,10 +225,18 @@ void ResourceCache::loadFile(const fs::path& file)
     const ResourceId own = database.id(file);
     FileEntry loaded{.stamp = stampOf(full)};
 
-    // Новые записи собираются целиком, прежние заменяются только потом.
+    // Новые записи собираются целиком, прежние заменяются только потом;
+    // order - порядок ресурсов в файле.
     std::map<ResourceId, Entry> fresh;
+    std::vector<ResourceId> order;
+    const auto put = [&](ResourceId id, Entry entry) {
+        if (!fresh.contains(id)) {
+            order.push_back(id);
+        }
+        fresh[id] = std::move(entry);
+    };
     const auto fail = [&](ResourceState state, std::string message) {
-        fresh[own] = {{}, nullptr, {state, 0, std::move(message)}};
+        put(own, {{}, nullptr, {state, 0, std::move(message)}});
     };
     const ResourceLoader* loader = loaderFor(file);
     LoadResult result;
@@ -220,7 +264,7 @@ void ResourceCache::loadFile(const fs::path& file)
         auto nextNested = nested.begin();
         for (LoadedResource& resource : result.resources) {
             const ResourceId id = resource.key.empty() ? own : *nextNested++;
-            fresh[id] = {resource.kind, std::move(resource.data), {ResourceState::Ready, 0, {}}};
+            put(id, {resource.kind, std::move(resource.data), {ResourceState::Ready, 0, {}}});
         }
         if (!fresh.contains(own)) {
             fail(ResourceState::Error, "The file holds no resource of its own");
@@ -231,11 +275,12 @@ void ResourceCache::loadFile(const fs::path& file)
     if (const auto previous = m_files.find(file); previous != m_files.end()) {
         for (const ResourceId id : previous->second.ids) {
             if (!fresh.contains(id)) {
-                fresh[id] = {{}, nullptr, {ResourceState::Missing, 0, "The resource is not in the file any more"}};
+                put(id, {{}, nullptr, {ResourceState::Missing, 0, "The resource is not in the file any more"}});
             }
         }
     }
-    for (auto& [id, entry] : fresh) {
+    for (const ResourceId id : order) {
+        Entry& entry = fresh.at(id);
         if (entry.status.state == ResourceState::Missing) {
             log::warn("Resource '{}': {}", toGenericUtf8(file), entry.status.message);
         } else if (entry.status.state == ResourceState::Error) {

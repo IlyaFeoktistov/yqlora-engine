@@ -3,6 +3,9 @@
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineServices.hpp>
+#include <yqlora/editor/EditorSession.hpp>
+#include <yqlora/editor/ProjectSetup.hpp>
+#include <yqlora/editor/TextureInspection.hpp>
 #include <yqlora/import/ImageLoader.hpp>
 #include <yqlora/import/TextureImport.hpp>
 #include <yqlora/input/Input.hpp>
@@ -10,6 +13,8 @@
 #include <yqlora/project/Project.hpp>
 #include <yqlora/render/TextureData.hpp>
 #include <yqlora/resource/ResourceCache.hpp>
+#include <yqlora/scene/SceneSerializer.hpp>
+#include <yqlora/scripting/GameModule.hpp>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STBI_WRITE_NO_STDIO
@@ -20,6 +25,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <vector>
 
 using namespace yqlora;
@@ -179,4 +185,33 @@ TEST_CASE("ResourceCache: a picture is a texture, new import settings give a new
     services.setProject(nullptr);
     const auto reopened = Project::open(directory, registry);
     CHECK(reopened->settings().get<GeneralSettings>().icon.id == icon);
+}
+
+TEST_CASE("Texture inspection: the picture and its import settings, applied with a new revision")
+{
+    test::EngineRegistry registry;
+    SceneSerializer serializer{registry};
+    std::string error;
+    const auto created = editor::createProject(freshDirectory("texture_inspection"), "Game", serializer, error);
+    REQUIRE(created);
+    const fs::path directory = created->directory();
+    writePng(directory / "icon.png");
+    Input input;
+    EngineServices services{input, registry};
+    GameModule gameModule{registry};
+    editor::EditorSession session{services, serializer, gameModule};
+    REQUIRE(session.open(*Project::open(directory, registry)));
+    const ResourceId icon = session.project()->resources().id("icon.png");
+
+    const auto inspected = editor::inspectTexture(session, icon);
+    REQUIRE(inspected);
+    CHECK(inspected->texture.data->width == 2);
+    CHECK(inspected->import == TextureSampling{});
+
+    const TextureSampling pixelArt{.filter = TextureFilter::Nearest, .mipmaps = false};
+    REQUIRE(editor::applyTextureImport(session, icon, pixelArt));
+    const auto after = editor::inspectTexture(session, icon);
+    CHECK(after->texture.revision > inspected->texture.revision);
+    CHECK(after->import == pixelArt);
+    CHECK(after->texture.data->sampling == pixelArt);
 }

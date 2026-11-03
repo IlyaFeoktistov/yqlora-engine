@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/project/SettingsSection.hpp"
+#include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/reflection/Record.hpp"
 
 #include <cstdint>
@@ -57,6 +58,7 @@ YQLORA_API const InputSettings& inputSettingsOf(const EngineServices& services);
 
 } // namespace yqlora
 
+YQLORA_ENUM_NAMES(yqlora::InputActionKind, "Button", "Axis")
 YQLORA_RECORD(
     yqlora::InputBinding,
     field("control", &yqlora::InputBinding::control, PropertyHint::InputControl),
@@ -66,6 +68,6 @@ YQLORA_RECORD(
 YQLORA_RECORD(
     yqlora::InputAction,
     field("name", &yqlora::InputAction::name),
-    field("kind", &yqlora::InputAction::kind, PropertyHint::None, {"Button", "Axis"}),
+    field("kind", &yqlora::InputAction::kind),
     field("bindings", &yqlora::InputAction::bindings)
 )

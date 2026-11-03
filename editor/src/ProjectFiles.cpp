@@ -32,33 +32,49 @@ constexpr std::array<std::string_view, 2> kScriptExtensions{".hpp", ".cpp"};
 constexpr std::string_view kNamePlaceholder = "$SCRIPT_NAME$";
 constexpr std::size_t kMaxScriptNameLength = 64;
 
-constexpr std::array<NewResourceType, 4> kNewResourceTypes{{
-    {NewResourceKind::Folder, "editor.files.newFolder", "New Folder"},
-    {NewResourceKind::Scene, "editor.files.newScene", "New Scene"},
-    {NewResourceKind::CppScript, "editor.files.newCppScript", "NewScript"},
-    {NewResourceKind::Shader, "editor.files.newShader", "New Shader"},
-}};
-
 // "New Scene 2", "New Scene 3"...: первая копия имени получает номер 2.
 constexpr int kFirstDuplicateNumber = 2;
 
-const NewResourceType& typeOf(NewResourceKind kind)
+// Файл, по которому видно, что имя name вида type занято.
+std::string occupiedFileName(const NewResourceType& type, std::string_view name)
 {
-    return *std::ranges::find(kNewResourceTypes, kind, &NewResourceType::kind);
+    return std::string(name) + std::string(type.extension);
 }
 
-// Файл, по которому видно, что имя name вида kind занято.
-std::string occupiedFileName(NewResourceKind kind, std::string_view name)
-{
-    switch (kind) {
-    case NewResourceKind::Folder: return std::string(name);
-    case NewResourceKind::Scene: return std::string(name) + std::string(SceneSerializer::fileExtension());
-    case NewResourceKind::CppScript: return std::string(name) + std::string(kScriptExtensions.back());
-    case NewResourceKind::Shader: return std::string(name) + std::string(kShaderFileExtension);
-    }
-
-    return std::string(name);
-}
+const NewResourceType kNewResourceTypes[] = {
+    {kFolderKind,
+     "editor.files.newFolder",
+     "New Folder",
+     {},
+     false,
+     [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext&) {
+         return files.createFolder(folder, name);
+     }},
+    {SceneSerializer::kResourceKind,
+     "editor.files.newScene",
+     "New Scene",
+     SceneSerializer::fileExtension(),
+     false,
+     [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext& context) {
+         return files.createScene(folder, name, context.serializer);
+     }},
+    {kCppScriptKind,
+     "editor.files.newCppScript",
+     "NewScript",
+     kScriptExtensions.back(),
+     true,
+     [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext& context) {
+         return files.createScript(folder, name, cppScriptTemplateDirectory(context.assets));
+     }},
+    {ShaderData::kResourceKind,
+     "editor.files.newShader",
+     "New Shader",
+     kShaderFileExtension,
+     false,
+     [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext& context) {
+         return files.createShader(folder, name, shaderTemplateFile(context.assets));
+     }},
+};
 
 void scanDirectory(const fs::path& root, const fs::path& relative, ProjectFiles::Entry& out)
 {
@@ -95,6 +111,13 @@ std::span<const NewResourceType> newResourceTypes()
     return kNewResourceTypes;
 }
 
+const NewResourceType* findNewResourceType(std::string_view kind)
+{
+    const auto found = std::ranges::find(kNewResourceTypes, kind, &NewResourceType::kind);
+
+    return found != std::end(kNewResourceTypes) ? &*found : nullptr;
+}
+
 fs::path cppScriptTemplateDirectory(const fs::path& assets)
 {
     return assets / kTemplatesFolder / kCppScriptTemplate;
@@ -119,13 +142,9 @@ bool isValidScriptName(std::string_view name)
     });
 }
 
-bool isValidResourceName(NewResourceKind kind, std::string_view name)
+bool isValidResourceName(const NewResourceType& type, std::string_view name)
 {
-    if (kind == NewResourceKind::CppScript) {
-        return isValidScriptName(name);
-    }
-
-    return isValidFileName(occupiedFileName(kind, name));
+    return type.className ? isValidScriptName(name) : isValidFileName(occupiedFileName(type, name));
 }
 
 ProjectFiles::ProjectFiles(Project& project)
@@ -162,15 +181,15 @@ bool ProjectFiles::canModify(const fs::path& path) const
     return first != ".." && !reserved && !m_project.directory().empty();
 }
 
-std::string ProjectFiles::suggestName(NewResourceKind kind, const fs::path& folder) const
+std::string ProjectFiles::suggestName(const NewResourceType& type, const fs::path& folder) const
 {
-    const std::string base = typeOf(kind).defaultName;
+    const std::string base = type.defaultName;
     // У скрипта имя - имя класса, пробел в нём недопустим.
-    const std::string separator = kind == NewResourceKind::CppScript ? "" : " ";
+    const std::string separator = type.className ? "" : " ";
     const fs::path directory = m_project.directory() / folder;
     std::error_code ec;
     std::string name = base;
-    for (int i = kFirstDuplicateNumber; fs::exists(directory / fromUtf8(occupiedFileName(kind, name)), ec); ++i) {
+    for (int i = kFirstDuplicateNumber; fs::exists(directory / fromUtf8(occupiedFileName(type, name)), ec); ++i) {
         name = base + separator + std::to_string(i);
     }
 
@@ -183,8 +202,9 @@ std::optional<fs::path> ProjectFiles::createScene(
     const SceneSerializer& serializer
 )
 {
-    const fs::path relative = folder / fromUtf8(occupiedFileName(NewResourceKind::Scene, name));
-    if (!isValidResourceName(NewResourceKind::Scene, name) || !canModify(relative)) {
+    const NewResourceType& type = *findNewResourceType(SceneSerializer::kResourceKind);
+    const fs::path relative = folder / fromUtf8(occupiedFileName(type, name));
+    if (!isValidResourceName(type, name) || !canModify(relative)) {
         return std::nullopt;
     }
     const fs::path file = m_project.directory() / relative;
@@ -205,7 +225,7 @@ std::optional<fs::path> ProjectFiles::createScene(
 std::optional<fs::path> ProjectFiles::createFolder(const fs::path& folder, std::string_view name)
 {
     const fs::path relative = folder / fromUtf8(std::string(name));
-    if (!isValidResourceName(NewResourceKind::Folder, name) || !canModify(relative)) {
+    if (!isValidResourceName(*findNewResourceType(kFolderKind), name) || !canModify(relative)) {
         return std::nullopt;
     }
     std::error_code ec;
@@ -271,8 +291,9 @@ std::optional<fs::path> ProjectFiles::createShader(
     const fs::path& templateFile
 )
 {
-    const fs::path relative = folder / fromUtf8(occupiedFileName(NewResourceKind::Shader, name));
-    if (!isValidResourceName(NewResourceKind::Shader, name) || !canModify(relative)) {
+    const NewResourceType& type = *findNewResourceType(ShaderData::kResourceKind);
+    const fs::path relative = folder / fromUtf8(occupiedFileName(type, name));
+    if (!isValidResourceName(type, name) || !canModify(relative)) {
         return std::nullopt;
     }
     std::error_code ec;

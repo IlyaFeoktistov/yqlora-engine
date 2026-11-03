@@ -67,7 +67,8 @@ Node                     без положения: группа, корень, 
 ```cpp
 registry.registerComponent<MeshRenderer>()
     .requiresNode<Node3D>()               // на каких узлах может жить
-    .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh, PropertyHint::Mesh);
+    .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh)
+    .resource(MeshData::kResourceKind);   // какие ресурсы предлагает поле
 
 registry.registerComponent<BoxCollider>()
     .requiresNode<Node3D>()

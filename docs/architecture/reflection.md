@@ -45,9 +45,26 @@ types (`PropertyAttributes`): `range(min, max)` limits numbers in the
 inspector (also the numbers of vectors and lists), `displayName` and
 `tooltip` (a translation key or the text itself), `group` puts it under a
 heading, `notSaved` keeps it out of files, `notShown` out of the inspector,
-`formerly("oldName")` reads files written under an old name. They chain after
+`formerly("oldName")` reads files written under an old name,
+`resource(kind)` tells which resources a reference (or a list of them) takes
+(`T::kResourceKind`, the inspector offers only those). They chain after
 `property(...)` in a type builder and after `field(...)` in records and
 scripts. Saving and the inspector are two separate users of them.
+
+## Enum value names [done]
+
+```cpp
+YQLORA_ENUM_NAMES(yqlora::CameraClear, "ColorAndDepth", "DepthOnly", "Nothing")
+```
+
+- The names of the values of an enum are one table next to the enum
+  (`EnumNames<E>`, by value order 0, 1, ...). Scene and settings files,
+  `.meta`, the inspector and the log all read it (`enumName`,
+  `enumFromName`), so a value is written by name and the C++ order can
+  change.
+- A property of an enum type takes the names by itself; an enum without
+  the table does not compile as a property. Types described at run time
+  (Luau, graphs) give the names with `Property::setEnumNames`.
 
 ## Methods [done]
 

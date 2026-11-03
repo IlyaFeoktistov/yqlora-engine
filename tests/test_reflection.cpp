@@ -174,6 +174,12 @@ enum class Mood {
     Angry,
 };
 
+} // namespace
+
+YQLORA_ENUM_NAMES(Mood, "Calm", "Angry")
+
+namespace {
+
 // Узел из "игры": свой модуль, перечисление и ссылки.
 struct Guard final : Node3D {
     YQLORA_TYPE(Guard, Node3D)
@@ -228,7 +234,6 @@ TEST_CASE("Property: enums, node and resource references")
     registerEngineTypes(registry);
     registry.registerNode<Guard>()
         .property("mood", &Guard::mood)
-        .enumNames({"Calm", "Angry"})
         .property("target", &Guard::target)
         .property("weapon", &Guard::weapon);
 

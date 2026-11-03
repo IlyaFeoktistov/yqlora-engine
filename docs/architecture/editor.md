@@ -39,8 +39,8 @@ Status marks: see [README](README.md).
   `Application`: the renderer, the depth range, input, the language, the
   folder dialog. `RenderView` takes only the renderer.
 - The scene document owns its scene; the application has none.
-- The name of a resource in the inspector (a built-in mesh, a path in the
-  project) is resolved by `resourceLabel` in `editor/src`, without ImGui.
+- The name of a resource in the inspector (a built-in resource, a path in
+  the project) is resolved by `resourceLabel` in `editor/src`, without ImGui.
 - The main scene of the project lives in the project settings, section
   General (see [project settings](project-settings.md)) **[done]**.
 
@@ -108,8 +108,11 @@ Status marks: see [README](README.md).
 - The main menu shows "Building scripts..." during a build and a red mark
   after a failed one.
 - The Scripts menu: Build. Scripts are created in Files: Create resource
-  lists `newResourceTypes()` (folder, scene, C++ script; Luau and visual
-  scripts, materials join with their steps). Every kind asks for a name
+  lists `newResourceTypes()` (folder, scene, C++ script, shader; Luau and
+  visual scripts, materials join with their steps). A kind is one row of
+  that table: its kind (for the icon), label, default name, the extension
+  that shows a name is taken, whether the name is a C++ class name, and the
+  function that creates it. Every kind asks for a name
   first (a free one is suggested) and is made by the Create button: Cancel
   leaves nothing behind. A C++ script's name is its class name; it is made
   from `assets/templates/cpp-script/`. A double click on a
@@ -117,17 +120,24 @@ Status marks: see [README](README.md).
 
 ## Resources in the editor [done]
 
-- **Files** shows a model and a picture with their own icons (the kind
-  comes from the loader, `ResourceCache::kindOf`, files are not read). A
-  model opens into its meshes. Any resource can be dragged.
+- **Files** shows every file with the icon of its kind (the kind comes
+  from the loader, `ResourceCache::kindOf`, files are not read; a scene is
+  `SceneSerializer::kResourceKind`, see `fileKind`). Icons by kind are one
+  table (`resourceIcon`) shared by Files, the resource field and the
+  Create menu. A file whose loader has nested kinds (a model) opens into
+  its nested resources (`nestedResources`). Any resource can be dragged.
 - **Selection**: clicking a resource in Files selects it instead of nodes,
   as in Unity (`Selection::selectResource`), and the inspector shows the
-  file (`ResourceInspector`, data from `inspectResource`): the meshes of a
-  model with vertex, triangle and submesh counts, the size and a preview of
-  a texture, the state and the message if the file is not loaded. Import
-  settings (model scale; texture colour space, filter, wrap, mipmaps) are
-  edited there and written to `.meta` by "Apply" (`applyImportSettings`):
-  the file is read again with a new revision. This is not in the edit
+  file. `ResourceInspector` shows what every file has (name, kind, the
+  state and the message if the file is not loaded, from `inspectResource`)
+  and then the inspector of its kind (`ResourceKindInspector`): a model
+  (`ModelInspector`, data from `inspectModel`) shows its meshes with
+  vertex, triangle and submesh counts, a texture (`TextureInspector`,
+  `inspectTexture`) its size and a preview. A new kind is a new inspector
+  and one line in the `ResourceInspector` constructor. Import settings
+  (model scale; texture colour space, filter, wrap, mipmaps) are edited
+  there and written to `.meta` by "Apply" (`applyModelImport`,
+  `applyTextureImport`): the file is read again with a new revision. This is not in the edit
   history: the file and its `.meta` are not the scene.
 - **Into the scene**: a model or a mesh dropped onto a node of the scene
   tree becomes its child, onto the empty place under the tree - a child of
@@ -138,11 +148,14 @@ Status marks: see [README](README.md).
   (`SceneEditing::addResource`, `AddBranchCommand`).
 - **A resource field**, as in Unity (`resourceField`): an icon and the name
   of the resource or "None (Mesh)"; clicking the field or the button on its
-  right opens a picker with a search: None, built-in resources, project
-  assets (meshes by model file, textures with a preview). What fits the
-  field is decided by `resourceChoices`. A resource dropped onto the field
-  is taken if it is of the kind of the field, and a model on a mesh field
-  gives its first mesh (`resourceForField`). A nested resource reads
+  right opens a picker with a search: None, built-in resources of the kind
+  (from `builtinResourceTable()`), project assets (nested ones under their
+  file, textures with a preview). The kind is the `resource(kind)`
+  attribute of the property; what fits it is decided by `resourceChoices`.
+  A resource dropped onto the field is taken if it is of the kind of the
+  field, and a file with nested resources of that kind gives the first of
+  them, so a model on a mesh field gives its first mesh
+  (`resourceForField`). A nested resource reads
   "models/house.glb / Door".
 - **Changes on disk**: when the editor window gets focus, the session walks
   the project folder again and reloads changed files

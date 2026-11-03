@@ -1,5 +1,6 @@
 #pragma once
 
+#include "yqlora/reflection/EnumNames.hpp"
 #include <cstdint>
 #include <string_view>
 #include <vector>
@@ -47,3 +48,7 @@ struct TextureData {
 };
 
 } // namespace yqlora
+
+YQLORA_ENUM_NAMES(yqlora::ColorSpace, "sRGB", "Linear")
+YQLORA_ENUM_NAMES(yqlora::TextureFilter, "Linear", "Nearest")
+YQLORA_ENUM_NAMES(yqlora::TextureWrap, "Repeat", "Clamp", "Mirror")

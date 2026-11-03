@@ -70,7 +70,8 @@ Node                     no position: a group, a root, a holder of scripts
 ```cpp
 registry.registerComponent<MeshRenderer>()
     .requiresNode<Node3D>()               // which nodes it may live on
-    .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh, PropertyHint::Mesh);
+    .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh)
+    .resource(MeshData::kResourceKind);   // which resources the field offers
 
 registry.registerComponent<BoxCollider>()
     .requiresNode<Node3D>()
