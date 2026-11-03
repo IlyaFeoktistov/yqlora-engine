@@ -218,6 +218,23 @@ void ResourceCache::updateImport(ResourceId file, const nlohmann::json& update)
     }
 }
 
+std::vector<ResourceId> ResourceCache::nestedIds(ResourceId file, std::span<const std::string> keys)
+{
+    ResourceDatabase& database = m_project->resources();
+    if (m_metaPolicy == MetaPolicy::Import) {
+        return database.assignSubresources(file, keys);
+    }
+    const auto& known = database.subresources(file);
+    std::vector<ResourceId> ids;
+    ids.reserve(keys.size());
+    for (const std::string& key : keys) {
+        const auto found = known.find(key);
+        ids.push_back(found != known.end() ? found->second : 0);
+    }
+
+    return ids;
+}
+
 void ResourceCache::loadFile(const fs::path& file)
 {
     ResourceDatabase& database = m_project->resources();
@@ -245,7 +262,9 @@ void ResourceCache::loadFile(const fs::path& file)
         for (const fs::path& dependency : result.dependencies) {
             loaded.dependencies.emplace_back(dependency, stampOf(dependency));
         }
-        updateImport(own, result.importUpdate);
+        if (m_metaPolicy == MetaPolicy::Import) {
+            updateImport(own, result.importUpdate);
+        }
     }
     if (!loaded.stamp.existed) {
         fail(ResourceState::Missing, "The file is missing");
@@ -260,11 +279,24 @@ void ResourceCache::loadFile(const fs::path& file)
                 keys.push_back(resource.key);
             }
         }
-        const std::vector<ResourceId> nested = database.assignSubresources(own, keys);
+        const std::vector<ResourceId> nested = nestedIds(own, keys);
         auto nextNested = nested.begin();
+        std::size_t notImported = 0;
         for (LoadedResource& resource : result.resources) {
             const ResourceId id = resource.key.empty() ? own : *nextNested++;
+            if (id == 0) {
+                ++notImported;
+                continue;
+            }
             put(id, {resource.kind, std::move(resource.data), {ResourceState::Ready, 0, {}}});
+        }
+        if (notImported != 0) {
+            log::warn(
+                "Resource '{}': {} nested resources have no id in its .meta and are skipped; open the project in "
+                "the editor to import them",
+                toGenericUtf8(file),
+                notImported
+            );
         }
         if (!fresh.contains(own)) {
             fail(ResourceState::Error, "The file holds no resource of its own");

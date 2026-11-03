@@ -56,6 +56,7 @@ add_library(yqlora SHARED
     src/i18n/Language.cpp
     src/i18n/Localization.cpp
     src/platform/FileDialogs.cpp
+    src/platform/Files.cpp
     src/platform/Gamepads.cpp
     src/platform/Platform.cpp
     src/platform/Window.cpp
@@ -65,7 +66,10 @@ add_library(yqlora SHARED
     src/platform/Process.cpp
     src/import/Cgltf.cpp
     src/import/EngineLoaders.cpp
+    src/import/GltfDocument.cpp
     src/import/GltfLoader.cpp
+    src/import/GltfMeshes.cpp
+    src/import/GltfNodes.cpp
     src/import/ImageLoader.cpp
     src/import/ShaderLoader.cpp
     src/import/StbImage.cpp
@@ -142,6 +146,7 @@ add_library(yqlora SHARED
     src/resource/BuiltinResourceTable.cpp
     src/resource/ResourceCache.cpp
     src/resource/ResourceDatabase.cpp
+    src/resource/ResourceMeta.cpp
     src/resource/ResourceLoader.cpp
     src/runtime/GameRuntime.cpp
     src/shader/BuiltinShaders.cpp

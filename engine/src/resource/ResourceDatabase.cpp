@@ -1,14 +1,13 @@
 #include "yqlora/resource/ResourceDatabase.hpp"
 
-#include "yqlora/core/FileFormat.hpp"
-#include "yqlora/core/JsonFile.hpp"
-#include "yqlora/core/JsonId.hpp"
 #include "yqlora/core/Log.hpp"
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/resource/BuiltinResources.hpp"
+#include "yqlora/resource/ResourceMeta.hpp"
+
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
-#include <array>
 #include <random>
 #include <vector>
 
@@ -18,63 +17,6 @@ namespace {
 
 namespace fs = std::filesystem;
 using Json = nlohmann::json;
-
-constexpr const char* kIdKey = "id";
-constexpr const char* kImportKey = "import";
-constexpr const char* kSubresourcesKey = "subresources";
-constexpr const char* kNoImportSettings = "{}";
-
-constexpr int kFirstMetaVersion = 1;
-constexpr std::array<Migration, 0> kMetaMigrations{};
-constexpr FileFormat kMetaFormat{"Resource meta", kFirstMetaVersion, kMetaMigrations};
-
-fs::path metaPath(const fs::path& file)
-{
-    fs::path result = file;
-    result += ResourceDatabase::metaExtension();
-
-    return result;
-}
-
-bool isMeta(const fs::path& file)
-{
-    return file.extension() == ResourceDatabase::metaExtension();
-}
-
-struct MetaFile {
-    ResourceId id = 0;
-    std::map<std::string, ResourceId> subresources;
-    std::string import = kNoImportSettings;
-};
-
-// nullopt, если .meta нет или она не читается: тогда файл получит новый ID.
-std::optional<MetaFile> readMeta(const fs::path& file)
-{
-    if (!fs::exists(metaPath(file))) {
-        return std::nullopt;
-    }
-    const auto json = readJsonFile(metaPath(file));
-    const bool current = json && json->is_object()
-                         && kMetaFormat.compatibility(FileFormat::versionOf(*json)) == FormatCompatibility::Current;
-    const auto id = current && json->contains(kIdKey) ? idFromJson((*json)[kIdKey]) : std::nullopt;
-    if (!id) {
-        log::warn("Resource meta of '{}' is broken, the file gets a new id", toUtf8(file));
-
-        return std::nullopt;
-    }
-    MetaFile meta{*id, {}, kNoImportSettings};
-    if (const auto import = json->find(kImportKey); import != json->end() && import->is_object()) {
-        meta.import = import->dump();
-    }
-    if (const auto nested = json->find(kSubresourcesKey); nested != json->end() && nested->is_object()) {
-        for (const auto& [key, value] : nested->items()) {
-            // Битый ID вложенного ресурса - 0: при обходе он получит новый.
-            meta.subresources[key] = idFromJson(value).value_or(0);
-        }
-    }
-
-    return meta;
-}
 
 // path лежит внутри folder (или равен ему).
 bool isInside(const fs::path& path, const fs::path& folder)
@@ -110,12 +52,12 @@ void ResourceDatabase::scan(
             }
             continue;
         }
-        if (!it->is_regular_file(ec) || isMeta(absolute)
+        if (!it->is_regular_file(ec) || isMetaFile(absolute)
             || std::ranges::find(skipExtensions, toUtf8(absolute.extension())) != skipExtensions.end()) {
             continue;
         }
 
-        MetaFile meta = readMeta(absolute).value_or(MetaFile{});
+        ResourceMeta meta = readResourceMeta(absolute).value_or(ResourceMeta{});
         bool rewrite = false;
         // Копия файла вместе с .meta: и её вложенные ID уже заняты оригиналом,
         // поэтому ниже они тоже станут новыми.
@@ -123,7 +65,7 @@ void ResourceDatabase::scan(
             meta.id = newId();
             rewrite = true;
         }
-        remember(meta.id, fs::relative(absolute, root, ec), {{}, std::move(meta.import)});
+        remember(meta.id, fs::relative(absolute, root, ec), {.id = meta.id, .import = std::move(meta.import)});
         for (auto& [key, nested] : meta.subresources) {
             if (nested == 0 || builtin::isBuiltin(nested) || known(nested)) {
                 nested = newId();
@@ -144,7 +86,7 @@ ResourceId ResourceDatabase::add(const fs::path& path)
         return existing;
     }
     const ResourceId created = newId();
-    remember(created, path, {});
+    remember(created, path, {.id = created});
     if (!writeMeta(created)) {
         log::error("Cannot write resource meta for '{}'", toUtf8(path));
         forget(created);
@@ -172,8 +114,8 @@ void ResourceDatabase::moved(const fs::path& from, const fs::path& to)
     // У отдельного файла .meta лежит рядом и переезжает сама. В переименованной
     // папке .meta уже на месте вместе с файлами, их трогать не нужно.
     std::error_code ec;
-    if (fs::exists(metaPath(m_root / from), ec)) {
-        fs::rename(metaPath(m_root / from), metaPath(m_root / to), ec);
+    if (fs::exists(metaPathOf(m_root / from), ec)) {
+        fs::rename(metaPathOf(m_root / from), metaPathOf(m_root / to), ec);
         if (ec) {
             log::error("Cannot move resource meta of '{}': {}", toUtf8(from), ec.message());
         }
@@ -196,7 +138,7 @@ void ResourceDatabase::removed(const fs::path& path)
         }
     }
     std::error_code ec;
-    fs::remove(metaPath(m_root / path), ec);
+    fs::remove(metaPathOf(m_root / path), ec);
     for (const ResourceId id : gone) {
         forget(id);
     }
@@ -266,7 +208,7 @@ const std::map<std::string, ResourceId>& ResourceDatabase::subresources(Resource
 
 const std::string& ResourceDatabase::importSettings(ResourceId file) const
 {
-    static const std::string kNone = kNoImportSettings;
+    static const std::string kNone(kNoImportSettings);
     const auto meta = m_meta.find(file);
 
     return meta != m_meta.end() ? meta->second.import : kNone;
@@ -284,14 +226,11 @@ bool ResourceDatabase::setImportSettings(ResourceId file, std::string json)
     return writeMeta(file);
 }
 
-void ResourceDatabase::remember(ResourceId id, const fs::path& path, Meta meta)
+void ResourceDatabase::remember(ResourceId id, const fs::path& path, ResourceMeta meta)
 {
     const fs::path normal = path.lexically_normal();
     m_paths[id] = normal;
     m_ids[normal] = id;
-    if (meta.import.empty()) {
-        meta.import = kNoImportSettings;
-    }
     for (const auto& [key, nested] : meta.subresources) {
         m_nested[nested] = {id, key};
     }
@@ -316,24 +255,8 @@ bool ResourceDatabase::writeMeta(ResourceId id) const
 {
     const auto path = m_paths.find(id);
     const auto meta = m_meta.find(id);
-    if (path == m_paths.end() || meta == m_meta.end()) {
-        return false;
-    }
-    Json json;
-    kMetaFormat.stamp(json);
-    json[kIdKey] = idToJson(id);
-    if (meta->second.import != kNoImportSettings) {
-        json[kImportKey] = Json::parse(meta->second.import);
-    }
-    if (!meta->second.subresources.empty()) {
-        Json nested = Json::object();
-        for (const auto& [key, value] : meta->second.subresources) {
-            nested[key] = idToJson(value);
-        }
-        json[kSubresourcesKey] = std::move(nested);
-    }
 
-    return writeJsonFile(metaPath(m_root / path->second), json);
+    return path != m_paths.end() && meta != m_meta.end() && writeResourceMeta(m_root / path->second, meta->second);
 }
 
 bool ResourceDatabase::known(ResourceId id) const

@@ -169,15 +169,27 @@ own `ResourceId`, so a `ResourceRef` stays a single 64-bit number.
    keys a loader returned and writes `.meta` once; `fileOf`, `key`,
    `subresources`; import settings are a JSON object kept as text
    (`importSettings`, `setImportSettings`) and reach the loader in
-   `LoadRequest::import`. The cache writes the IDs while loading, so it
-   holds the project as changeable.
+   `LoadRequest::import`. The `.meta` format itself (reading, atomic
+   writing through `platform::writeFileAtomically`) is `ResourceMeta`;
+   `ResourceDatabase` is only the index of IDs and paths.
+   Loading only reads `.meta` (`MetaPolicy::ReadOnly`, the default): a
+   built game does not change the files of its project, and a nested
+   resource without an ID in `.meta` is skipped with a message. The editor
+   imports (`MetaPolicy::Import`, set by `EditorSession`): new nested
+   resources get IDs, the fields a loader writes (`LoadResult::importUpdate`,
+   the shader profile version) go into the import settings, and `.meta` is
+   written. That is why the cache holds the project as changeable.
 3. glTF meshes: the loader, the model description, scale **[done]**.
    `GltfLoader` (`yqlora/import/`) gives `ModelData` for the file (nodes
    with local position, rotation, scale, a mesh index and children; the
    keys of the meshes) and one `MeshData` per mesh of the file. The engine
    loaders are added by `addEngineLoaders` when `EngineServices` is made.
    cgltf reads external buffers through a read function of the engine, so
-   paths outside ASCII work on Windows too.
+   paths outside ASCII work on Windows too. External buffer files are
+   dependencies of the model (`LoadResult::dependencies`, also when one is
+   missing): a changed or added `.bin` reloads it. The loader is split by
+   files: `GltfDocument` (parsing, buffers, validation), `readGltfMesh`,
+   `readGltfNode` and `gltfRoots`; `GltfLoader` puts them together.
 4. Textures: the loader, import settings, the GPU texture, the game icon
    **[done]**. `ImageLoader` (stb_image, the engine reads the bytes itself)
    gives `TextureData`; a loader also names the kind of its file

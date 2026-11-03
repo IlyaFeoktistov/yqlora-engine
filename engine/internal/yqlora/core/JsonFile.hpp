@@ -1,11 +1,12 @@
 #pragma once
 
+#include "yqlora/platform/Files.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <optional>
-#include <system_error>
 
 namespace yqlora {
 
@@ -30,29 +31,10 @@ inline std::optional<nlohmann::json> readJsonFile(const std::filesystem::path& f
     return json;
 }
 
-// Пишет через временный файл и переименование: при сбое на середине старый
-// файл остаётся целым. Папку создаёт, если её нет.
+// Атомарно, см. platform::writeFileAtomically.
 inline bool writeJsonFile(const std::filesystem::path& file, const nlohmann::json& json)
 {
-    std::error_code ec;
-    if (file.has_parent_path()) {
-        std::filesystem::create_directories(file.parent_path(), ec);
-    }
-    std::filesystem::path temporary = file;
-    temporary += ".tmp";
-    {
-        std::ofstream out(temporary, std::ios::trunc);
-        if (!out) {
-            return false;
-        }
-        out << json.dump(kJsonIndent) << '\n';
-        if (!out) {
-            return false;
-        }
-    }
-    std::filesystem::rename(temporary, file, ec);
-
-    return !ec;
+    return platform::writeFileAtomically(file, json.dump(kJsonIndent) + '\n');
 }
 
 } // namespace yqlora

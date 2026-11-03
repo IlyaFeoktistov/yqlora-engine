@@ -28,6 +28,17 @@ enum class ResourceState {
     Error,
 };
 
+// Что кэш делает с .meta, когда загружает файл.
+enum class MetaPolicy {
+    // Только читает: собранная игра файлов проекта не меняет. Вложенный
+    // ресурс, у которого в .meta нет ID, не загружается.
+    ReadOnly,
+    // Импорт в редакторе: новые вложенные ресурсы получают ID, поля, которые
+    // пишет загрузчик (LoadResult::importUpdate), попадают в настройки
+    // импорта, и .meta записывается.
+    Import,
+};
+
 struct ResourceStatus {
     ResourceState state = ResourceState::Missing;
     // Растёт при каждой загрузке и перезагрузке и никогда не повторяется,
@@ -65,10 +76,15 @@ public:
 
     void addLoader(std::unique_ptr<ResourceLoader> loader);
 
+    // По умолчанию ReadOnly; редактор ставит Import.
+    void setMetaPolicy(MetaPolicy policy)
+    {
+        m_metaPolicy = policy;
+    }
+
     // Проект, чьи файлы читаются. Ресурсы прежнего проекта забываются,
-    // встроенные остаются. nullptr - проекта нет.
-    // Файлы вложенных ресурсов получают их ID в своих .meta при загрузке,
-    // поэтому проект изменяемый.
+    // встроенные остаются. nullptr - проекта нет. Проект изменяемый: при
+    // импорте (MetaPolicy::Import) кэш пишет его .meta.
     void setProject(Project* project);
 
     // T - тип данных с T::kResourceKind (MeshData).
@@ -152,8 +168,10 @@ private:
     const Entry* lookup(ResourceId id);
     // Встроенный ресурс id в записи; false, если такого нет.
     bool makeBuiltin(ResourceId id);
-    // Поля, которые загрузчик пишет в настройки импорта файла.
+    // Импорт: поля, которые загрузчик пишет в настройки импорта файла.
     void updateImport(ResourceId file, const nlohmann::json& update);
+    // ID вложенных ресурсов по ключам; 0 - ключа нет в .meta (только при ReadOnly).
+    std::vector<ResourceId> nestedIds(ResourceId file, std::span<const std::string> keys);
     // Читает файл (путь от папки проекта) и заменяет записи его ресурсов.
     void loadFile(const std::filesystem::path& file);
     const ResourceLoader* loaderFor(const std::filesystem::path& file) const;
@@ -162,6 +180,7 @@ private:
 
     std::vector<std::unique_ptr<ResourceLoader>> m_loaders;
     Project* m_project = nullptr;
+    MetaPolicy m_metaPolicy = MetaPolicy::ReadOnly;
     std::map<ResourceId, Entry> m_entries;
     std::map<std::filesystem::path, FileEntry> m_files;
     std::uint64_t m_lastRevision = 0;

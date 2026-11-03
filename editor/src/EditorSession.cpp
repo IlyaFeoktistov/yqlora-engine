@@ -37,6 +37,8 @@ EditorSession::EditorSession(EngineServices& services, const SceneSerializer& se
     , m_document(services, serializer)
     , m_play(serializer)
 {
+    // Редактор импортирует: вложенные ресурсы получают ID, .meta пишется.
+    services.resources().setMetaPolicy(MetaPolicy::Import);
 }
 
 const TypeRegistry& EditorSession::registry() const

@@ -177,6 +177,30 @@ TEST_CASE("GltfLoader: an external buffer next to the file, in a folder with a n
     CHECK(data<MeshData>(result.resources[1]).vertices[1].position == Vec3(1.0f, 0.0f, 0.0f));
 }
 
+TEST_CASE("GltfLoader: an external buffer is a dependency, and when it is missing too")
+{
+    const fs::path directory = freshDirectory("gltf_dependency") / fromUtf8("модели");
+    fs::create_directories(directory);
+    plainTriangle().writeGltfWithBin(directory / "tri.gltf", "tri%20data.bin");
+    // URI в glTF закодирован: файл рядом называется с пробелом.
+    fs::rename(directory / "tri%20data.bin", directory / "tri data.bin");
+
+    const LoadResult loaded = load(directory / "tri.gltf");
+    REQUIRE(loaded.error.empty());
+    REQUIRE(loaded.dependencies.size() == 1);
+    CHECK(loaded.dependencies[0] == directory / "tri data.bin");
+
+    fs::remove(directory / "tri data.bin");
+    const LoadResult missing = load(directory / "tri.gltf");
+    CHECK_FALSE(missing.error.empty());
+    REQUIRE(missing.dependencies.size() == 1);
+    CHECK(missing.dependencies[0] == directory / "tri data.bin");
+
+    // Встроенный буфер (data:) - не файл.
+    plainTriangle().writeGltf(directory / "inline.gltf");
+    CHECK(load(directory / "inline.gltf").dependencies.empty());
+}
+
 TEST_CASE("GltfLoader: sparse positions and normalized integer texture coordinates")
 {
     GltfBuilder gltf;
@@ -268,6 +292,7 @@ TEST_CASE("ResourceCache: meshes of a glTF file are nested resources with ids in
     REQUIRE(project);
     Input input;
     EngineServices services{input, registry};
+    services.resources().setMetaPolicy(MetaPolicy::Import);
     services.setProject(&*project);
 
     const ResourceId file = project->resources().id("tri.glb");

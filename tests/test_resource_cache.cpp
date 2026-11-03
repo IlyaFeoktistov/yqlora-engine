@@ -8,6 +8,7 @@
 #include <yqlora/resource/BuiltinResources.hpp>
 #include <yqlora/resource/ResourceCache.hpp>
 #include <yqlora/resource/ResourceLoader.hpp>
+#include <yqlora/resource/ResourceMeta.hpp>
 
 #include <algorithm>
 #include <array>
@@ -117,6 +118,7 @@ struct Fixture {
         REQUIRE(Project::create(directory, "Game", registry));
         project.emplace(*Project::open(directory, registry));
         cache.addLoader(std::make_unique<TestLoader>());
+        cache.setMetaPolicy(MetaPolicy::Import);
         cache.setProject(&*project);
         box = project->resources().id("models/box.TMESH");
         REQUIRE(box != 0);
@@ -313,6 +315,31 @@ TEST_CASE_FIXTURE(Fixture, "ResourceCache: nested resources get ids from .meta, 
     rewrite(directory / "door.tmesh", "parts:Door,Door,,Frame");
     cache.reloadChanged();
     CHECK(height(second) == doctest::Approx(2.0f));
+}
+
+TEST_CASE_FIXTURE(Fixture, "ResourceCache: a read-only cache does not write .meta and skips not imported nested ones")
+{
+    write(directory / "door.tmesh", "parts:Door,Frame");
+    const ResourceId door = project->resources().add("door.tmesh");
+    const auto metaText = [&] {
+        std::ifstream in(metaPathOf(directory / "door.tmesh"));
+
+        return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    };
+    const std::string before = metaText();
+
+    ResourceCache game;
+    game.addLoader(std::make_unique<TestLoader>());
+    game.setProject(&*project);
+    REQUIRE(game.find<MeshData>(door));
+    CHECK(project->resources().subresources(door).empty());
+    CHECK(metaText() == before);
+
+    // Импорт в редакторе даёт ID, после него и игра видит вложенные.
+    REQUIRE(cache.find<MeshData>(door));
+    const ResourceId frame = project->resources().subresources(door).at("mesh:Frame");
+    REQUIRE(game.reload(door));
+    CHECK(game.find<MeshData>(frame));
 }
 
 TEST_CASE_FIXTURE(Fixture, "ResourceCache: new import settings reach the loader with a new revision")

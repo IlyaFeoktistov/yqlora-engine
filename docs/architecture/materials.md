@@ -136,7 +136,7 @@ void main()
   UV layouts work (`bitangent = cross(normal, tangent.xyz) * tangent.w`).
   `Vertex` becomes position, normal, `uv0`, tangent. The profile stays at
   version 1: no project has shaders yet. A shader file records the profile
-  version in its `.meta`.
+  version in its `.meta` on import in the editor.
 - **Built-in shaders as resources**: `Standard` (the PBR shader every new
   material uses) and `Error` (magenta, for a material whose shader does not
   compile) have constant IDs below `kFirstProjectId`, like the built-in
@@ -491,7 +491,7 @@ only if every scene was read, as `upgradeProject` already does.
   `TANGENT` is read when present (computing them is phase 5.7);
   `standard.glsl` passes `vTangent`.
 - **`.meta` of a shader** records the profile version (`profileVersion`)
-  through `LoadResult::importUpdate`; a shader of another version does not
+  through `LoadResult::importUpdate` on import (`MetaPolicy::Import`); a shader of another version does not
   load until the project is upgraded.
 - **Built-in resources** `Standard` and `Error` (`builtin::kStandardShader`,
   `builtin::kErrorShader`, `shader/BuiltinShaders`) from `engine:`. All
@@ -528,19 +528,7 @@ An audit of steps 3-5 (2026-11-02): what is costly to change later. Done
 before 5.3, a commit per group, each followed by a build and tests on
 Linux and Windows.
 
-1. **Resources and formats**:
-   - loading does not write `.meta`: nested IDs and the profile version are
-     written on import in the editor, loading only reads (a built game in
-     step 9 does not change its files);
-   - `ResourceDatabase` is the "ID and path" index; reading and writing the
-     `.meta` format is separate;
-   - `.meta` is written atomically (`platform::writeFileAtomically` comes
-     here from 5.3);
-   - external `.bin` files of a glTF model go into
-     `LoadResult::dependencies`, so a changed buffer reloads the model;
-   - `GltfLoader.cpp` is split into files (meshes, nodes) before glTF
-     materials.
-2. **Clean code**:
+1. **Clean code**:
    - reading a whole file is one platform function instead of five
      (images, glTF, shaders, the script template, the build record);
    - ASCII lowercase is one function instead of five;

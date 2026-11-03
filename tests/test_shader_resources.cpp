@@ -8,6 +8,7 @@
 #include <yqlora/render/EngineUniforms.hpp>
 #include <yqlora/resource/BuiltinResources.hpp>
 #include <yqlora/resource/ResourceCache.hpp>
+#include <yqlora/resource/ResourceMeta.hpp>
 #include <yqlora/shader/ShaderAnnotations.hpp>
 #include <yqlora/shader/ShaderDataBuild.hpp>
 #include <yqlora/shader/ShaderProfile.hpp>
@@ -82,6 +83,7 @@ struct ProjectFixture {
         REQUIRE(Project::create(directory, "Game", registry));
         project.emplace(*Project::open(directory, registry));
         cache.addLoader(std::make_unique<ShaderLoader>());
+        cache.setMetaPolicy(MetaPolicy::Import);
         cache.setProject(&*project);
     }
 
@@ -238,6 +240,14 @@ TEST_CASE_FIXTURE(ProjectFixture, "ShaderLoader: one file gives both stages, the
     CHECK(shader->desc.name == "lit");
     const auto import = nlohmann::json::parse(project->resources().importSettings(id));
     CHECK(import.at("profileVersion") == kShaderProfileVersion);
+
+    // Без импорта (собранная игра) версия не пишется, а шейдер без неё читается.
+    const ResourceId plain = add("shaders/plain.yshader", shaderWith("    vec4 baseColor;\n    float roughness;\n"));
+    ResourceCache game;
+    game.addLoader(std::make_unique<ShaderLoader>());
+    game.setProject(&*project);
+    CHECK(game.find<ShaderData>(plain));
+    CHECK(project->resources().importSettings(plain) == kNoImportSettings);
 
     // Шейдер под другую версию профиля не загружается, пока проект не переведут.
     REQUIRE(project->resources().setImportSettings(id, R"({"profileVersion": 999})"));

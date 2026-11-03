@@ -5,6 +5,7 @@
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/editor/NewScene.hpp"
 #include "yqlora/editor/ProjectSetup.hpp"
+#include "yqlora/platform/Files.hpp"
 #include "yqlora/project/Project.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
 #include "yqlora/scene/Scene.hpp"
@@ -273,9 +274,7 @@ std::optional<fs::path> ProjectFiles::createScript(
     }
     // Оба файла или ни одного: шаблон проверен до записи.
     for (const auto& [target, text] : files) {
-        std::ofstream out(target, std::ios::binary);
-        out << text;
-        if (!out) {
+        if (!platform::writeFileAtomically(target, text)) {
             log::error("Cannot write '{}'", toUtf8(target));
 
             return std::nullopt;

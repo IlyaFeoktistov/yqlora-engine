@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/resource/ResourceId.hpp"
+#include "yqlora/resource/ResourceMeta.hpp"
 
 #include <filesystem>
 #include <map>
@@ -90,18 +91,12 @@ public:
     }
 
 private:
-    // То, что лежит в .meta файла, кроме его ID.
-    struct Meta {
-        std::map<std::string, ResourceId> subresources;
-        std::string import;
-    };
-
     struct Nested {
         ResourceId file = 0;
         std::string key;
     };
 
-    void remember(ResourceId id, const std::filesystem::path& path, Meta meta);
+    void remember(ResourceId id, const std::filesystem::path& path, ResourceMeta meta);
     void forget(ResourceId id);
     bool writeMeta(ResourceId id) const;
     bool known(ResourceId id) const;
@@ -110,7 +105,7 @@ private:
     std::filesystem::path m_root;
     std::map<ResourceId, std::filesystem::path> m_paths;
     std::map<std::filesystem::path, ResourceId> m_ids;
-    std::map<ResourceId, Meta> m_meta;
+    std::map<ResourceId, ResourceMeta> m_meta;
     std::map<ResourceId, Nested> m_nested;
 };
 
