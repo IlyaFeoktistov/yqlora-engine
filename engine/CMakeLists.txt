@@ -71,6 +71,7 @@ add_library(yqlora SHARED
     src/import/GltfLoader.cpp
     src/import/GltfMeshes.cpp
     src/import/GltfNodes.cpp
+    src/import/MaterialLoader.cpp
     src/import/ImageLoader.cpp
     src/import/ShaderLoader.cpp
     src/import/StbImage.cpp
@@ -127,7 +128,11 @@ add_library(yqlora SHARED
     src/render/ExtractLights.cpp
     src/render/ExtractViews.cpp
     src/render/FrameBuilder.cpp
+    src/render/GpuMaterial.cpp
     src/render/GpuMesh.cpp
+    src/render/GpuTexture.cpp
+    src/render/MaterialBlock.cpp
+    src/render/PipelineCache.cpp
     src/render/GraphicsBackend.cpp
     src/render/MeshPass.cpp
     src/render/Prepare.cpp
@@ -138,6 +143,10 @@ add_library(yqlora SHARED
     src/render/TextureSampler.cpp
     src/render/GraphicsSettings.cpp
     src/render/BuiltinMeshes.cpp
+    src/material/MaterialData.cpp
+    src/material/MaterialFile.cpp
+    src/material/MaterialOverrides.cpp
+    src/render/MeshRenderer.cpp
     src/render/MeshData.cpp
     src/render/PrimitiveMeshes.cpp
     src/render/RenderSystem.cpp

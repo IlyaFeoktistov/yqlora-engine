@@ -1,5 +1,6 @@
 #include "yqlora/render/RenderTypes.hpp"
 
+#include "yqlora/material/MaterialData.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/DirectionalLight3D.hpp"
@@ -48,7 +49,8 @@ void registerRenderTypes(TypeRegistry& registry)
         .requiresNode<Node3D>()
         .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh)
         .resource(MeshData::kResourceKind)
-        .property("color", &MeshRenderer::color, &MeshRenderer::setColor, PropertyHint::Color);
+        .property("materials", &MeshRenderer::materials, &MeshRenderer::setMaterials)
+        .resource(MaterialData::kResourceKind);
 
     registry.registerSystem<RenderSystem>();
 

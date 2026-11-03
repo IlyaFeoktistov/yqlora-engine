@@ -121,7 +121,7 @@ void OutlinePass::addTo(RenderGraph& graph, const ViewPassInput& input)
             setUniforms(commands, kViewBlock, viewUniforms);
             for (std::size_t i = 0; i < selected.size(); ++i) {
                 setUniforms(commands, kObjectBlock, objects[i]);
-                drawMesh(commands, m_meshes.get(*selected[i]));
+                drawMesh(commands, m_meshes.get(*selected[i]), selected[i]->firstIndex, selected[i]->indexCount);
             }
         },
     });

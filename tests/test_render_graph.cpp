@@ -2,6 +2,7 @@
 
 #include <doctest/doctest.h>
 
+#include <yqlora/material/MaterialData.hpp>
 #include <yqlora/render/Prepare.hpp>
 #include <yqlora/render/RenderGraph.hpp>
 
@@ -51,10 +52,20 @@ CameraData lookingDownMinusZ()
     };
 }
 
-DrawItem itemAt(const Vec3& position, int layer = 0)
+DrawItem itemAt(const Vec3& position, int layer = 0, std::size_t material = 0)
 {
-    return {.bounds = {position - Vec3(0.5f), position + Vec3(0.5f)}, .layer = layer};
+    return {.bounds = {position - Vec3(0.5f), position + Vec3(0.5f)}, .material = material, .layer = layer};
 }
+
+const MaterialData kOpaque;
+const MaterialData kTransparent{.blend = MaterialBlend::Transparent};
+
+// Материалы кадра для Prepare: важны только шейдер и смешивание.
+const std::vector<FrameMaterial> kPrepareMaterials{
+    {.id = 1, .data = &kOpaque, .shaderId = 20},
+    {.id = 2, .data = &kOpaque, .shaderId = 10},
+    {.id = 3, .data = &kTransparent, .shaderId = 10},
+};
 
 } // namespace
 
@@ -172,10 +183,27 @@ TEST_CASE("Prepare: a view keeps what is in its frustum and mask, nearest first"
     // Все слои, кроме третьего.
     const ViewData view{.camera = lookingDownMinusZ(), .mask = kAllLayers & ~(LayerMask{1} << 3)};
 
-    const std::vector<const DrawItem*> visible = prepareView(items, view);
+    const std::vector<const DrawItem*> visible = prepareView(items, kPrepareMaterials, view);
     REQUIRE(visible.size() == 2);
     CHECK(visible[0] == &items[2]);
     CHECK(visible[1] == &items[0]);
+}
+
+TEST_CASE("Prepare: opaque by pipeline and material, nearest first in a group, then transparent farthest first")
+{
+    const std::vector<DrawItem> items{
+        itemAt({0.0f, 0.0f, -4.0f}, 0, 2), // прозрачное, ближе
+        itemAt({0.0f, 0.0f, -9.0f}, 0, 0), // шейдер 20, дальше
+        itemAt({0.0f, 0.0f, -8.0f}, 0, 2), // прозрачное, дальше
+        itemAt({0.0f, 0.0f, -6.0f}, 0, 1), // шейдер 10, дальше
+        itemAt({0.0f, 0.0f, -3.0f}, 0, 0), // шейдер 20, ближе
+        itemAt({0.0f, 0.0f, -5.0f}, 0, 1), // шейдер 10, ближе
+    };
+    const ViewData view{.camera = lookingDownMinusZ()};
+
+    const std::vector<const DrawItem*> visible = prepareView(items, kPrepareMaterials, view);
+    const std::vector<const DrawItem*> expected{&items[5], &items[3], &items[4], &items[1], &items[2], &items[0]};
+    CHECK(visible == expected);
 }
 
 TEST_CASE("Prepare: bounds follow the transform")

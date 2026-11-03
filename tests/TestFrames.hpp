@@ -1,0 +1,53 @@
+#pragma once
+
+#include <yqlora/material/MaterialData.hpp>
+#include <yqlora/render/FrameData.hpp>
+#include <yqlora/resource/BuiltinResources.hpp>
+#include <yqlora/resource/ResourceCache.hpp>
+#include <yqlora/shader/ShaderData.hpp>
+
+#include <cstddef>
+#include <deque>
+#include <utility>
+
+namespace yqlora::test {
+
+// Материалы кадров, собранных в тесте вручную: данные живут, пока жив объект.
+class TestMaterials {
+public:
+    // Материал Standard с базовым цветом color (sRGB); его индекс в frame.materials.
+    std::size_t add(FrameData& frame, const Vec4& color = Vec4(1.0f), MaterialBlend blend = MaterialBlend::Opaque)
+    {
+        const MaterialData& material = m_data.emplace_back(
+            MaterialData{
+                .blend = blend,
+                .values = {{"baseColor", {color.r, color.g, color.b, color.a}}},
+            }
+        );
+        const LoadedData<ShaderData> shader = m_cache.get<ShaderData>(builtin::kStandardShader);
+        FrameMaterial frameMaterial{
+            .id = kFirstTestMaterial + m_data.size(),
+            .revision = 1,
+            .data = &material,
+            .shaderId = builtin::kStandardShader,
+            .shaderRevision = shader.revision,
+            .shader = shader.data,
+        };
+        // Карт нет: у каждой текстуры шейдера - текстура по умолчанию.
+        for (const MaterialTexture& texture : shader.data->textures) {
+            frameMaterial.textures.push_back({.slot = texture.slot, .fallback = texture.defaultTexture});
+        }
+        frame.materials.push_back(std::move(frameMaterial));
+
+        return frame.materials.size() - 1;
+    }
+
+private:
+    // ID материалов теста: вне встроенных и не пересекаются друг с другом.
+    static constexpr ResourceId kFirstTestMaterial = builtin::kFirstProjectId;
+
+    ResourceCache m_cache;
+    std::deque<MaterialData> m_data;
+};
+
+} // namespace yqlora::test

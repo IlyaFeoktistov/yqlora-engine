@@ -14,17 +14,6 @@ constexpr std::string_view kDefault = "default";
 constexpr std::string_view kLabel = "label";
 constexpr std::string_view kHidden = "hidden";
 
-struct DefaultTextureName {
-    std::string_view name;
-    DefaultTexture texture;
-};
-
-constexpr DefaultTextureName kDefaultTextures[] = {
-    {"white", DefaultTexture::White},
-    {"black", DefaultTexture::Black},
-    {"normal", DefaultTexture::Normal},
-};
-
 bool isNumberType(rhi::ValueType type)
 {
     return type == rhi::ValueType::Float || type == rhi::ValueType::Int || type == rhi::ValueType::UInt;
@@ -219,12 +208,11 @@ void applyAnnotations(
     forEachOnce(declaration, file, errors, [&](const Annotation& annotation, const Checker& check) {
         if (annotation.word == kDefault) {
             const AnnotationWord* word = check.word();
-            const auto found = word ? std::ranges::find(kDefaultTextures, word->text, &DefaultTextureName::name)
-                                    : std::ranges::end(kDefaultTextures);
-            if (found == std::ranges::end(kDefaultTextures)) {
+            const auto found = word ? enumFromName<DefaultTexture>(word->text) : std::nullopt;
+            if (!found) {
                 check.fail("a texture takes white, black or normal");
             } else {
-                texture.defaultTexture = found->texture;
+                texture.defaultTexture = *found;
             }
         } else if (!applyCommon(annotation, check, texture.label, texture.hidden)) {
             check.fail("unknown annotation");

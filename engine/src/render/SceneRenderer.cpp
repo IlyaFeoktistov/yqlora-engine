@@ -79,7 +79,7 @@ void SceneRenderer::draw(
     // Виды по очереди: следующая камера рисует поверх предыдущей.
     for (std::size_t i = 0; i < frame.views.size(); ++i) {
         const ViewData& view = frame.views[i];
-        visible[i] = prepareView(frame.drawItems, view);
+        visible[i] = prepareView(frame.drawItems, frame.materials, view);
         viewUniforms[i] = m_context.uniforms.push(
             ViewUniforms{
                 .viewProjection = view.camera.projection * view.camera.view,
@@ -92,10 +92,11 @@ void SceneRenderer::draw(
             .depth = RenderGraph::Target{depthId, depthLoad(view.clear)},
             .clearColor = view.background,
             .record = [this,
+                       &frame,
                        items = std::span<const DrawItem* const>(visible[i]),
                        frameUniforms,
                        slice = viewUniforms[i]](rhi::CommandList& commands, const RenderGraph&) {
-                m_meshPass->draw(commands, items, frameUniforms, slice);
+                m_meshPass->draw(commands, frame, items, frameUniforms, slice);
             },
         });
     }

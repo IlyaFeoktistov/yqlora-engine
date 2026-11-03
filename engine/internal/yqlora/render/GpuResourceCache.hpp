@@ -13,8 +13,9 @@ namespace yqlora {
 // Копия другой ревизии заменяется новой; копия, которой не пользовались
 // kUnusedFramesToKeep кадров подряд, освобождается (ресурс перезагрузили,
 // проект закрыли). Сама видеопамять - дело типа Gpu: так кэш одинаков у
-// всех графических API.
-template <typename Gpu>
+// всех графических API. Revision - то, от чего зависит копия: ревизия
+// ресурса или несколько ревизий (материал и его шейдер), сравнимые на равенство.
+template <typename Gpu, typename Revision = std::uint64_t>
 class GpuResourceCache {
 public:
     static constexpr std::uint64_t kUnusedFramesToKeep = 120;
@@ -22,10 +23,10 @@ public:
     // Копия ресурса id ревизии revision; create() создаёт новую, если копии
     // нет или она другой ревизии.
     template <typename Create>
-    Gpu& get(ResourceId id, std::uint64_t revision, Create&& create)
+    Gpu& get(ResourceId id, const Revision& revision, Create&& create)
     {
         Entry& entry = m_entries[id];
-        if (!entry.gpu || entry.revision != revision) {
+        if (!entry.gpu || !(entry.revision == revision)) {
             entry.gpu = create();
             entry.revision = revision;
         }
@@ -50,7 +51,7 @@ public:
 
 private:
     struct Entry {
-        std::uint64_t revision = 0;
+        Revision revision{};
         std::uint64_t lastUsedFrame = 0;
         std::unique_ptr<Gpu> gpu;
     };

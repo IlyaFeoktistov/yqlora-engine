@@ -1,5 +1,7 @@
 #pragma once
 
+#include "yqlora/material/MaterialData.hpp"
+#include "yqlora/material/MaterialOverrides.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/Light3D.hpp"
@@ -7,6 +9,7 @@
 #include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/scene/Layers.hpp"
 #include "yqlora/scene/NodeId.hpp"
+#include "yqlora/shader/ShaderData.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -15,6 +18,7 @@
 namespace yqlora {
 
 struct MeshData;
+struct TextureData;
 class ViewPass;
 
 struct CameraData {
@@ -34,16 +38,56 @@ struct ViewData {
     std::vector<ViewPass*> passes{};
 };
 
-// Один меш в кадре. Данные меша живут в кэше ресурсов до конца кадра.
+// Текстура материала в кадре: ресурс или, если его нет или он не
+// загрузился, текстура по умолчанию поля.
+struct FrameTexture {
+    rhi::BindingSlot slot{};
+    ResourceId id = 0;
+    std::uint64_t revision = 0;
+    // nullptr - рисуется fallback.
+    const TextureData* data = nullptr;
+    DefaultTexture fallback = DefaultTexture::White;
+};
+
+// Материал кадра вместе с его шейдером и текстурами, как их нашёл Extract:
+// рендерер кэша ресурсов не читает. Материал со сломанным или пропавшим
+// шейдером здесь уже заменён материалом Error.
+struct FrameMaterial {
+    ResourceId id = 0;
+    std::uint64_t revision = 0;
+    const MaterialData* data = nullptr;
+    ResourceId shaderId = 0;
+    std::uint64_t shaderRevision = 0;
+    const ShaderData* shader = nullptr;
+    // По текстурам шейдера, в его порядке.
+    std::vector<FrameTexture> textures{};
+};
+
+// Замены материала у одного слота (MaterialOverrides) на этот кадр: копия
+// значений и текстуры шейдера с заменами поверх текстур материала.
+struct FrameOverrides {
+    MaterialOverrides values{};
+    std::vector<FrameTexture> textures{};
+};
+
+// Один подмеш в кадре. Данные меша живут в кэше ресурсов до конца кадра.
 struct DrawItem {
+    static constexpr std::size_t kNoOverrides = static_cast<std::size_t>(-1);
+
     const MeshData* mesh = nullptr;
     // По ID и ревизии рендерер узнаёт, что его копия меша в видеопамяти устарела.
     ResourceId meshId = 0;
     std::uint64_t meshRevision = 0;
+    // Диапазон индексов подмеша.
+    std::uint32_t firstIndex = 0;
+    std::uint32_t indexCount = 0;
     Mat4 world{1.0f};
     // Границы меша в мире: по ним Prepare отсекает невидимое.
     Bounds bounds{};
-    Vec4 color{1.0f};
+    // Индекс в FrameData::materials.
+    std::size_t material = 0;
+    // Индекс в FrameData::overrides или kNoOverrides.
+    std::size_t overrides = kNoOverrides;
     int layer = 0;
     NodeId node = 0; // чей это меш: по нему редактор узнаёт выбранный объект
 };
@@ -80,6 +124,9 @@ inline constexpr std::size_t kMaxPunctualLights = 32;
 struct FrameData {
     std::vector<ViewData> views;
     std::vector<DrawItem> drawItems;
+    // Материалы, которыми рисуются drawItems, каждый один раз.
+    std::vector<FrameMaterial> materials;
+    std::vector<FrameOverrides> overrides;
     // Не больше kMaxDirectionalLights направленных и kMaxPunctualLights
     // точечных и прожекторов вместе.
     std::vector<LightData> lights;

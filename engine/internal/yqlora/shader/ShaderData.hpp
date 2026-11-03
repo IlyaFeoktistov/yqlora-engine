@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/rhi/Pipeline.hpp"
 
 #include <cstdint>
@@ -21,6 +22,13 @@ enum class DefaultTexture : std::uint8_t {
     // (0.5, 0.5, 1): нормаль, не меняющая поверхность.
     Normal,
 };
+
+} // namespace yqlora
+
+// Так их пишут в пометке default() шейдера.
+YQLORA_ENUM_NAMES(yqlora::DefaultTexture, "white", "black", "normal")
+
+namespace yqlora {
 
 // Поле блока Material: место из отражения, вид в инспекторе из пометок.
 struct MaterialField {

@@ -36,12 +36,17 @@ std::unique_ptr<GpuMesh> uploadMesh(rhi::Device& device, const MeshData& data)
 
 void drawMesh(rhi::CommandList& commands, const GpuMesh& mesh)
 {
-    if (mesh.indexCount == 0) {
+    drawMesh(commands, mesh, 0, mesh.indexCount);
+}
+
+void drawMesh(rhi::CommandList& commands, const GpuMesh& mesh, std::uint32_t firstIndex, std::uint32_t indexCount)
+{
+    if (indexCount == 0 || firstIndex + indexCount > mesh.indexCount) {
         return;
     }
     commands.setVertexBuffer(*mesh.vertices);
     commands.setIndexBuffer(*mesh.indices);
-    commands.drawIndexed(mesh.indexCount);
+    commands.drawIndexed(indexCount, firstIndex);
 }
 
 const GpuMesh& GpuMeshCache::get(const DrawItem& item)

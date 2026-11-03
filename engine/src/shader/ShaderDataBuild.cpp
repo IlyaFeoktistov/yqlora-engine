@@ -11,9 +11,6 @@ namespace yqlora {
 
 namespace {
 
-constexpr std::string_view kMaterialBlockName = "Material";
-constexpr rhi::BindingSlot kMaterialBlockSlot{kMaterialSet, 0};
-
 // Набор материала: блок Material на привязке 0, остальное - текстуры.
 void collectMaterial(const rhi::ShaderReflection& reflection, ShaderData& data, std::vector<std::string>& errors)
 {

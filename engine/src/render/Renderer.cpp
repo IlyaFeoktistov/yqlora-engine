@@ -1,7 +1,10 @@
 #include "yqlora/render/Renderer.hpp"
 
+#include "yqlora/render/GpuMaterial.hpp"
 #include "yqlora/render/GpuMesh.hpp"
+#include "yqlora/render/GpuTexture.hpp"
 #include "yqlora/render/GraphicsBackend.hpp"
+#include "yqlora/render/PipelineCache.hpp"
 #include "yqlora/render/RenderGraph.hpp"
 #include "yqlora/render/SceneRenderer.hpp"
 #include "yqlora/render/TextureData.hpp"
@@ -31,9 +34,16 @@ Renderer::Renderer(GraphicsApi api, std::unique_ptr<rhi::Device> device, std::un
     , m_shaders(std::make_unique<ShaderCompiler>(ShaderFileReader{}))
     , m_uniforms(std::make_unique<UniformRing>(*m_device))
     , m_meshes(std::make_unique<GpuMeshCache>(*m_device))
+    , m_textures(std::make_unique<GpuTextureCache>(*m_device))
+    , m_materials(std::make_unique<GpuMaterialCache>(*m_device))
+    , m_pipelines(std::make_unique<PipelineCache>(*m_device))
     , m_uiTextures(std::make_unique<GpuResourceCache<rhi::Texture>>())
     , m_transients(std::make_unique<TransientTextures>(*m_device))
-    , m_context(std::make_unique<RenderContext>(RenderContext{*m_device, *m_shaders, *m_uniforms, *m_meshes}))
+    , m_context(
+          std::make_unique<RenderContext>(
+              RenderContext{*m_device, *m_shaders, *m_uniforms, *m_meshes, *m_textures, *m_materials, *m_pipelines}
+          )
+      )
     , m_scene(std::make_unique<SceneRenderer>(*m_context, *m_transients))
 {
 }
@@ -44,6 +54,9 @@ Renderer::~Renderer()
     m_scene.reset();
     m_transients.reset();
     m_uiTextures.reset();
+    m_pipelines.reset();
+    m_materials.reset();
+    m_textures.reset();
     m_meshes.reset();
     m_uniforms.reset();
     m_shaders.reset();
@@ -98,6 +111,9 @@ void Renderer::present()
     m_device->present();
     m_uniforms->reset();
     m_meshes->endFrame();
+    m_textures->endFrame();
+    m_materials->endFrame();
+    m_pipelines->endFrame();
     m_uiTextures->endFrame();
     m_transients->endFrame();
 }

@@ -34,9 +34,10 @@ Status marks: see [README](README.md).
   Separate metallic and roughness maps are packed into one on import
   later; detail maps, anisotropy, clear coat and subsurface scattering come
   after the MVP with photorealism.
-- **Colour lives in the material.** `MeshRenderer` loses its colour; an
-  upgrade of the project turns every distinct colour into a material file
-  (see "Upgrading old scenes").
+- **Colour lives in the material.** `MeshRenderer` loses its colour. Old
+  scenes are not upgraded: until the branch is released, file formats stay
+  at version 1 without upgrades, and an object of an old scene draws with
+  the default material (its `color` stays an unknown property).
 - **Material edits go straight into the file**, as in Unity, without
   pressing "Save"; the edit history of the scene does not hold them. Undo
   for materials can come later; assigning a material in the scene is a
@@ -147,7 +148,7 @@ void main()
   use the shader. Errors go to the log panel as `file:line: text`; a
   material whose shader has an error draws with `Error` until it compiles.
 
-## Materials [planned, step 5]
+## Materials [done]
 
 A material file `.ymat` (JSON, `FileFormat` version 1):
 
@@ -190,7 +191,7 @@ A material file `.ymat` (JSON, `FileFormat` version 1):
 - **Prepare** groups opaque items by pipeline and material (front to back
   inside a group) and draws transparent items after them, back to front.
 
-## Materials from scripts [planned, step 5]
+## Materials from scripts [done]
 
 A script changes how one object looks without touching the material file,
 as `MaterialPropertyBlock` in Unity does:
@@ -226,7 +227,7 @@ renderer.overrides(0).clear();
   (`light.setIntensity(...)`), with no new API.
 - A material file can also be changed from a script through the resource
   (`materialData.set...`) for all objects at once; such a change is not
-  written to disk.
+  written to disk. Made in phase 5.4 **[planned, step 5]**.
 
 ## Lights [planned, step 5]
 
@@ -344,22 +345,6 @@ As in Unity: lights give shadows, their meshes cast and receive them.
   cascade count, the size of a cascade map and of the atlas (quality).
 - **After the MVP**: contact shadows, softness by light size (PCSS),
   shadows from transparent surfaces, ray tracing.
-
-## Upgrading old scenes [planned, step 5]
-
-The scene format goes to version 2: `MeshRenderer` has `materials` instead
-of `color`. A document migration cannot create files, so the upgrade of a
-project gets a project step before the documents: it reads every scene,
-collects the colours of `MeshRenderer`, writes one material file per
-distinct colour (`materials/Color_RRGGBBAA.ymat`, the `Standard` shader
-with that base colour, opaque, or transparent if alpha is below 1) and gives
-the scene migration the colour to material map. Colours are compared after
-rounding every channel to 8 bits (`round(clamp(c, 0, 1) * 255)`), so two
-colours that differ less than that share one material; the material keeps
-the rounded value. A colour equal to the default material (white) gets no
-file. A file with that name already in the project is reused if it holds
-the same colour, otherwise the name gets a number. Everything is prepared in memory first and written
-only if every scene was read, as `upgradeProject` already does.
 
 ## Editor [planned, step 5]
 
@@ -517,50 +502,52 @@ only if every scene was read, as `upgradeProject` already does.
   include names that file and line; a changed include reloads the shader;
   a new shader is a copy of the template.
 
-### 5.3 Materials
+### 5.3 Materials [done]
 
-- **`MaterialData`** (resource kind `material`, format `material` version
-  1): shader, `blend`, `cull`, values and textures by name; loader and
-  writer of `.ymat` (atomic, `platform::writeFileAtomically`); values the
-  shader lacks are kept.
-- **Built-in materials**: the default one (`Standard`, white) and `Error`
-  (the `Error` shader); a material whose shader is broken or missing draws
-  with `Error`.
-- **GPU materials** (`engine/render/GpuMaterial`): the uniform buffer
-  written by the offsets of the material layout (defaults, `color` values
-  from sRGB to linear), textures with samplers from their import settings,
-  default textures `white`, `black`, `normal`; keyed by material and shader
-  ID and revision.
-- **sRGB textures**: a texture imported as sRGB becomes `Rgba8Srgb` on the
-  GPU, so sampling decodes it.
+- **`MaterialData`** (`engine/internal/yqlora/material`, resource kind
+  `material`, format `Material` version 1): shader, `blend`, `cull`, values
+  and textures by name (`materialValue`, `materialTexture`); reading and
+  atomic writing of `.ymat` (`MaterialFile`), `MaterialLoader`; values the
+  shader lacks are kept, a value of another size is not used.
+- **Built-in materials** `Default` (`Standard`, white) and `Error` (the
+  `Error` shader) in `builtinResourceTable()`; Extract draws an empty slot
+  with `Default` and a missing material, or one whose shader is broken or
+  missing, with `Error`.
+- **Frame materials**: Extract gives `FrameData::materials` (each material
+  once, with its shader and its textures already found) and one `DrawItem`
+  per submesh with its index range and material index; the renderer does
+  not read the resource cache.
+- **GPU**: `GpuTextureCache` (a texture imported as sRGB becomes
+  `Rgba8Srgb`, so sampling decodes it; default textures `white`, `black`,
+  `normal`; samplers by import settings), `GpuMaterialCache` (the
+  `Material` block from `materialBlock`: the offsets of the shader
+  reflection, `color` values from sRGB to linear, ints as ints; keyed by
+  material ID and the revisions of the material and its shader),
+  `PipelineCache` (one pipeline per shader revision, blend, cull and target
+  formats; a new shader revision drops the pipelines of the old one; a
+  shader the backend does not build draws with `Error`). They are in
+  `RenderContext`, shared by every view.
 - **Maps of `Standard`** (see "Decisions"): `baseColorMap`, `ormMap`,
-  `normalMap`, `heightMap`, `emissionMap` and their factors; parallax from
-  the height map and ambient occlusion in `lighting.glsl`.
-- **Pipeline cache** (`engine/render/PipelineCache`): by shader and its
-  revision, blend, cull, target formats; old revisions are released with the
-  GPU cache rule.
-- **Slots**: `MeshRenderer::materials`, a list of material references; the
-  colour goes. Extract makes one `DrawItem` per submesh with its index range
-  and material; `drawMesh` draws a range.
+  `normalMap`, `heightMap`, `emissionMap`, the factors `emission`,
+  `occlusionStrength`, `normalScale`, `heightScale`; `normalFromMap` and
+  parallax occlusion mapping `parallaxUv` in `standard.glsl`.
+- **Slots**: `MeshRenderer::materials`, a list of material references (the
+  `resource(material)` attribute); the colour is gone.
 - **Overrides for scripts**: `MeshRenderer::overrides(slot)` with
-  `MaterialOverrides` (see "Materials from scripts"); `DrawItem` carries
-  them, the pass writes the material data of such an item per frame.
+  `MaterialOverrides`; Extract copies them into `FrameData::overrides`
+  with the textures they replace, `MeshPass` writes the material data of
+  such an item into the frame uniforms; an override that does not fit the
+  shader is skipped with one message per shader and field.
 - **Prepare**: opaque items grouped by pipeline and material, front to back
-  inside a group; a transparent list, back to front, drawn after the opaque
-  ones in the same view.
-- **Scene format 2** and the project step of the upgrade (see "Upgrading
-  old scenes"): `upgradeProject` gets steps over the whole project that run
-  before the document migrations.
-- **Tests**: values by name and defaults; a value the shader lost is kept
-  and written back, and used again when the field returns; a value of
-  another type is not used; the pipeline cache gives one pipeline per
-  state; grouping and transparent order in Prepare; overrides change one of
-  two objects with the same material, `clear` gives back the value of the
-  material, an override of the wrong type is skipped, overrides are not
-  saved; colours that round to the same RGBA8 share one material; upgrading a project with coloured objects writes
-  materials and scenes; a broken shader draws with `Error` and comes back
-  after a fix; on OpenGL: a texture of a material is sampled as sRGB, an
-  override changes the colour of one of two cubes.
+  inside a group; transparent ones after them, back to front.
+- **Tests**: the `.ymat` format; values by name, defaults and a value of
+  another type; built-in and project materials as resources; the
+  `Material` block, overrides and `clear`; one pipeline per state and new
+  pipelines for a new shader revision; the order of Prepare; Extract: a
+  slot, `Error` for a broken shader and back after a fix, the default
+  material, copied overrides; an old scene with `color` opens; on OpenGL:
+  an sRGB texture is decoded, an override changes one of two cubes with
+  one material.
 
 ### 5.4 Materials in the editor
 
@@ -585,6 +572,9 @@ only if every scene was read, as `upgradeProject` already does.
   viewport: picking returns the submesh under the cursor and the slot is
   set in one undo step (a change of the scene, unlike edits of the
   material file).
+- **A material from a script**: `materialData.set...` changes the material
+  in the cache with a new revision for all objects at once, through the
+  same path as an edit in the inspector, without writing the file.
 - **Tests**: slot names; dropping onto an object sets the right slot and is
   undone; an edit in the inspector updates the material at once and writes
   the file when the edit ends, not on every frame of a drag.

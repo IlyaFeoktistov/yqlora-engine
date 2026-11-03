@@ -13,7 +13,6 @@ namespace {
 
 constexpr std::string_view kAnnotationStart = "//@";
 constexpr std::string_view kComment = "//";
-constexpr char kMaterialBlockName[] = "Material";
 
 bool isWordStart(char c)
 {
@@ -208,7 +207,7 @@ std::optional<std::string> fieldDeclaration(const std::string& code)
 
 AnnotationParseResult parseShaderAnnotations(std::string_view source, const std::string& file)
 {
-    static const std::regex materialStart(std::string(R"(\buniform\s+)") + kMaterialBlockName + R"(\b)");
+    static const std::regex materialStart(std::string(R"(\buniform\s+)") + std::string(kMaterialBlockName) + R"(\b)");
 
     AnnotationParseResult result;
     std::vector<Annotation> pending;

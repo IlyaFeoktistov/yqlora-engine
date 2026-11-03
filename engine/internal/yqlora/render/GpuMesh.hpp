@@ -28,6 +28,14 @@ YQLORA_API std::unique_ptr<GpuMesh> uploadMesh(rhi::Device& device, const MeshDa
 // Буферы меша и все его треугольники; конвейер уже выбран.
 YQLORA_API void drawMesh(rhi::CommandList& commands, const GpuMesh& mesh);
 
+// Только диапазон индексов (подмеш).
+YQLORA_API void drawMesh(
+    rhi::CommandList& commands,
+    const GpuMesh& mesh,
+    std::uint32_t firstIndex,
+    std::uint32_t indexCount
+);
+
 // Копии мешей кадра в видеопамяти, см. GpuResourceCache.
 class YQLORA_API GpuMeshCache {
 public:

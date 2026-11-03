@@ -1,5 +1,6 @@
 #include "yqlora/resource/BuiltinResourceTable.hpp"
 
+#include "yqlora/material/MaterialData.hpp"
 #include "yqlora/render/BuiltinMeshes.hpp"
 #include "yqlora/shader/BuiltinShaders.hpp"
 
@@ -24,6 +25,21 @@ std::span<const BuiltinResourceEntry> builtinResourceTable()
                  }}
             );
         }
+
+        // Материалы - значения по умолчанию своих шейдеров.
+        const auto material = [](ResourceId shader) {
+            return [shader] {
+                return std::shared_ptr<const void>(
+                    std::make_shared<const MaterialData>(MaterialData{.shader = shader})
+                );
+            };
+        };
+        entries.push_back(
+            {builtin::kDefaultMaterial, MaterialData::kResourceKind, "Default", material(builtin::kStandardShader)}
+        );
+        entries.push_back(
+            {builtin::kErrorMaterial, MaterialData::kResourceKind, "Error", material(builtin::kErrorShader)}
+        );
 
         return entries;
     }();

@@ -21,8 +21,9 @@ YQLORA_API std::vector<ViewData> extractViews(const RenderSystem& render, float 
 // этом один раз на сцену пишется в лог.
 YQLORA_API std::vector<LightData> extractLights(const RenderSystem& render, const Vec3& camera);
 
-// Включённые MeshRenderer на пространственных узлах с загруженным мешем.
-YQLORA_API std::vector<DrawItem> extractDrawItems(const Scene& scene);
+// Включённые MeshRenderer на пространственных узлах с загруженным мешем: по
+// DrawItem на подмеш, материалы слотов и их замены - в frame.
+YQLORA_API void extractDrawItems(const Scene& scene, FrameData& frame);
 
 // Окружающий свет из настроек освещения проекта.
 YQLORA_API EnvironmentData extractEnvironment(const Scene& scene);

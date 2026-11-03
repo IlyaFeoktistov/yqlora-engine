@@ -16,7 +16,7 @@ FrameData extractFrame(const Scene& scene, float aspect)
         const Vec3 camera = frame.views.empty() ? Vec3(0.0f) : frame.views.front().camera.position;
         frame.lights = extractLights(*render, camera);
     }
-    frame.drawItems = extractDrawItems(scene);
+    extractDrawItems(scene, frame);
 
     return frame;
 }

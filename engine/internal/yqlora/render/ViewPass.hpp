@@ -8,16 +8,23 @@
 
 namespace yqlora {
 
+class GpuMaterialCache;
 class GpuMeshCache;
+class GpuTextureCache;
+class PipelineCache;
 class ShaderCompiler;
 
 // Что рендерер даёт проходам, в том числе чужим: устройство, компилятор
-// шейдеров движка, uniform-данные кадра и меши в видеопамяти.
+// шейдеров движка, uniform-данные кадра, меши и материалы в видеопамяти.
 struct RenderContext {
     rhi::Device& device;
     ShaderCompiler& shaders;
     UniformRing& uniforms;
     GpuMeshCache& meshes;
+    // Материалы: текстуры, блоки Material и конвейеры.
+    GpuTextureCache& textures;
+    GpuMaterialCache& materials;
+    PipelineCache& pipelines;
 };
 
 // Вид кадра, каким его видит дополнительный проход.

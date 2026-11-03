@@ -13,6 +13,7 @@ add_executable(yqlora_tests
     test_script.cpp
     test_reflection.cpp
     test_serializer.cpp
+    test_materials.cpp
     test_mesh.cpp
     test_input.cpp
     test_editor.cpp

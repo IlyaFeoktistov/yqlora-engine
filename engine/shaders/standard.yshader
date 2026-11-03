@@ -1,13 +1,29 @@
 #version 450
 
-// Освещённый шейдер, с которого начинается каждый новый материал.
+// Освещённый шейдер PBR, с которого начинается каждый новый материал. Каждая
+// карта необязательна: без неё - текстура по умолчанию и тот же результат,
+// что без карты.
 #include <yqlora/standard.glsl>
 
 layout(set = 2, binding = 0, std140) uniform Material {
-    vec4 baseColor;  //@ color default(1, 1, 1, 1)
-    float metallic;  //@ range(0, 1) default(0)
-    float roughness; //@ range(0, 1) default(0.5)
+    vec4 baseColor;          //@ color default(1, 1, 1, 1)
+    //@ label("Emission")
+    vec3 emission;           //@ default(0, 0, 0)
+    float metallic;          //@ range(0, 1) default(0)
+    float roughness;         //@ range(0, 1) default(0.5)
+    float occlusionStrength; //@ range(0, 1) default(1)
+    float normalScale;       //@ range(0, 2) default(1)
+    float heightScale;       //@ range(0, 0.1) default(0)
 } material;
+
+// sRGB, альфа - прозрачность.
+layout(set = 2, binding = 1) uniform sampler2D baseColorMap; //@ default(white)
+// Линейная: R - затенение, G - шероховатость, B - металличность, как в glTF.
+layout(set = 2, binding = 2) uniform sampler2D ormMap;       //@ default(white)
+layout(set = 2, binding = 3) uniform sampler2D normalMap;    //@ default(normal)
+layout(set = 2, binding = 4) uniform sampler2D heightMap;    //@ default(white)
+// sRGB, множитель свечения.
+layout(set = 2, binding = 5) uniform sampler2D emissionMap;  //@ default(white)
 
 #ifdef YQLORA_VERTEX
 void main()
@@ -19,11 +35,18 @@ void main()
 #ifdef YQLORA_FRAGMENT
 void main()
 {
+    vec2 uv = parallaxUv(heightMap, vUv0, material.heightScale);
+    vec4 base = material.baseColor * texture(baseColorMap, uv);
+    vec3 orm = texture(ormMap, uv).rgb;
+
     Surface surface = defaultSurface();
-    surface.baseColor = material.baseColor.rgb;
-    surface.alpha = material.baseColor.a;
-    surface.metallic = material.metallic;
-    surface.roughness = material.roughness;
+    surface.normal = normalFromMap(texture(normalMap, uv).rgb, material.normalScale);
+    surface.baseColor = base.rgb;
+    surface.alpha = base.a;
+    surface.occlusion = mix(1.0, orm.r, material.occlusionStrength);
+    surface.roughness = material.roughness * orm.g;
+    surface.metallic = material.metallic * orm.b;
+    surface.emission = material.emission * texture(emissionMap, uv).rgb;
     fragColor = shade(surface);
 }
 #endif

@@ -287,7 +287,8 @@
             "texture": "Texture",
             "scene": "Scene",
             "shader": "Shader",
-            "model": "Model"
+            "model": "Model",
+            "material": "Material"
         }
     },
     "projects": {

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace yqlora {
@@ -20,6 +21,10 @@ inline constexpr std::uint32_t kFrameSet = 0;
 inline constexpr std::uint32_t kViewSet = 1;
 inline constexpr std::uint32_t kMaterialSet = 2;
 inline constexpr std::uint32_t kObjectSet = 3;
+
+// Блок значений материала: только он и текстуры (привязки с 1) в наборе материала.
+inline constexpr std::string_view kMaterialBlockName = "Material";
+inline constexpr rhi::BindingSlot kMaterialBlockSlot{kMaterialSet, 0};
 
 // Входы вершин по постоянным местам.
 inline constexpr std::uint32_t kPositionLocation = 0;

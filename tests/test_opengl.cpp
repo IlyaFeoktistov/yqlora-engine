@@ -2,6 +2,8 @@
 // контекст не создать (сервер сборки без экрана), тесты пропускаются с
 // сообщением.
 
+#include "TestFrames.hpp"
+
 #include <doctest/doctest.h>
 
 #include <yqlora/editor/render/GridPass.hpp>
@@ -17,11 +19,13 @@
 #include <yqlora/render/PrimitiveMeshes.hpp>
 #include <yqlora/render/RenderGraph.hpp>
 #include <yqlora/render/Renderer.hpp>
+#include <yqlora/render/TextureData.hpp>
 #include <yqlora/render/ViewPass.hpp>
 #include <yqlora/shader/EngineShaders.hpp>
 #include <yqlora/shader/ShaderBuild.hpp>
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
@@ -128,9 +132,16 @@ const LightData kFrontLight = directional(Vec3(0.0f, 0.0f, -1.0f));
 Pixel litCubeCenter(Renderer& renderer, const std::vector<LightData>& lights)
 {
     const MeshData cube = makeCube();
+    test::TestMaterials materials;
     FrameData frame;
     frame.views.push_back({.camera = cameraAtZ(3.0f)});
-    frame.drawItems.push_back({.mesh = &cube, .meshId = 1, .bounds = cube.bounds, .color = Vec4(1.0f)});
+    frame.drawItems.push_back(
+        {.mesh = &cube,
+         .meshId = 1,
+         .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
+         .bounds = cube.bounds,
+         .material = materials.add(frame)}
+    );
     frame.lights = lights;
     auto target = renderer.createRenderTarget(kSize, kSize);
     renderer.render(frame, *target);
@@ -207,13 +218,15 @@ TEST_CASE("OpenGL: a frame with a mesh and the editor passes is drawn into a tar
 
     const Vec4 background(0.0f, 0.0f, 1.0f, 1.0f);
     const MeshData cube = makeCube();
+    test::TestMaterials materials;
     FrameData frame;
     frame.views.push_back({.camera = cameraAtZ(3.0f), .background = background, .passes = {&grid, &outline}});
     frame.drawItems.push_back({
         .mesh = &cube,
         .meshId = 1,
+        .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
         .bounds = cube.bounds,
-        .color = Vec4(1.0f, 0.0f, 0.0f, 1.0f),
+        .material = materials.add(frame, Vec4(1.0f, 0.0f, 0.0f, 1.0f)),
         .node = 7,
     });
     frame.lights.push_back(kFrontLight);
@@ -259,22 +272,25 @@ TEST_CASE("OpenGL: the nearer object wins the depth test with clip depth 0..1")
     // Зелёный ближе к камере, красный дальше; в кадре красный идёт позже.
     const Mat4 near = glm::translate(Mat4(1.0f), Vec3(0.0f, 0.0f, 1.0f));
     const Mat4 far = glm::translate(Mat4(1.0f), Vec3(0.0f, 0.0f, -1.0f));
+    test::TestMaterials materials;
     FrameData frame;
     frame.views.push_back({.camera = cameraAtZ(4.0f)});
     frame.lights.push_back(kFrontLight);
     frame.drawItems.push_back({
         .mesh = &cube,
         .meshId = 1,
+        .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
         .world = near,
         .bounds = transformBounds(cube.bounds, near),
-        .color = Vec4(0.0f, 1.0f, 0.0f, 1.0f),
+        .material = materials.add(frame, Vec4(0.0f, 1.0f, 0.0f, 1.0f)),
     });
     frame.drawItems.push_back({
         .mesh = &cube,
         .meshId = 1,
+        .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
         .world = far,
         .bounds = transformBounds(cube.bounds, far),
-        .color = Vec4(1.0f, 0.0f, 0.0f, 1.0f),
+        .material = materials.add(frame, Vec4(1.0f, 0.0f, 0.0f, 1.0f)),
     });
 
     auto target = renderer.createRenderTarget(kSize, kSize);
@@ -365,4 +381,89 @@ TEST_CASE("OpenGL: half transparent white over black blends in linear RGB")
     // sRGB дало бы 128.
     const Pixel center = pixelAt(device.readPixels(*final), kSize / 2, kSize / 2, kSize);
     CHECK(std::abs(int(center[0]) - 188) <= 1);
+}
+
+namespace {
+
+// Куб перед камерой материалом frame.materials[material] (с заменами
+// overrides, если есть); цвет пикселя посередине при свете спереди.
+Pixel cubeCenter(
+    Renderer& renderer,
+    FrameData& frame,
+    std::size_t material,
+    std::size_t overrides = DrawItem::kNoOverrides
+)
+{
+    static const MeshData cube = makeCube();
+    frame.views = {{.camera = cameraAtZ(3.0f)}};
+    frame.lights = {kFrontLight};
+    frame.drawItems = {{
+        .mesh = &cube,
+        .meshId = 1,
+        .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
+        .bounds = cube.bounds,
+        .material = material,
+        .overrides = overrides,
+    }};
+    auto target = renderer.createRenderTarget(kSize, kSize);
+    renderer.render(frame, *target);
+
+    return pixelAt(renderer.device().readPixels(target->color()), kSize / 2, kSize / 2, kSize);
+}
+
+} // namespace
+
+TEST_CASE("OpenGL: a texture of a material imported as sRGB is decoded when read")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    Renderer& renderer = *gl->renderer;
+    // Серый 0.5 в sRGB: цветом материала и тем же серым из текстуры sRGB.
+    constexpr float kGray = 0.5f;
+    test::TestMaterials materials;
+    FrameData byColor;
+    const Pixel colored = cubeCenter(renderer, byColor, materials.add(byColor, Vec4(Vec3(kGray), 1.0f)));
+
+    TextureData gray{.width = 1, .height = 1, .pixels = {toByte(kGray), toByte(kGray), toByte(kGray), 255}};
+    FrameData byTexture;
+    const std::size_t textured = materials.add(byTexture);
+    for (FrameTexture& texture : byTexture.materials[textured].textures) {
+        if (texture.slot.binding == byTexture.materials[textured].shader->findTexture("baseColorMap")->slot.binding) {
+            texture = {.slot = texture.slot, .id = 900, .revision = 1, .data = &gray};
+        }
+    }
+    const Pixel sampled = cubeCenter(renderer, byTexture, textured);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        CHECK(std::abs(int(sampled[channel]) - int(colored[channel])) <= 2);
+    }
+    // Без декодирования серый вышел бы заметно светлее. Новая ревизия - новая копия.
+    gray.sampling.colorSpace = ColorSpace::Linear;
+    for (FrameTexture& texture : byTexture.materials[textured].textures) {
+        texture.revision = 2;
+    }
+    CHECK(int(cubeCenter(renderer, byTexture, textured)[0]) > int(colored[0]) + 20);
+}
+
+TEST_CASE("OpenGL: overrides change one of two objects with the same material")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    Renderer& renderer = *gl->renderer;
+    test::TestMaterials materials;
+    FrameData frame;
+    const std::size_t white = materials.add(frame);
+    FrameOverrides red{.textures = frame.materials[white].textures};
+    red.values.setColor("baseColor", Vec4(1.0f, 0.0f, 0.0f, 1.0f));
+    frame.overrides.push_back(red);
+
+    const Pixel plain = cubeCenter(renderer, frame, white);
+    const Pixel overridden = cubeCenter(renderer, frame, white, 0);
+    CHECK(int(plain[1]) > 200);
+    CHECK(int(overridden[0]) > int(overridden[1]) + kDominantMargin);
+    // Общий материал не изменился.
+    CHECK(cubeCenter(renderer, frame, white) == plain);
 }

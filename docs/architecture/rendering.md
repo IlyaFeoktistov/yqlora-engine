@@ -18,8 +18,8 @@ snapshot made by Extract, never the scene.
  SCENE (simulated, world matrices ready)
    RenderSystem: active cameras sorted by order, active lights
    LightingSettings: ambient light
-   MeshRenderer: enabled components, their mesh (from ResourceCache),
-                 colour, node layer
+   MeshRenderer: enabled components, their mesh and materials (from
+                 ResourceCache), overrides, node layer
    Node3D: world matrices
         |
         |  extractFrame(scene, aspect)                    render/FrameBuilder
@@ -29,8 +29,11 @@ snapshot made by Extract, never the scene.
  FrameData (snapshot, nothing points back into the scene)
    views[]      one per camera: view and projection, clear mode,
                 background (linear), culling mask, passes of the owner
-   drawItems[]  mesh with its ID and revision, world matrix, world
-                bounds, colour, layer, node id
+   drawItems[]  one per submesh: mesh with its ID and revision, index
+                range, world matrix, world bounds, material, overrides,
+                layer, node id
+   materials[]  each material once, with its shader and textures
+   overrides[]  overrides of slots with their textures
    lights[]     up to 4 directional and 32 point and spot lights: world,
                 linear colour times intensity, range, cone
    environment  ambient light, linear (the sky and the sun in 5.5)
@@ -40,10 +43,11 @@ snapshot made by Extract, never the scene.
         v
  SceneRenderer::draw: one RenderGraph per call       engine/render
    for each view, in camera order, into the HDR target (kHdrColorFormat):
-     prepareView  layer mask and frustum culling, nearest first
+     prepareView  layer mask and frustum culling; opaque by pipeline and
+                  material, nearest first; then transparent, farthest first
      view pass    clear colour and depth / depth only / nothing,
                   MeshPass: the visible items through the view camera
-                  with the Standard shader (PBR, all lights of the frame)
+                  with their materials (PBR, all lights of the frame)
    OutputPass     the HDR target from linear to sRGB into the final target
    ViewPass*      passes of the view owners over the final target: the
                   Viewport adds GridPass and OutlinePass (editor/render)

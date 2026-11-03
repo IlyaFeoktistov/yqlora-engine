@@ -15,7 +15,10 @@
 
 namespace yqlora {
 
+class GpuMaterialCache;
 class GpuMeshCache;
+class GpuTextureCache;
+class PipelineCache;
 class SceneRenderer;
 class ShaderCompiler;
 class TransientTextures;
@@ -94,6 +97,9 @@ private:
     std::unique_ptr<ShaderCompiler> m_shaders;
     std::unique_ptr<UniformRing> m_uniforms;
     std::unique_ptr<GpuMeshCache> m_meshes;
+    std::unique_ptr<GpuTextureCache> m_textures;
+    std::unique_ptr<GpuMaterialCache> m_materials;
+    std::unique_ptr<PipelineCache> m_pipelines;
     std::unique_ptr<GpuResourceCache<rhi::Texture>> m_uiTextures;
     std::unique_ptr<TransientTextures> m_transients;
     std::unique_ptr<RenderContext> m_context;

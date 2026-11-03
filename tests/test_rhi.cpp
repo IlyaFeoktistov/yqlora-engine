@@ -1,4 +1,5 @@
 #include "RecordingDevice.hpp"
+#include "TestFrames.hpp"
 
 #include <yqlora/editor/render/GridPass.hpp>
 #include <yqlora/editor/render/OutlinePass.hpp>
@@ -285,9 +286,17 @@ TEST_CASE("Renderer: a frame with the editor passes goes through the RHI contrac
     outline.setSelection({7}, Vec4(1.0f));
 
     const MeshData cube = makeCube();
+    test::TestMaterials materials;
     FrameData frame;
     frame.views.push_back({.camera = kTestCamera, .passes = {&grid, &outline}});
-    frame.drawItems.push_back({.mesh = &cube, .meshId = 1, .bounds = cube.bounds, .node = 7});
+    frame.drawItems.push_back(
+        {.mesh = &cube,
+         .meshId = 1,
+         .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
+         .bounds = cube.bounds,
+         .material = materials.add(frame),
+         .node = 7}
+    );
 
     auto target = renderer.createRenderTarget(32, 32);
     CHECK_NOTHROW(renderer.render(frame, *target));
@@ -316,13 +325,16 @@ TEST_CASE("Renderer: what a view does not see is not drawn")
     // Выбранный куб за спиной камеры: ни меша, ни маски, ни контура.
     const MeshData cube = makeCube();
     const Mat4 behind = glm::translate(Mat4(1.0f), Vec3(0.0f, 0.0f, 20.0f));
+    test::TestMaterials materials;
     FrameData frame;
     frame.views.push_back({.camera = kTestCamera, .passes = {&outline}});
     frame.drawItems.push_back({
         .mesh = &cube,
         .meshId = 1,
+        .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
         .world = behind,
         .bounds = transformBounds(cube.bounds, behind),
+        .material = materials.add(frame),
         .node = 7,
     });
     renderer.render(frame);

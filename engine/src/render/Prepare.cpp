@@ -1,6 +1,8 @@
 #include "yqlora/render/Prepare.hpp"
 
 #include <algorithm>
+#include <functional>
+#include <tuple>
 #include <utility>
 
 namespace yqlora {
@@ -56,23 +58,54 @@ Bounds transformBounds(const Bounds& bounds, const Mat4& matrix)
     return {newCenter - newExtent, newCenter + newExtent};
 }
 
-std::vector<const DrawItem*> prepareView(std::span<const DrawItem> items, const ViewData& view)
+std::vector<const DrawItem*> prepareView(
+    std::span<const DrawItem> items,
+    std::span<const FrameMaterial> materials,
+    const ViewData& view
+)
 {
+    struct Visible {
+        const DrawItem* item;
+        const FrameMaterial* material;
+        float distance;
+    };
     const Frustum frustum = frustumFromMatrix(view.camera.projection * view.camera.view);
-    std::vector<std::pair<float, const DrawItem*>> visible;
+    std::vector<Visible> opaque;
+    std::vector<Visible> transparent;
     for (const DrawItem& item : items) {
-        if (inMask(view.mask, item.layer) && intersects(frustum, item.bounds)) {
-            const Vec3 offset = (item.bounds.min + item.bounds.max) * 0.5f - view.camera.position;
-            visible.emplace_back(glm::dot(offset, offset), &item);
+        if (!inMask(view.mask, item.layer) || !intersects(frustum, item.bounds)) {
+            continue;
         }
+        const FrameMaterial& material = materials[item.material];
+        const Vec3 offset = (item.bounds.min + item.bounds.max) * 0.5f - view.camera.position;
+        const Visible visible{&item, &material, glm::dot(offset, offset)};
+        (material.data->blend == MaterialBlend::Transparent ? transparent : opaque).push_back(visible);
     }
-    // stable: при равном расстоянии порядок кадра, картинка не мерцает.
-    std::ranges::stable_sort(visible, {}, &std::pair<float, const DrawItem*>::first);
+    // Непрозрачное группами по конвейеру (шейдер, состояние) и материалу,
+    // внутри группы спереди назад: тест глубины отбрасывает закрытое.
+    std::ranges::stable_sort(opaque, [](const Visible& a, const Visible& b) {
+        const auto key = [](const Visible& v) {
+            return std::tuple(
+                v.material->shaderId,
+                v.material->shaderRevision,
+                v.material->data->cull,
+                v.item->material
+            );
+        };
+
+        return key(a) != key(b) ? key(a) < key(b) : a.distance < b.distance;
+    });
+    // Прозрачное сзади вперёд: смешивается с тем, что за ним. stable: при
+    // равном расстоянии порядок кадра, картинка не мерцает.
+    std::ranges::stable_sort(transparent, std::ranges::greater{}, &Visible::distance);
 
     std::vector<const DrawItem*> result;
-    result.reserve(visible.size());
-    for (const auto& [distance, item] : visible) {
-        result.push_back(item);
+    result.reserve(opaque.size() + transparent.size());
+    for (const Visible& visible : opaque) {
+        result.push_back(visible.item);
+    }
+    for (const Visible& visible : transparent) {
+        result.push_back(visible.item);
     }
 
     return result;

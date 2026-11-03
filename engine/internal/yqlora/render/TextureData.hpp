@@ -43,8 +43,8 @@ struct TextureData {
 
     int width = 0;
     int height = 0;
-    std::vector<std::uint8_t> pixels;
-    TextureSampling sampling;
+    std::vector<std::uint8_t> pixels{};
+    TextureSampling sampling{};
 };
 
 } // namespace yqlora

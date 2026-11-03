@@ -10,6 +10,8 @@
 #include <yqlora/resource/BuiltinResources.hpp>
 #include <yqlora/resource/ResourceCache.hpp>
 #include <yqlora/scene/Scene.hpp>
+
+#include <vector>
 #include <yqlora/scene/SceneSerializer.hpp>
 
 #include <glm/geometric.hpp>
@@ -73,7 +75,6 @@ TEST_CASE("FrameBuilder: every Node3D with a MeshRenderer and a known mesh becom
     cube.transform().setPosition({2.0f, 0.0f, 0.0f});
     auto& cubeRenderer = cube.addComponent<MeshRenderer>();
     cubeRenderer.setMesh(ResourceRef{builtin::kCubeMesh});
-    cubeRenderer.setColor({1.0f, 0.0f, 0.0f, 1.0f});
 
     // Без меша ничего не рисуется.
     root.addChild<Node3D>("Empty").addComponent<MeshRenderer>();
@@ -88,12 +89,16 @@ TEST_CASE("FrameBuilder: every Node3D with a MeshRenderer and a known mesh becom
     CHECK(item.meshId == builtin::kCubeMesh);
     CHECK(item.meshRevision == scene.services().resources().status(builtin::kCubeMesh)->revision);
     CHECK(item.node == cube.id());
-    CHECK(item.color == Vec4(1.0f, 0.0f, 0.0f, 1.0f));
+    // Весь куб - один подмеш; пустой слот рисуется материалом по умолчанию.
+    CHECK(item.firstIndex == 0);
+    CHECK(item.indexCount == item.mesh->indices.size());
+    REQUIRE(item.material < frame.materials.size());
+    CHECK(frame.materials[item.material].id == builtin::kDefaultMaterial);
     // Мировая матрица учитывает родителя.
     CHECK(Vec3(item.world[3]) == Vec3(2.0f, 1.0f, 0.0f));
 }
 
-TEST_CASE("MeshRenderer: mesh and color are saved with the scene")
+TEST_CASE("MeshRenderer: mesh and materials are saved with the scene, overrides are not")
 {
     TypeRegistry registry;
     registerEngineTypes(registry);
@@ -103,14 +108,16 @@ TEST_CASE("MeshRenderer: mesh and color are saved with the scene")
     auto& ball = original.createRoot<Node3D>("Ball");
     auto& renderer = ball.addComponent<MeshRenderer>();
     renderer.setMesh(ResourceRef{builtin::kSphereMesh});
-    renderer.setColor({0.2f, 0.4f, 0.6f, 1.0f});
+    renderer.setMaterials({ResourceRef{builtin::kErrorMaterial}, ResourceRef{}});
+    renderer.overrides(0).setFloat("roughness", 0.1f);
 
     Scene loaded{EngineServices::none()};
     REQUIRE(serializer.fromJson(loaded, serializer.toJson(original)));
     const auto* loadedRenderer = loaded.root()->getComponent<MeshRenderer>();
     REQUIRE(loadedRenderer);
     CHECK(loadedRenderer->mesh().id == builtin::kSphereMesh);
-    CHECK(loadedRenderer->color() == Vec4(0.2f, 0.4f, 0.6f, 1.0f));
+    CHECK(loadedRenderer->materials() == std::vector<ResourceRef>{{builtin::kErrorMaterial}, {}});
+    CHECK(loadedRenderer->findOverrides(0) == nullptr);
 }
 
 TEST_CASE("SceneSerializer: a scene from a newer engine is not opened")
@@ -122,4 +129,33 @@ TEST_CASE("SceneSerializer: a scene from a newer engine is not opened")
     Scene scene{EngineServices::none()};
     CHECK_FALSE(serializer.fromJson(scene, R"({"version": 99, "root": null})"));
     CHECK_FALSE(serializer.fromJson(scene, R"({"root": null})"));
+}
+
+TEST_CASE("MeshRenderer: a scene with the old color opens with empty slots and keeps it as unknown")
+{
+    TypeRegistry registry;
+    registerEngineTypes(registry);
+    const SceneSerializer serializer(registry);
+    Scene original{EngineServices::none()};
+    original.createRoot<Node3D>("Ball").addComponent<MeshRenderer>();
+    auto json = nlohmann::json::parse(serializer.toJson(original));
+    const auto rendererJson = [](nlohmann::json& scene) -> nlohmann::json& {
+        for (auto& component : scene["root"]["components"]) {
+            if (component["type"] == "MeshRenderer") {
+                return component;
+            }
+        }
+        FAIL("no MeshRenderer in the scene file");
+
+        return scene;
+    };
+    rendererJson(json)["properties"]["color"] = {1.0, 0.0, 0.0, 1.0};
+
+    Scene loaded{EngineServices::none()};
+    REQUIRE(serializer.fromJson(loaded, json.dump()));
+    const auto* renderer = loaded.root()->getComponent<MeshRenderer>();
+    REQUIRE(renderer);
+    CHECK(renderer->materials().empty());
+    auto saved = nlohmann::json::parse(serializer.toJson(loaded));
+    CHECK(rendererJson(saved)["properties"].contains("color"));
 }
