@@ -374,7 +374,7 @@ TEST_CASE_FIXTURE(Fixture, "InputSettings: actions with nested bindings are save
     const auto properties = registry.properties(*registry.find<InputSettings>());
     const Property& bindings = properties.front()->fields()[2];
     CHECK(bindings.elementType() == PropertyType::Record);
-    CHECK(bindings.fields()[0].hint() == PropertyHint::InputControl);
+    CHECK(bindings.fields()[0].hint() == PropertyHint::InputControlName);
 }
 
 TEST_CASE_FIXTURE(

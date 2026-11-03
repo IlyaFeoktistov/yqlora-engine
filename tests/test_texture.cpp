@@ -12,6 +12,7 @@
 #include <yqlora/project/GeneralSettings.hpp>
 #include <yqlora/project/Project.hpp>
 #include <yqlora/render/TextureData.hpp>
+#include <yqlora/render/TextureSampler.hpp>
 #include <yqlora/resource/ResourceCache.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
 #include <yqlora/scripting/GameModule.hpp>
@@ -214,4 +215,19 @@ TEST_CASE("Texture inspection: the picture and its import settings, applied with
     CHECK(after->texture.revision > inspected->texture.revision);
     CHECK(after->import == pixelArt);
     CHECK(after->texture.data->sampling == pixelArt);
+}
+
+TEST_CASE("samplerDesc: the import settings of a texture as a GPU sampler")
+{
+    const rhi::SamplerDesc defaults = samplerDesc(TextureSampling{});
+    CHECK(defaults.filter == rhi::Filter::Linear);
+    CHECK(defaults.wrap == rhi::Wrap::Repeat);
+    CHECK(defaults.mipmaps);
+    const rhi::SamplerDesc pixelArt = samplerDesc(
+        {.filter = TextureFilter::Nearest, .wrap = TextureWrap::Mirror, .mipmaps = false}
+    );
+    CHECK(pixelArt.filter == rhi::Filter::Nearest);
+    CHECK(pixelArt.wrap == rhi::Wrap::Mirror);
+    CHECK_FALSE(pixelArt.mipmaps);
+    CHECK(samplerDesc({.wrap = TextureWrap::Clamp}).wrap == rhi::Wrap::Clamp);
 }

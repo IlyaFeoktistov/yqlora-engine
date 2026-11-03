@@ -574,7 +574,7 @@ void valueField(
     case PropertyType::String:
         if (property.hint() == PropertyHint::ComponentType) {
             result.changed = componentTypeCombo(std::get<std::string>(value), context.registry) || result.changed;
-        } else if (property.hint() == PropertyHint::InputControl) {
+        } else if (property.hint() == PropertyHint::InputControlName) {
             result.changed = inputControlField(std::get<std::string>(value), context.input) || result.changed;
         } else {
             ImGui::SetNextItemWidth(-FLT_MIN);

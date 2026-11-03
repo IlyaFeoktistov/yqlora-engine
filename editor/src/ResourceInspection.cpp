@@ -13,7 +13,7 @@ std::optional<ResourceInspection> inspectResource(EditorSession& session, Resour
         return std::nullopt;
     }
     ResourceCache& cache = session.resources();
-    ResourceInspection inspection{.id = id, .path = *path, .kind = fileKind(*path, cache)};
+    ResourceInspection inspection{.id = id, .path = *path, .kind = fileKind(*path, cache), .status = std::nullopt};
     if (cache.kindOf(*path).empty()) {
         return inspection;
     }

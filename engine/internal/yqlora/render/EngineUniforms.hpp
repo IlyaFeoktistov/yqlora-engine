@@ -56,6 +56,21 @@ struct alignas(16) ObjectUniforms {
     Mat4 normalMatrix{1.0f};
 };
 
+// Отступы (padding) в раскладках не перечислены: шейдер их не объявляет.
+inline const std::vector<UniformMember> kDirectionalLightMembers{
+    YQLORA_UNIFORM_MEMBER(DirectionalLightUniforms, direction),
+    YQLORA_UNIFORM_MEMBER(DirectionalLightUniforms, color),
+};
+
+inline const std::vector<UniformMember> kPunctualLightMembers{
+    YQLORA_UNIFORM_MEMBER(PunctualLightUniforms, position),
+    YQLORA_UNIFORM_MEMBER(PunctualLightUniforms, range),
+    YQLORA_UNIFORM_MEMBER(PunctualLightUniforms, color),
+    YQLORA_UNIFORM_MEMBER(PunctualLightUniforms, angleScale),
+    YQLORA_UNIFORM_MEMBER(PunctualLightUniforms, direction),
+    YQLORA_UNIFORM_MEMBER(PunctualLightUniforms, angleOffset),
+};
+
 inline const UniformLayout kFrameBlock{
     "Frame",
     {kFrameSet, 0},
@@ -64,8 +79,8 @@ inline const UniformLayout kFrameBlock{
         YQLORA_UNIFORM_MEMBER(FrameUniforms, ambient),
         YQLORA_UNIFORM_MEMBER(FrameUniforms, directionalCount),
         YQLORA_UNIFORM_MEMBER(FrameUniforms, punctualCount),
-        YQLORA_UNIFORM_MEMBER(FrameUniforms, directionalLights),
-        YQLORA_UNIFORM_MEMBER(FrameUniforms, punctualLights),
+        YQLORA_UNIFORM_STRUCT_MEMBER(FrameUniforms, directionalLights, kDirectionalLightMembers),
+        YQLORA_UNIFORM_STRUCT_MEMBER(FrameUniforms, punctualLights, kPunctualLightMembers),
     },
 };
 
@@ -88,9 +103,6 @@ inline const UniformLayout kObjectBlock{
         YQLORA_UNIFORM_MEMBER(ObjectUniforms, normalMatrix),
     },
 };
-
-// Формат HDR-цели, в которую рисуются виды кадра (см. OutputPass).
-inline constexpr rhi::Format kHdrColorFormat = rhi::Format::Rgba16Float;
 
 // Данные блока Frame из снимка кадра.
 YQLORA_API FrameUniforms frameUniforms(const FrameData& frame);

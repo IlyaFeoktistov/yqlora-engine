@@ -189,6 +189,50 @@ TEST_CASE("Shaders: an array with another element stride than in C++ is rejected
     CHECK(hasError(result.errors, "array stride"));
 }
 
+TEST_CASE("Shaders: a field inside an array of structs is checked against its C++ struct")
+{
+    // В C++ поля переставлены: размеры и шаг те же, смещения - нет.
+    struct alignas(16) Light {
+        float range = 0.0f;
+        float power = 0.0f;
+    };
+    struct alignas(16) Lights {
+        Light items[2]{};
+    };
+    const std::vector<UniformMember> lightMembers{
+        YQLORA_UNIFORM_MEMBER(Light, range),
+        YQLORA_UNIFORM_MEMBER(Light, power),
+    };
+    const UniformLayout lights{
+        "Lights",
+        {kMaterialSet, 0},
+        sizeof(Lights),
+        {YQLORA_UNIFORM_STRUCT_MEMBER(Lights, items, lightMembers)},
+    };
+    const UniformLayout bare{"Lights", {kMaterialSet, 0}, sizeof(Lights), {YQLORA_UNIFORM_MEMBER(Lights, items)}};
+
+    Files files;
+    files.files["a.vert"] = kPlainVertex;
+    files.files["a.frag"] = "#version 450\nstruct Light { float power; float range; };\n"
+                            "layout(set = 2, binding = 0, std140) uniform Lights { Light items[2]; } l;\n"
+                            "layout(location = 0) out vec4 c;\nvoid main() { c = vec4(l.items[1].range); }\n";
+    ShaderCompiler compiler(files.reader());
+    const auto build = [&](const UniformLayout& layout) {
+        const UniformLayout* const layouts[] = {&layout};
+
+        return buildShader(
+            compiler,
+            {.name = "a", .vertexPath = "a.vert", .fragmentPath = "a.frag", .layouts = layouts}
+        );
+    };
+    const ShaderBuildResult swapped = build(lights);
+    CHECK_FALSE(swapped.desc);
+    CHECK(hasError(swapped.errors, "'items[].range' at offset 4 in the shader, 0 in C++"));
+    const ShaderBuildResult undescribed = build(bare);
+    CHECK_FALSE(undescribed.desc);
+    CHECK(hasError(undescribed.errors, "'items' is a struct"));
+}
+
 TEST_CASE("Shaders: one file holds both stages, an error keeps its line in the file")
 {
     Files files;

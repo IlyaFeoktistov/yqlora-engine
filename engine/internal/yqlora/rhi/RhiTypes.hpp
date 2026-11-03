@@ -16,6 +16,11 @@ enum class Format {
     Depth24Stencil8,
 };
 
+// Форматы заднего буфера окна у любого устройства (Device::backBuffer):
+// конвейеры, которые рисуют в окно, рисуют и в цели этих форматов.
+inline constexpr Format kBackBufferColorFormat = Format::Rgba8;
+inline constexpr Format kBackBufferDepthFormat = Format::Depth24Stencil8;
+
 // Состояние текстуры. Смена - явная команда CommandList::transition: OpenGL её
 // пропускает, Vulkan и D3D12 превращают в барьер.
 enum class ResourceState {

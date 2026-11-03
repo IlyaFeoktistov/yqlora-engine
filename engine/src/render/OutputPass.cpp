@@ -1,5 +1,6 @@
 #include "yqlora/render/OutputPass.hpp"
 
+#include "yqlora/render/FrameFormats.hpp"
 #include "yqlora/render/ViewPass.hpp"
 #include "yqlora/shader/EngineShaders.hpp"
 #include "yqlora/shader/ShaderBuild.hpp"
@@ -30,6 +31,7 @@ OutputPass::OutputPass(const RenderContext& context)
           .depthTest = false,
           .depthWrite = false,
           .cull = rhi::CullMode::None,
+          .colorFormat = kOutputColorFormat,
           .depthFormat = rhi::Format::None,
       }))
     , m_sampler(

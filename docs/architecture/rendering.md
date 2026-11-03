@@ -23,6 +23,8 @@ snapshot made by Extract, never the scene.
    Node3D: world matrices
         |
         |  extractFrame(scene, aspect)                    render/FrameBuilder
+        |    extractViews, extractLights, extractDrawItems,
+        |    extractEnvironment                           render/FrameExtract
         v
  FrameData (snapshot, nothing points back into the scene)
    views[]      one per camera: view and projection, clear mode,
@@ -31,13 +33,13 @@ snapshot made by Extract, never the scene.
                 bounds, colour, layer, node id
    lights[]     up to 4 directional and 32 point and spot lights: world,
                 linear colour times intensity, range, cone
-   ambient      ambient light, linear
+   environment  ambient light, linear (the sky and the sun in 5.5)
         |
         |  Renderer::render(frame)          -> window back buffer
         |  Renderer::render(frame, target)  -> RenderTarget (a texture)
         v
- Renderer::drawScene: one RenderGraph per call       engine/render
-   for each view, in camera order, into the HDR target (Rgba16Float):
+ SceneRenderer::draw: one RenderGraph per call       engine/render
+   for each view, in camera order, into the HDR target (kHdrColorFormat):
      prepareView  layer mask and frustum culling, nearest first
      view pass    clear colour and depth / depth only / nothing,
                   MeshPass: the visible items through the view camera
@@ -161,7 +163,16 @@ Vulkan itself.
   test and write, face culling, blending, formats of the targets, sample
   count. A pipeline draws only into a target of the same formats and sample
   count; a mismatch is an error (checked by the test RHI and in debug
-  builds).
+  builds). The window back buffer of every device has
+  `rhi::kBackBufferColorFormat` and `rhi::kBackBufferDepthFormat`; the frame
+  formats are in `render/FrameFormats.hpp`: `kHdrColorFormat` for the views,
+  `kOutputColorFormat` and `kDepthFormat` for the final target (the window
+  formats, so one pipeline draws into the window and a `RenderTarget`).
+- **`Renderer`** owns the device and the frame: present, size, vsync, the
+  interface and its texture previews. What a scene frame draws and in which
+  order is `SceneRenderer`. A GPU sampler from the import settings of a
+  texture is `samplerDesc` (`render/TextureSampler.hpp`), shared by the
+  previews and the materials.
 - **Shader data** goes through uniform blocks by frequency: frame (time,
   lights), view (camera), material (step 5), object (matrices). The layout
   is std140; the C++ structs repeat it with explicit `alignas` and are
@@ -232,7 +243,9 @@ profile below are checked on every target API when its backend arrives.
   `ShaderCompiler` (glslang, includes, defines, cache), `reflectShader` and
   `checkShaderProfile`, `UniformLayout` with `checkUniformLayout` (the C++
   side of a block: `YQLORA_UNIFORM_MEMBER` gives the name, offset and
-  size of a field), `buildShader` (the whole path, errors of every step
+  size of a field, `YQLORA_UNIFORM_STRUCT_MEMBER` also the layout of a
+  struct field or of the element of an array of structs, whose fields are
+  checked the same way), `buildShader` (the whole path, errors of every step
   together). The OpenGL backend has `GlslTranslator`: SPIR-V to GLSL 330,
   resources and varyings renamed so that GLSL 330 finds them by name.
 

@@ -79,6 +79,11 @@ struct UniformField {
     std::uint32_t arraySize = 0;
     // Байт от элемента до элемента массива; 0 - не массив.
     std::uint32_t arrayStride = 0;
+    // Поля структуры (у массива структур - его элемента), смещения от её
+    // начала; пусто - не структура.
+    std::vector<UniformField> members{};
+
+    bool operator==(const UniformField&) const = default;
 };
 
 enum class BindingKind {

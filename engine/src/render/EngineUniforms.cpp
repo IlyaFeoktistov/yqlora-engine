@@ -31,7 +31,7 @@ PunctualLightUniforms punctual(const LightData& light)
 
 FrameUniforms frameUniforms(const FrameData& frame)
 {
-    FrameUniforms result{.ambient = frame.ambient};
+    FrameUniforms result{.ambient = frame.environment.ambient};
     for (const LightData& light : frame.lights) {
         if (light.kind == LightKind::Directional) {
             if (static_cast<std::size_t>(result.directionalCount) < kMaxDirectionalLights) {

@@ -57,28 +57,40 @@ rhi::BindingSlot slotOf(const spirv_cross::Compiler& compiler, spirv_cross::ID i
     };
 }
 
-rhi::ShaderBinding uniformBlock(const spirv_cross::Compiler& compiler, const spirv_cross::Resource& resource)
+// Поля структуры structId; у поля-структуры (и массива структур) - её поля.
+std::vector<rhi::UniformField> structFields(const spirv_cross::Compiler& compiler, spirv_cross::TypeID structId)
 {
-    const SPIRType& type = compiler.get_type(resource.base_type_id);
-    rhi::ShaderBinding binding{
-        .name = compiler.get_name(resource.base_type_id),
-        .kind = rhi::BindingKind::UniformBlock,
-        .slot = slotOf(compiler, resource.id),
-        .size = static_cast<std::uint32_t>(compiler.get_declared_struct_size(type)),
-    };
+    const SPIRType& type = compiler.get_type(structId);
+    std::vector<rhi::UniformField> fields;
     for (std::uint32_t i = 0; i < type.member_types.size(); ++i) {
         const SPIRType& member = compiler.get_type(type.member_types[i]);
-        binding.fields.push_back({
-            .name = compiler.get_member_name(resource.base_type_id, i),
-            .type = member.basetype == SPIRType::Struct ? rhi::ValueType::Other : valueType(member),
+        const bool isStruct = member.basetype == SPIRType::Struct;
+        fields.push_back({
+            .name = compiler.get_member_name(structId, i),
+            .type = isStruct ? rhi::ValueType::Other : valueType(member),
             .offset = compiler.type_struct_member_offset(type, i),
             .size = static_cast<std::uint32_t>(compiler.get_declared_struct_member_size(type, i)),
             .arraySize = member.array.empty() ? 0U : member.array.front(),
             .arrayStride = member.array.empty() ? 0U : compiler.type_struct_member_array_stride(type, i),
+            // Имена и смещения полей лежат на самом типе структуры, не на массиве из неё.
+            .members = isStruct ? structFields(compiler, member.self) : std::vector<rhi::UniformField>{},
         });
     }
 
-    return binding;
+    return fields;
+}
+
+rhi::ShaderBinding uniformBlock(const spirv_cross::Compiler& compiler, const spirv_cross::Resource& resource)
+{
+    const SPIRType& type = compiler.get_type(resource.base_type_id);
+
+    return {
+        .name = compiler.get_name(resource.base_type_id),
+        .kind = rhi::BindingKind::UniformBlock,
+        .slot = slotOf(compiler, resource.id),
+        .size = static_cast<std::uint32_t>(compiler.get_declared_struct_size(type)),
+        .fields = structFields(compiler, resource.base_type_id),
+    };
 }
 
 // Ресурсы одной стадии; то, чего нет в профиле, - в errors.
@@ -158,10 +170,7 @@ bool sameResource(const rhi::ShaderBinding& a, const rhi::ShaderBinding& b)
         return false;
     }
 
-    return std::ranges::equal(a.fields, b.fields, [](const rhi::UniformField& x, const rhi::UniformField& y) {
-        return x.name == y.name && x.type == y.type && x.offset == y.offset && x.size == y.size
-               && x.arraySize == y.arraySize && x.arrayStride == y.arrayStride;
-    });
+    return a.fields == b.fields;
 }
 
 } // namespace

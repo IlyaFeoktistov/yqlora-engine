@@ -11,7 +11,7 @@ namespace yqlora {
 struct RenderContext;
 
 // Проход вывода: линейная HDR-цель кадра в sRGB итоговой цели (окно или
-// RenderTarget, Rgba8), которую интерфейс показывает как есть. Позже в нём
+// RenderTarget, kOutputColorFormat), которую интерфейс показывает как есть. Позже в нём
 // же тональная компрессия и экспозиция.
 class YQLORA_API OutputPass {
 public:

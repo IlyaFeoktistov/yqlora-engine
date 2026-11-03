@@ -3,6 +3,7 @@
 #include "yqlora/editor/render/EditorShaders.hpp"
 
 #include "yqlora/render/EngineUniforms.hpp"
+#include "yqlora/render/FrameFormats.hpp"
 #include "yqlora/render/GpuMesh.hpp"
 #include "yqlora/shader/EngineShaders.hpp"
 #include "yqlora/shader/ShaderBuild.hpp"
@@ -18,6 +19,8 @@ namespace {
 constexpr std::uint32_t kFullscreenTriangleVertices = 3;
 
 const Vec4 kMaskClear(0.0f);
+// Маска выделенного: один канал, 1 там, где выделенный объект.
+constexpr rhi::Format kMaskFormat = rhi::Format::R8;
 
 // Блок Outline в editor/shaders/outline.frag.
 struct alignas(16) OutlineUniforms {
@@ -70,7 +73,7 @@ OutlinePass::OutlinePass(const RenderContext& context)
         .depthTest = false,
         .depthWrite = false,
         .cull = rhi::CullMode::None,
-        .colorFormat = rhi::Format::R8,
+        .colorFormat = kMaskFormat,
         .depthFormat = rhi::Format::None,
     });
     m_outlinePipeline = context.device.createPipeline({
@@ -78,6 +81,8 @@ OutlinePass::OutlinePass(const RenderContext& context)
         .depthTest = false,
         .depthWrite = false,
         .cull = rhi::CullMode::None,
+        .colorFormat = kOutputColorFormat,
+        .depthFormat = kDepthFormat,
     });
 }
 
@@ -98,7 +103,7 @@ void OutlinePass::addTo(RenderGraph& graph, const ViewPassInput& input)
     const RenderGraph::TextureId mask = graph.create({
         .width = target.width,
         .height = target.height,
-        .format = rhi::Format::R8,
+        .format = kMaskFormat,
         .usage = rhi::kColorTarget | rhi::kSampled,
     });
     const UniformSlice viewUniforms = input.viewUniforms;

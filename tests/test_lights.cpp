@@ -8,6 +8,7 @@
 #include <yqlora/render/DirectionalLight3D.hpp>
 #include <yqlora/render/EngineUniforms.hpp>
 #include <yqlora/render/FrameBuilder.hpp>
+#include <yqlora/render/FrameExtract.hpp>
 #include <yqlora/render/LightingSettings.hpp>
 #include <yqlora/render/PointLight3D.hpp>
 #include <yqlora/render/RenderSystem.hpp>
@@ -16,6 +17,7 @@
 
 #include <cmath>
 #include <string>
+#include <vector>
 
 using namespace yqlora;
 
@@ -75,7 +77,23 @@ TEST_CASE_FIXTURE(Fixture, "Extract: lights of the scene in the world, inactive 
     CHECK(point.range == doctest::Approx(4.0f));
 
     // Окружающий свет без проекта - из настроек по умолчанию.
-    CHECK(math::nearlyEqual(frame.ambient, LightingSettings{}.linearAmbient()));
+    CHECK(math::nearlyEqual(frame.environment.ambient, LightingSettings{}.linearAmbient()));
+}
+
+TEST_CASE_FIXTURE(Fixture, "Extract: a spot light has its range and the cosines of its cone")
+{
+    auto& root = scene.createRoot<Node3D>();
+    auto& spot = root.addChild<SpotLight3D>("Spot");
+    spot.setRange(6.0f);
+    spot.setOuterAngleDegrees(40.0f);
+    spot.setInnerAngleDegrees(25.0f);
+
+    const std::vector<LightData> lights = extractLights(*scene.system<RenderSystem>(), Vec3(0.0f));
+    REQUIRE(lights.size() == 1);
+    CHECK(lights[0].kind == LightKind::Spot);
+    CHECK(lights[0].range == doctest::Approx(6.0f));
+    CHECK(lights[0].cosInner == doctest::Approx(std::cos(glm::radians(25.0f))));
+    CHECK(lights[0].cosOuter == doctest::Approx(std::cos(glm::radians(40.0f))));
 }
 
 TEST_CASE_FIXTURE(Fixture, "Extract: past the limits the nearest point lights to the first camera stay")
@@ -112,7 +130,7 @@ TEST_CASE_FIXTURE(Fixture, "Extract: past the limits the nearest point lights to
 TEST_CASE("Frame block: lights by kind, a spot cone is 1 inside and 0 outside")
 {
     FrameData frame;
-    frame.ambient = Vec3(0.1f);
+    frame.environment.ambient = Vec3(0.1f);
     frame.lights.push_back({.kind = LightKind::Directional, .color = Vec3(1.0f)});
     frame.lights.push_back({.kind = LightKind::Point, .range = 5.0f});
     LightData spot{.kind = LightKind::Spot, .range = 5.0f};

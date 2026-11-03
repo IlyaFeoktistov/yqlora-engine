@@ -9,6 +9,7 @@
 #include <yqlora/platform/Platform.hpp>
 #include <yqlora/platform/Window.hpp>
 #include <yqlora/render/EngineUniforms.hpp>
+#include <yqlora/render/FrameFormats.hpp>
 #include <yqlora/render/GraphicsBackend.hpp>
 #include <yqlora/render/MeshData.hpp>
 #include <yqlora/render/OutputPass.hpp>

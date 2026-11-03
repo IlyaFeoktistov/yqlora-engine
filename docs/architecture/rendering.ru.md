@@ -23,6 +23,8 @@
    Node3D: мировые матрицы
         |
         |  extractFrame(scene, aspect)                    render/FrameBuilder
+        |    extractViews, extractLights, extractDrawItems,
+        |    extractEnvironment                           render/FrameExtract
         v
  FrameData (снимок, ничего не указывает обратно в сцену)
    views[]      по одному на камеру: вид и проекция, очистка,
@@ -31,13 +33,13 @@
                 мире, цвет, слой, ID узла
    lights[]     до 4 направленных и 32 точечных и прожекторов: мир,
                 линейный цвет на интенсивность, дальность, конус
-   ambient      окружающий свет, линейный
+   environment  окружающий свет, линейный (небо и солнце в 5.5)
         |
         |  Renderer::render(frame)          -> задний буфер окна
         |  Renderer::render(frame, target)  -> RenderTarget (текстура)
         v
- Renderer::drawScene: один RenderGraph на вызов       engine/render
-   для каждого вида, в порядке камер, в HDR-цель (Rgba16Float):
+ SceneRenderer::draw: один RenderGraph на вызов       engine/render
+   для каждого вида, в порядке камер, в HDR-цель (kHdrColorFormat):
      prepareView  отсечение по маске слоёв и пирамиде, ближнее раньше
      проход вида  очистка цвета и глубины / только глубины / ничего,
                   MeshPass: видимое через камеру вида шейдером Standard
@@ -159,6 +161,16 @@ Vulkan.
   и запись глубины, отсечение граней, смешивание, форматы целей, число
   образцов. Конвейер рисует только в цель тех же форматов и числа образцов;
   несовпадение - ошибка (проверяют тестовый RHI и отладочная сборка).
+  Задний буфер окна у любого устройства - `rhi::kBackBufferColorFormat` и
+  `rhi::kBackBufferDepthFormat`; форматы кадра - в `render/FrameFormats.hpp`:
+  `kHdrColorFormat` у видов, `kOutputColorFormat` и `kDepthFormat` у
+  итоговой цели (форматы окна, поэтому один конвейер рисует и в окно, и в
+  `RenderTarget`).
+- **`Renderer`** владеет устройством и кадром: показ, размер, vsync,
+  интерфейс и превью текстур в нём. Что рисует кадр сцены и в каком
+  порядке - `SceneRenderer`. Сэмплер видеопамяти по настройкам импорта
+  текстуры - `samplerDesc` (`render/TextureSampler.hpp`), общий для превью
+  и материалов.
 - **Данные шейдеров** идут uniform-блоками по частотам: кадр (время, свет),
   вид (камера), материал (шаг 5), объект (матрицы). Раскладка std140;
   структуры C++ повторяют её явными `alignas` и при загрузке шейдера
@@ -227,7 +239,9 @@ HLSL от SPIRV-Cross. Переносимость не автоматическ�
 - **Где живёт** **[done]**: `engine/internal/yqlora/shader` -
   `ShaderCompiler` (glslang, include, defines, кэш), `reflectShader` и
   `checkShaderProfile`, `UniformLayout` с `checkUniformLayout` (сторона
-  блока в C++: `YQLORA_UNIFORM_MEMBER` даёт имя, смещение и размер поля),
+  блока в C++: `YQLORA_UNIFORM_MEMBER` даёт имя, смещение и размер поля,
+  `YQLORA_UNIFORM_STRUCT_MEMBER` - ещё и раскладку поля-структуры или
+  элемента массива структур, чьи поля сверяются так же),
   `buildShader` (весь путь, ошибки всех шагов вместе). В бэкенде OpenGL -
   `GlslTranslator`: SPIR-V в GLSL 330 с переименованием ресурсов и
   переменных между стадиями, чтобы GLSL 330 находил их по имени.

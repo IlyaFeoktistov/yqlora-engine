@@ -117,6 +117,10 @@ add_library(yqlora SHARED
     src/render/PointLight3D.cpp
     src/render/EngineUniforms.cpp
     src/render/SpotLight3D.cpp
+    src/render/ExtractDrawItems.cpp
+    src/render/ExtractEnvironment.cpp
+    src/render/ExtractLights.cpp
+    src/render/ExtractViews.cpp
     src/render/FrameBuilder.cpp
     src/render/GpuMesh.cpp
     src/render/GraphicsBackend.cpp
@@ -125,6 +129,8 @@ add_library(yqlora SHARED
     src/render/RenderGraph.cpp
     src/render/Renderer.cpp
     src/render/RenderTarget.cpp
+    src/render/SceneRenderer.cpp
+    src/render/TextureSampler.cpp
     src/render/GraphicsSettings.cpp
     src/render/BuiltinMeshes.cpp
     src/render/MeshData.cpp

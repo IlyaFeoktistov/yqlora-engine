@@ -33,7 +33,7 @@ void GlDevice::prepareWindow()
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 #endif
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    // Как у целей рендера (Depth24Stencil8): одни конвейеры рисуют и туда, и в окно.
+    // Глубина окна - kBackBufferDepthFormat, как у целей рендера: одни конвейеры рисуют и туда, и в окно.
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, kDepthBits);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, kStencilBits);
 }
@@ -68,11 +68,11 @@ GlDevice::GlDevice(Window& window)
     const int height = window.heightInPixels();
     m_backBuffer = GlTexture::backBuffer(
         *this,
-        {.width = width, .height = height, .format = rhi::Format::Rgba8, .usage = rhi::kColorTarget}
+        {.width = width, .height = height, .format = rhi::kBackBufferColorFormat, .usage = rhi::kColorTarget}
     );
     m_backBufferDepth = GlTexture::backBuffer(
         *this,
-        {.width = width, .height = height, .format = rhi::Format::Depth24Stencil8, .usage = rhi::kDepthTarget}
+        {.width = width, .height = height, .format = rhi::kBackBufferDepthFormat, .usage = rhi::kDepthTarget}
     );
     // Между кадрами задний буфер показывается на экране.
     m_commands = std::make_unique<GlCommandList>(*this);

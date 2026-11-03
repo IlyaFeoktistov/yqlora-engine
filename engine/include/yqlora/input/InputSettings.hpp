@@ -61,7 +61,7 @@ YQLORA_API const InputSettings& inputSettingsOf(const EngineServices& services);
 YQLORA_ENUM_NAMES(yqlora::InputActionKind, "Button", "Axis")
 YQLORA_RECORD(
     yqlora::InputBinding,
-    field("control", &yqlora::InputBinding::control, PropertyHint::InputControl),
+    field("control", &yqlora::InputBinding::control, PropertyHint::InputControlName),
     field("scale", &yqlora::InputBinding::scale)
 )
 

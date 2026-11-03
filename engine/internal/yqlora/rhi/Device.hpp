@@ -33,8 +33,9 @@ public:
     virtual std::unique_ptr<Shader> createShader(ShaderDesc desc) = 0;
     virtual std::unique_ptr<Pipeline> createPipeline(PipelineDesc desc) = 0;
 
-    // Задний буфер окна и его глубина: цели прохода, как обычные текстуры.
-    // Между кадрами задний буфер в состоянии Present.
+    // Задний буфер окна и его глубина: цели прохода, как обычные текстуры,
+    // в форматах kBackBufferColorFormat и kBackBufferDepthFormat. Между
+    // кадрами задний буфер в состоянии Present.
     virtual Texture& backBuffer() = 0;
     virtual Texture& backBufferDepth() = 0;
     virtual void resizeBackBuffer(int width, int height) = 0;

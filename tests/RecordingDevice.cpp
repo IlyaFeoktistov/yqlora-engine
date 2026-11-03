@@ -165,13 +165,13 @@ RecordingDevice::RecordingDevice()
     : m_backBuffer({
           .width = kBackBufferSize,
           .height = kBackBufferSize,
-          .format = rhi::Format::Rgba8,
+          .format = rhi::kBackBufferColorFormat,
           .usage = rhi::kColorTarget,
       })
     , m_backBufferDepth({
           .width = kBackBufferSize,
           .height = kBackBufferSize,
-          .format = rhi::Format::Depth24Stencil8,
+          .format = rhi::kBackBufferDepthFormat,
           .usage = rhi::kDepthTarget,
       })
     , m_commands(*this)

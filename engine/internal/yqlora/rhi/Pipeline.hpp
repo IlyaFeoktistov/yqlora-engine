@@ -72,9 +72,10 @@ struct PipelineDesc {
     bool depthWrite = true;
     CullMode cull = CullMode::Back;
     BlendMode blend = BlendMode::Opaque;
-    // Конвейер рисует только в цель с такими же форматами и числом образцов.
-    Format colorFormat = Format::Rgba8;
-    Format depthFormat = Format::Depth24Stencil8;
+    // Конвейер рисует только в цель с такими же форматами и числом образцов;
+    // по умолчанию - в окно.
+    Format colorFormat = kBackBufferColorFormat;
+    Format depthFormat = kBackBufferDepthFormat;
     int samples = 1;
 };
 

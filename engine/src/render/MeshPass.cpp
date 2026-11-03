@@ -1,6 +1,7 @@
 #include "yqlora/render/MeshPass.hpp"
 
 #include "yqlora/render/EngineUniforms.hpp"
+#include "yqlora/render/FrameFormats.hpp"
 #include "yqlora/render/GpuMesh.hpp"
 #include "yqlora/shader/EngineShaders.hpp"
 #include "yqlora/shader/ShaderBuild.hpp"
@@ -50,6 +51,7 @@ MeshPass::MeshPass(const RenderContext& context)
           .shader = m_shader.get(),
           .vertexLayout = meshVertexLayout(),
           .colorFormat = kHdrColorFormat,
+          .depthFormat = kDepthFormat,
       }))
 {
 }

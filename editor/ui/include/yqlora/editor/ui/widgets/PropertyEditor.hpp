@@ -49,7 +49,7 @@ struct PropertyEditorContext {
     const Scene& scene;
     // Из него выбирается тип компонента (PropertyHint::ComponentType).
     const TypeRegistry& registry;
-    // Ввод приложения: привязка действия задаётся нажатием (PropertyHint::InputControl).
+    // Ввод приложения: привязка действия задаётся нажатием (PropertyHint::InputControlName).
     const Input& input;
     // Ресурсы проекта для ссылок на ресурсы. nullptr, если проекта нет.
     const ResourceDatabase* resources = nullptr;

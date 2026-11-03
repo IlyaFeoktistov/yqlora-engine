@@ -31,7 +31,7 @@ struct ViewData {
     Vec4 background{0.0f, 0.0f, 0.0f, 1.0f};
     LayerMask mask = kAllLayers;
     // Проходы владельца вида поверх сцены, по порядку. Живут дольше кадра.
-    std::vector<ViewPass*> passes;
+    std::vector<ViewPass*> passes{};
 };
 
 // Один меш в кадре. Данные меша живут в кэше ресурсов до конца кадра.
@@ -63,6 +63,13 @@ struct LightData {
     float cosOuter = 1.0f;
 };
 
+// Окружение кадра: то, что освещает сцену помимо источников. С небом сюда
+// придут его материал и солнце.
+struct EnvironmentData {
+    // Окружающий свет: линейный цвет, умноженный на интенсивность.
+    Vec3 ambient{0.0f};
+};
+
 // Сколько источников шейдер видит за кадр (массивы блока Frame).
 inline constexpr std::size_t kMaxDirectionalLights = 4;
 inline constexpr std::size_t kMaxPunctualLights = 32;
@@ -76,8 +83,7 @@ struct FrameData {
     // Не больше kMaxDirectionalLights направленных и kMaxPunctualLights
     // точечных и прожекторов вместе.
     std::vector<LightData> lights;
-    // Окружающий свет: линейный цвет, умноженный на интенсивность.
-    Vec3 ambient{0.0f};
+    EnvironmentData environment;
 };
 
 } // namespace yqlora

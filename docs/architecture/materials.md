@@ -59,7 +59,7 @@ Status marks: see [README](README.md).
      final target, so transparent items blend in linear RGB;
   3. an output pass (`<yqlora/output.glsl>`) encodes the HDR target into
      sRGB and writes the final target (the window or a `RenderTarget`,
-     `Rgba8`), which ImGui shows unchanged. Tone mapping takes the same
+     `kOutputColorFormat`), which ImGui shows unchanged. Tone mapping takes the same
      pass after the MVP.
 
   Passes of a view's owner (the grid, the outline) draw over the final
@@ -415,7 +415,7 @@ only if every scene was read, as `upgradeProject` already does.
   without alpha in the inspector.
 - **`RenderSystem`** keeps the active lights of the scene, as it keeps the
   cameras (enter and exit of the scene, active and enabled).
-- **`FrameData::lights`** and `FrameData::ambient`: Extract writes world
+- **`FrameData::lights`** and `FrameData::environment`: Extract writes world
   position and direction, linear colour times intensity, range, cosines of
   the spot angles. Limits: 4 directional, 32 point and spot; with more, the
   nearest to the camera of the first view are kept and the log says so once.
@@ -423,7 +423,8 @@ only if every scene was read, as `upgradeProject` already does.
   colour and intensity.
 - **The frame block** (`FrameUniforms`) gets the ambient light, the light
   arrays and their counts; `checkUniformLayout` compares the size and the
-  offset of every field, and for arrays also the element stride.
+  offset of every field, for arrays also the element stride, and the
+  fields inside the light structs.
 - **HDR target and output pass**: `rhi::Format::Rgba16Float`; the scenes
   of all views of a frame go in turn into one transient HDR texture with
   the depth of the final target (a later camera draws over an earlier one,
@@ -527,21 +528,7 @@ An audit of steps 3-5 (2026-11-02): what is costly to change later. Done
 before 5.3, a commit per group, each followed by a build and tests on
 Linux and Windows.
 
-1. **Rendering**:
-   - `Renderer` owns the device and the frame (present, size, vsync,
-     interface); building the frame graph (`drawScene`: views, output,
-     owner passes) is a separate `SceneRenderer`;
-   - `extractFrame` is made of parts by responsibility: views, lights,
-     meshes, environment;
-   - `samplerDesc(TextureSampling)` moves out of `Renderer.cpp` to a shared
-     place (materials need it);
-   - the final target formats (`Rgba8`, `Depth24Stencil8`) become named
-     constants, like `kHdrColorFormat`;
-   - light kinds are told apart one way (`kind()`), not `kind()` here and
-     `dynamic_cast` there;
-   - the block check also compares the fields inside structs of arrays
-     (lights), not only the element stride.
-2. **Resources and formats**:
+1. **Resources and formats**:
    - loading does not write `.meta`: nested IDs and the profile version are
      written on import in the editor, loading only reads (a built game in
      step 9 does not change its files);
@@ -553,7 +540,7 @@ Linux and Windows.
      `LoadResult::dependencies`, so a changed buffer reloads the model;
    - `GltfLoader.cpp` is split into files (meshes, nodes) before glTF
      materials.
-3. **Clean code**:
+2. **Clean code**:
    - reading a whole file is one platform function instead of five
      (images, glTF, shaders, the script template, the build record);
    - ASCII lowercase is one function instead of five;

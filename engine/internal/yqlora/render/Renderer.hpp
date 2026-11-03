@@ -16,8 +16,7 @@
 namespace yqlora {
 
 class GpuMeshCache;
-class MeshPass;
-class OutputPass;
+class SceneRenderer;
 class ShaderCompiler;
 class TransientTextures;
 class UniformRing;
@@ -25,8 +24,10 @@ class Window;
 struct RenderContext;
 struct TextureData;
 
-// Рендерер движка: проходы над rhi::Device одного графического API. Своих
-// классов под API нет, бэкенд даёт только устройство и связку с интерфейсом.
+// Рендерер движка: владеет устройством одного графического API и кадром
+// (показ, размер, vsync, интерфейс). Что рисуется в кадре сцены, решает
+// SceneRenderer. Своих классов под API нет, бэкенд даёт только устройство и
+// связку с интерфейсом.
 class YQLORA_API Renderer {
 public:
     // ui может быть nullptr: рендерер без интерфейса (тесты, запуск без окна
@@ -53,9 +54,8 @@ public:
         return *m_context;
     }
 
-    // Рисует кадр в окно одним графом: сцены всех видов по очереди в
-    // линейную HDR-цель, проход вывода в окно, затем проходы владельцев видов. На экране кадр появится после present(): между ними поверх
-    // можно дорисовать интерфейс.
+    // Рисует кадр в окно (см. SceneRenderer). На экране кадр появится после
+    // present(): между ними поверх можно дорисовать интерфейс.
     void render(const FrameData& frame);
 
     // Рисует кадр в текстуру. Камеру кадра стоит строить с соотношением сторон цели.
@@ -85,12 +85,6 @@ public:
     bool setVsync(bool enabled);
 
 private:
-    void drawScene(
-        const FrameData& frame,
-        rhi::Texture& color,
-        rhi::Texture& depth,
-        std::optional<rhi::ResourceState> finalColorState
-    );
     UiIntegration& ui() const;
 
     GraphicsApi m_api;
@@ -103,8 +97,7 @@ private:
     std::unique_ptr<GpuResourceCache<rhi::Texture>> m_uiTextures;
     std::unique_ptr<TransientTextures> m_transients;
     std::unique_ptr<RenderContext> m_context;
-    std::unique_ptr<MeshPass> m_meshPass;
-    std::unique_ptr<OutputPass> m_outputPass;
+    std::unique_ptr<SceneRenderer> m_scene;
 };
 
 // Рендерер для окна на бэкенде api (см. GraphicsBackend.hpp). Бросает

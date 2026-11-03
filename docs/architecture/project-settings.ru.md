@@ -146,6 +146,6 @@ registry.registerSettings<PhysicsSettings>("physics")  // settings/physics.json
   инспектор рисует поля маленькой таблицей. Поле записи само может быть
   списком или записью; списками записей хранятся Execution Order и действия
   ввода **[done]**.
-- Свойство-привязка: строка с `PropertyHint::InputControl`, в редакторе
+- Свойство-привязка: строка с `PropertyHint::InputControlName`, в редакторе
   задаётся нажатием **[done]**.
 - Вид настроек (`TypeKind::Settings`) и его построитель **[done]**.

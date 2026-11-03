@@ -1,8 +1,9 @@
 #include "yqlora/render/RenderTarget.hpp"
 
-#include <stdexcept>
+#include "yqlora/render/FrameFormats.hpp"
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace yqlora {
 
@@ -44,13 +45,13 @@ void RenderTarget::allocate(int width, int height)
     m_color = m_device.createTexture({
         .width = width,
         .height = height,
-        .format = rhi::Format::Rgba8,
+        .format = kOutputColorFormat,
         .usage = rhi::kColorTarget | rhi::kSampled,
     });
     m_depth = m_device.createTexture({
         .width = width,
         .height = height,
-        .format = rhi::Format::Depth24Stencil8,
+        .format = kDepthFormat,
         .usage = rhi::kDepthTarget,
     });
 }

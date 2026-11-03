@@ -17,6 +17,9 @@ struct UniformMember {
     std::size_t size = 0;
     // Шаг элемента массива; 0 - не массив.
     std::size_t arrayStride = 0;
+    // Поля структуры (у массива структур - его элемента), смещения от её
+    // начала; пусто - не структура (YQLORA_UNIFORM_STRUCT_MEMBER).
+    std::vector<UniformMember> members{};
 };
 
 // Шаг элемента, если T - массив C++, иначе 0.
@@ -47,10 +50,19 @@ struct UniformLayout {
             ::yqlora::uniformArrayStride<decltype(Struct::member)>()                                                   \
     }
 
+// Поле-структура или массив структур: members - раскладка её полей.
+#define YQLORA_UNIFORM_STRUCT_MEMBER(Struct, member, structMembers)                                                    \
+    ::yqlora::UniformMember                                                                                            \
+    {                                                                                                                  \
+        #member, offsetof(Struct, member), sizeof(Struct::member),                                                     \
+            ::yqlora::uniformArrayStride<decltype(Struct::member)>(), structMembers                                    \
+    }
+
 // Ошибки по одной на расхождение; пусто - блок шейдера совпадает со
 // структурой. Шейдер может объявить не все поля и вовсе не объявить блок,
 // но каждое его поле должно быть в структуре на том же месте и того же
-// размера, а у массива ещё и с тем же шагом элемента.
+// размера, у массива ещё и с тем же шагом элемента, а у структуры (и
+// элемента массива структур) так же сверяются её поля.
 YQLORA_API std::vector<std::string> checkUniformLayout(
     const rhi::ShaderReflection& reflection,
     const UniformLayout& layout

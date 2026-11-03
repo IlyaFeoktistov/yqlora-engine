@@ -148,6 +148,6 @@ As Tags and Layers in Unity:
   inspector draws the fields as a small table. A record field may itself be a
   list or a record; lists of records are how Execution Order and the input
   actions are stored **[done]**.
-- A binding property: a string with `PropertyHint::InputControl`, set by
+- A binding property: a string with `PropertyHint::InputControlName`, set by
   pressing in the editor **[done]**.
 - The settings kind (`TypeKind::Settings`) and its builder **[done]**.

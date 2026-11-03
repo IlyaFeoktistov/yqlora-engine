@@ -3,6 +3,7 @@
 #include "yqlora/editor/render/EditorShaders.hpp"
 
 #include "yqlora/render/EngineUniforms.hpp"
+#include "yqlora/render/FrameFormats.hpp"
 #include "yqlora/shader/ShaderBuild.hpp"
 #include "yqlora/shader/ShaderCompiler.hpp"
 
@@ -74,6 +75,8 @@ GridPass::GridPass(const RenderContext& context)
         // Снизу сетку тоже видно.
         .cull = rhi::CullMode::None,
         .blend = rhi::BlendMode::Alpha,
+        .colorFormat = kOutputColorFormat,
+        .depthFormat = kDepthFormat,
     });
 }
 
