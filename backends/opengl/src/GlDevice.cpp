@@ -165,7 +165,7 @@ std::vector<std::byte> GlDevice::readPixels(rhi::Texture& texture)
     const auto& glTexture = static_cast<GlTexture&>(texture);
     GLint previous = 0;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previous);
-    glBindFramebuffer(GL_FRAMEBUFFER, glTexture.isBackBuffer() ? 0U : framebuffer(glTexture, nullptr));
+    glBindFramebuffer(GL_FRAMEBUFFER, glTexture.isBackBuffer() ? 0U : framebuffer(&glTexture, nullptr));
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, desc.width, desc.height, singleChannel ? GL_RED : GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous));
@@ -193,9 +193,9 @@ bool GlDevice::setVsync(bool enabled)
     return true;
 }
 
-unsigned int GlDevice::framebuffer(const GlTexture& color, const GlTexture* depth, int face, int mip)
+unsigned int GlDevice::framebuffer(const GlTexture* color, const GlTexture* depth, int face, int mip)
 {
-    const FramebufferKey key{color.id(), depth ? depth->id() : 0U, face, mip};
+    const FramebufferKey key{color ? color->id() : 0U, depth ? depth->id() : 0U, face, mip};
     if (const auto it = m_framebuffers.find(key); it != m_framebuffers.end()) {
         return it->second;
     }
@@ -205,11 +205,19 @@ unsigned int GlDevice::framebuffer(const GlTexture& color, const GlTexture* dept
     GLint previous = 0;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previous);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    const GLenum colorTarget = color.desc().cube ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + static_cast<GLenum>(face)
-                                                 : GL_TEXTURE_2D;
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colorTarget, color.id(), mip);
+    if (color) {
+        const GLenum colorTarget = color->desc().cube ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + static_cast<GLenum>(face)
+                                                      : GL_TEXTURE_2D;
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colorTarget, color->id(), mip);
+    } else {
+        // Без цвета кадровый буфер полон, только если ни рисовать, ни читать цвет он не собирается.
+        glDrawBuffer(GL_NONE);
+        glReadBuffer(GL_NONE);
+    }
     if (depth) {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth->id(), 0);
+        const GLenum attachment = depth->desc().format == rhi::Format::Depth24Stencil8 ? GL_DEPTH_STENCIL_ATTACHMENT
+                                                                                       : GL_DEPTH_ATTACHMENT;
+        glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, depth->id(), 0);
     }
     const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous));

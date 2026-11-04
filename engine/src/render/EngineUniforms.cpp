@@ -1,6 +1,9 @@
 #include "yqlora/render/EngineUniforms.hpp"
 
+#include "yqlora/render/FrameExtract.hpp"
+
 #include <algorithm>
+#include <cmath>
 
 namespace yqlora {
 
@@ -66,6 +69,7 @@ FrameUniforms frameUniforms(const FrameData& frame)
             result.hasSun = 1;
             result.sunDirection = light.direction;
             result.sunColor = light.color;
+            result.sunAngularRadius = light.sourceSize;
         }
         if (light.kind == LightKind::Directional) {
             if (static_cast<std::size_t>(result.directionalCount) < kMaxDirectionalLights) {
@@ -77,6 +81,70 @@ FrameUniforms frameUniforms(const FrameData& frame)
         } else if (static_cast<std::size_t>(result.punctualCount) < kMaxPunctualLights) {
             result.punctualLights[result.punctualCount++] = punctual(light);
         }
+    }
+
+    return result;
+}
+
+ShadowUniforms shadowUniforms(const FrameData& frame, const ViewData& view, std::span<const ShadowCascade> cascades)
+{
+    const ShadowSettings& settings = frame.shadows;
+    const CameraData& camera = view.camera;
+    ShadowUniforms result{
+        .cameraForward = -Vec3(camera.view[0][2], camera.view[1][2], camera.view[2][2]),
+        .cascadeCount = static_cast<int>(cascades.size()),
+        .blockerSamples = settings.blockerSamples,
+        .filterSamples = settings.filterSamples,
+        .maxPenumbra = settings.maxPenumbra,
+        .cascadeSize = static_cast<float>(settings.cascadeSize),
+        .tileSize = static_cast<float>(settings.atlasSize / kShadowAtlasColumns),
+        .showCascades = view.showShadowCascades ? 1 : 0,
+    };
+    for (std::size_t i = 0; i < cascades.size() && i < kMaxShadowCascades; ++i) {
+        result.cascadeMatrices[i] = cascades[i].viewProjection;
+        result.cascadeSplits[static_cast<int>(i)] = cascades[i].splitFar;
+        result.cascadeWidths[static_cast<int>(i)] = cascades[i].width;
+        result.cascadeDepthRanges[static_cast<int>(i)] = cascades[i].depthRange;
+    }
+    for (std::size_t i = 0; i < frame.shadowTiles.size() && i < kMaxShadowTiles; ++i) {
+        result.tileMatrices[i] = frame.shadowTiles[i].viewProjection;
+    }
+    std::size_t punctualIndex = 0;
+    for (const LightData& light : frame.lights) {
+        if (light.kind == LightKind::Directional) {
+            if (light.sun && !cascades.empty()) {
+                result.sunShadows = static_cast<int>(light.shadows);
+                result.sunShadowStrength = light.shadowStrength;
+                result.sunShadowSoftness = light.shadowSoftness;
+                result.sunShadowBias = light.shadowBias;
+                result.sunShadowNormalBias = light.shadowNormalBias;
+                result.sunSourceTangent = std::tan(light.sourceSize);
+            }
+            continue;
+        }
+        if (punctualIndex >= kMaxPunctualLights) {
+            break;
+        }
+        const bool shadowed = light.firstShadowTile >= 0 && light.shadows != ShadowMode::None;
+        result.punctualShadows[punctualIndex] = IVec4(
+            shadowed ? light.firstShadowTile : -1,
+            shadowed ? static_cast<int>(light.shadows) : 0,
+            0,
+            0
+        );
+        result.punctualShadowParams[punctualIndex] = Vec4(
+            light.shadowStrength,
+            light.shadowSoftness,
+            light.shadowBias,
+            light.shadowNormalBias
+        );
+        result.punctualShadowSizes[punctualIndex] = Vec4(
+            light.sourceSize,
+            1.0f / std::tan(shadowTileHalfFov(light)),
+            shadowTileFar(light),
+            0.0f
+        );
+        ++punctualIndex;
     }
 
     return result;

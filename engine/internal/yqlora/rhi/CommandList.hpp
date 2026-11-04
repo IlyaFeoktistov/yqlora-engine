@@ -11,7 +11,17 @@ namespace yqlora::rhi {
 class Buffer;
 class Pipeline;
 
-// Цели прохода. Вложения одного размера; глубины может не быть.
+// Прямоугольник цели в пикселях; x, y - угол, с которого у цели начинаются
+// координаты текстуры (0, 0).
+struct Viewport {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+};
+
+// Цели прохода. Вложения одного размера; глубины может не быть, цвета
+// тоже (проход только с глубиной: карты теней), но не обоих сразу.
 struct RenderPassDesc {
     Texture* color = nullptr;
     Texture* depth = nullptr;
@@ -45,8 +55,12 @@ public:
         texture.m_state = state;
     }
 
-    // Вложения - в состояниях ColorTarget и DepthTarget. Область вывода - вся цель.
+    // Вложения - в состояниях ColorTarget и DepthTarget. Область вывода - вся
+    // цель, очистка - тоже вся цель.
     virtual void beginRenderPass(const RenderPassDesc& desc) = 0;
+    // Область вывода внутри открытого прохода: часть цели (каскад или плитка
+    // атласа теней). До конца прохода или до следующего вызова.
+    virtual void setViewport(const Viewport& viewport) = 0;
     virtual void endRenderPass() = 0;
 
     // Конвейер с форматами открытого прохода (checkPipelineTarget).

@@ -14,7 +14,14 @@ enum class Format {
     Rgba16Float, // линейный HDR-цвет кадра
     R8,
     Depth24Stencil8,
+    Depth32Float, // глубина без трафарета, которую читает шейдер: карты теней
 };
+
+// Формат глубины (вложение глубины прохода), а не цвета.
+constexpr bool isDepthFormat(Format format)
+{
+    return format == Format::Depth24Stencil8 || format == Format::Depth32Float;
+}
 
 // Форматы заднего буфера окна у любого устройства (Device::backBuffer):
 // конвейеры, которые рисуют в окно, рисуют и в цели этих форматов.

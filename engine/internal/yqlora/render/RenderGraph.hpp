@@ -56,9 +56,11 @@ private:
 class YQLORA_API RenderGraph {
 public:
     using TextureId = std::uint32_t;
+    // Нет текстуры: цель цвета прохода только с глубиной.
+    static constexpr TextureId kNoTexture = UINT32_MAX;
 
     struct Target {
-        TextureId texture = 0;
+        TextureId texture = kNoTexture;
         rhi::LoadOp load = rhi::LoadOp::Load;
         // Грань кубической текстуры и мип, куда рисует проход (только цвет).
         int face = 0;
@@ -67,6 +69,7 @@ public:
 
     struct Pass {
         std::string name{};
+        // Без текстуры (kNoTexture) - проход только с глубиной.
         Target color{};
         std::optional<Target> depth{};
         Vec4 clearColor{0.0f, 0.0f, 0.0f, 1.0f};

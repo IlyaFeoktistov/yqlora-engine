@@ -190,6 +190,63 @@ TEST_CASE("RHI: a texture is read only in ShaderRead")
     commands.endRenderPass();
 }
 
+TEST_CASE("RHI: a depth-only pass draws into part of its target, a shadow texture wants a comparison sampler")
+{
+    RecordingDevice device;
+    constexpr int kMapSize = 32;
+    const rhi::ShaderBinding shadowMap{
+        .name = "shadowMap",
+        .kind = rhi::BindingKind::Texture,
+        .slot = {kMaterialSet, 1},
+        .stages = rhi::stageBit(rhi::ShaderStage::Fragment),
+        .dimension = rhi::TextureDimension::Shadow2D,
+    };
+    auto depthShader = device.createShader({.name = "depth"});
+    auto depthPipeline = device.createPipeline({
+        .shader = depthShader.get(),
+        .colorFormat = rhi::Format::None,
+        .depthFormat = rhi::Format::Depth32Float,
+    });
+    auto map = device.createTexture(
+        {
+            .width = kMapSize,
+            .height = kMapSize,
+            .format = rhi::Format::Depth32Float,
+            .usage = rhi::kDepthTarget | rhi::kSampled,
+        },
+        {}
+    );
+
+    TransientTextures transients(device);
+    RenderGraph graph(transients);
+    const RenderGraph::TextureId id = graph.import(*map);
+    graph.addPass({
+        .name = "shadows",
+        .depth = RenderGraph::Target{id, rhi::LoadOp::Clear},
+        .record = [&](rhi::CommandList& commands, const RenderGraph&) {
+            commands.setViewport({.x = kMapSize / 2, .y = 0, .width = kMapSize / 2, .height = kMapSize / 2});
+            CHECK_THROWS_AS(commands.setViewport({.width = kMapSize + 1, .height = 1}), std::logic_error);
+            commands.bindPipeline(*depthPipeline);
+            commands.draw(3);
+        },
+    });
+    graph.execute(device.commands());
+    CHECK(std::ranges::count(device.kinds(), CommandKind::SetViewport) == 1);
+
+    // Чтение: sampler2DShadow - только со сравнением и только глубину.
+    auto readShader = device.createShader({.name = "read", .reflection = {.bindings = {shadowMap}}});
+    auto readPipeline = device.createPipeline({.shader = readShader.get()});
+    auto compare = device.createSampler({.compare = true});
+    auto plain = device.createSampler({});
+    rhi::CommandList& commands = device.commands();
+    commands.transition(*map, rhi::ResourceState::ShaderRead);
+    beginWindowPass(device);
+    commands.bindPipeline(*readPipeline);
+    CHECK_THROWS_AS(commands.setTexture(kMaterialSet, 1, *map, *plain), std::logic_error);
+    CHECK_NOTHROW(commands.setTexture(kMaterialSet, 1, *map, *compare));
+    commands.endRenderPass();
+}
+
 TEST_CASE("RHI: only a dynamic buffer is written after creation")
 {
     RecordingDevice device;
@@ -351,9 +408,10 @@ TEST_CASE("Renderer: what a view does not see is not drawn")
 
     const std::vector<CommandKind> kinds = device.kinds();
     CHECK(std::ranges::count(kinds, CommandKind::DrawIndexed) == 0);
-    // Остаются только сцена вида (пустая) и проход вывода.
+    // Остаются только сцена вида (пустая), проход вывода и две карты теней
+    // (атлас и каскады) - стёртые, без отрисовки: теней в кадре нет.
     CHECK(std::ranges::count(kinds, CommandKind::Draw) == 1);
-    CHECK(std::ranges::count(kinds, CommandKind::BeginPass) == 2);
+    CHECK(std::ranges::count(kinds, CommandKind::BeginPass) == 4);
 }
 
 TEST_CASE("EnvironmentLighting: the sky is captured again only when it changes")

@@ -13,6 +13,7 @@
 #include <yqlora/platform/Platform.hpp>
 #include <yqlora/platform/Window.hpp>
 #include <yqlora/render/EngineUniforms.hpp>
+#include <yqlora/render/FrameExtract.hpp>
 #include <yqlora/render/FrameFormats.hpp>
 #include <yqlora/render/FrameMaterials.hpp>
 #include <yqlora/render/GraphicsBackend.hpp>
@@ -1011,4 +1012,324 @@ TEST_CASE("OpenGL: a smooth metal reflects the sky in front of it, a rough one i
     const float rough = greenShare(1.0f);
     CHECK(smooth > 0.8f);
     CHECK(rough < smooth * 0.8f);
+}
+
+TEST_CASE("OpenGL: a depth-only pass into part of a shadow map is read raw and with comparison")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    rhi::Device& device = gl->renderer->device();
+    // Треугольник на весь экран на глубине 0.5.
+    const std::string vertex = "#version 450\n"
+                               "void main() {\n"
+                               "    vec2 uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);\n"
+                               "    gl_Position = vec4(uv * 2.0 - 1.0, 0.5, 1.0);\n"
+                               "}\n";
+    const std::string depthOnly = "#version 450\nvoid main() {}\n";
+    // Красный - сравнение с 0.75 (свет доходит, если 0.75 не дальше
+    // записанного), зелёный - сама глубина.
+    const std::string
+        read = "#version 450\n"
+               "layout(set = 2, binding = 1) uniform sampler2DShadow shadowMap;\n"
+               "layout(set = 2, binding = 2) uniform sampler2D depthMap;\n"
+               "layout(location = 0) out vec4 fragColor;\n"
+               "void main() {\n"
+               "    vec2 uv = gl_FragCoord.xy / 64.0;\n"
+               "    fragColor = vec4(texture(shadowMap, vec3(uv, 0.75)), texture(depthMap, uv).r, 0.0, 1.0);\n"
+               "}\n";
+    ShaderCompiler compiler([&](const std::string& path) -> std::optional<std::string> {
+        if (path == "test/plane.vert") {
+            return vertex;
+        }
+        if (path == "test/depth.frag") {
+            return depthOnly;
+        }
+
+        return path == "test/read.frag" ? std::optional(read) : std::nullopt;
+    });
+    auto depthShader = device.createShader(buildBuiltinShader(
+        compiler,
+        {.name = "depth", .vertexPath = "test/plane.vert", .fragmentPath = "test/depth.frag"}
+    ));
+    auto readShader = device.createShader(buildBuiltinShader(
+        compiler,
+        {.name = "read", .vertexPath = engineShaderPath("fullscreen.vert"), .fragmentPath = "test/read.frag"}
+    ));
+    REQUIRE(readShader->findBinding({2, 1}));
+    CHECK(readShader->findBinding({2, 1})->dimension == rhi::TextureDimension::Shadow2D);
+
+    auto shadowMap = device.createTexture({
+        .width = kSize,
+        .height = kSize,
+        .format = rhi::Format::Depth32Float,
+        .usage = rhi::kDepthTarget | rhi::kSampled,
+    });
+    auto color = device.createTexture({.width = kSize, .height = kSize, .usage = rhi::kColorTarget | rhi::kSampled});
+    auto depthPipeline = device.createPipeline({
+        .shader = depthShader.get(),
+        .depthBias = {.constant = 1.0f, .slope = 1.0f},
+        .cull = rhi::CullMode::None,
+        .colorFormat = rhi::Format::None,
+        .depthFormat = rhi::Format::Depth32Float,
+    });
+    auto readPipeline = device.createPipeline({
+        .shader = readShader.get(),
+        .depthTest = false,
+        .depthWrite = false,
+        .cull = rhi::CullMode::None,
+        .depthFormat = rhi::Format::None,
+    });
+    auto compare = device.createSampler(
+        {.filter = rhi::Filter::Nearest, .wrap = rhi::Wrap::Clamp, .mipmaps = false, .compare = true}
+    );
+    auto raw = device.createSampler({.filter = rhi::Filter::Nearest, .wrap = rhi::Wrap::Clamp, .mipmaps = false});
+
+    rhi::CommandList& commands = device.commands();
+    commands.transition(*shadowMap, rhi::ResourceState::DepthTarget);
+    commands.beginRenderPass({.depth = shadowMap.get()});
+    // Только правая половина: левая остаётся очищенной в 1.
+    commands.setViewport({.x = kSize / 2, .y = 0, .width = kSize / 2, .height = kSize});
+    commands.bindPipeline(*depthPipeline);
+    commands.draw(3);
+    commands.endRenderPass();
+
+    commands.transition(*shadowMap, rhi::ResourceState::ShaderRead);
+    commands.transition(*color, rhi::ResourceState::ColorTarget);
+    commands.beginRenderPass({.color = color.get()});
+    commands.bindPipeline(*readPipeline);
+    commands.setTexture(2, 1, *shadowMap, *compare);
+    commands.setTexture(2, 2, *shadowMap, *raw);
+    commands.draw(3);
+    commands.endRenderPass();
+
+    const std::vector<std::byte> pixels = device.readPixels(*color);
+    const auto left = pixelAt(pixels, kSize / 4, kSize / 2, kSize);
+    const auto right = pixelAt(pixels, kSize * 3 / 4, kSize / 2, kSize);
+    CHECK(left[0] == 255);
+    CHECK(left[1] == 255);
+    CHECK(right[0] == 0);
+    // 0.5 и чуть дальше от смещения глубины.
+    CHECK(right[1] == doctest::Approx(128).epsilon(0.02));
+}
+
+namespace {
+
+// Сцена теней: белая плоскость 20 x 20 м с верхом на y = 0 и коробки над
+// ней. Камера смотрит сверху вниз, коробки лежат на слое, которого она не
+// рисует: в кадре только плоскость и тени на ней, а проход теней коробки
+// рисует (слои видов к нему не относятся).
+struct ShadowScene {
+    static constexpr int kTargetSize = 256;
+    static constexpr int kHiddenLayer = 1;
+    static constexpr float kLux = 1000.0f;
+
+    MeshData cube = makeCube();
+    test::TestMaterials materials;
+    FrameData frame;
+    std::size_t white = 0;
+
+    ShadowScene()
+    {
+        const Vec3 eye(0.0f, 10.0f, 0.0f);
+        frame.views.push_back({
+            .camera =
+                {
+                    .view = glm::lookAt(eye, Vec3(0.0f), Vec3(0.0f, 0.0f, -1.0f)),
+                    .projection = math::perspective(glm::radians(40.0f), 1.0f, 0.1f, 100.0f),
+                    .position = eye,
+                },
+            .mask = LayerMask{1} << 0,
+            // Белая освещённая плоскость - около 0.5.
+            .exposure = {.factor = 0.5f * glm::pi<float>() / kLux},
+        });
+        white = materials.add(frame, Vec4(1.0f), MaterialBlend::Opaque, kRough);
+        add(Vec3(0.0f, -0.05f, 0.0f), Vec3(20.0f, 0.1f, 20.0f), 0);
+    }
+
+    DrawItem& add(const Vec3& center, const Vec3& size, int layer = kHiddenLayer)
+    {
+        const Mat4 world = glm::scale(glm::translate(Mat4(1.0f), center), size);
+        frame.drawItems.push_back({
+            .mesh = &cube,
+            .meshId = 1,
+            .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
+            .world = world,
+            .bounds = transformBounds(cube.bounds, world),
+            .material = white,
+            .layer = layer,
+        });
+
+        return frame.drawItems.back();
+    }
+
+    DrawItem& plane()
+    {
+        return frame.drawItems.front();
+    }
+
+    // Пиксели кадра сверху вниз.
+    std::vector<std::byte> render(Renderer& renderer)
+    {
+        auto target = renderer.createRenderTarget(kTargetSize, kTargetSize);
+        renderer.render(frame, *target);
+
+        return renderer.device().readPixels(target->color());
+    }
+
+    // Линейная яркость точки плоскости (x, 0, z) в кадре pixels.
+    float at(const std::vector<std::byte>& pixels, float x, float z) const
+    {
+        const CameraData& camera = frame.views.front().camera;
+        const Vec4 clip = camera.projection * camera.view * Vec4(x, 0.0f, z, 1.0f);
+        const Vec2 ndc = Vec2(clip) / clip.w;
+        const int column = static_cast<int>((ndc.x * 0.5f + 0.5f) * kTargetSize);
+        const int row = static_cast<int>((0.5f - ndc.y * 0.5f) * kTargetSize);
+
+        return linearOf(pixelAt(pixels, column, row, kTargetSize)[0]);
+    }
+
+    // Ширина перехода от тени к свету в метрах вдоль x от from до to на
+    // z = 0: между 10 и 90 процентами разницы между тенью и светом.
+    float penumbra(const std::vector<std::byte>& pixels, float from, float to) const
+    {
+        constexpr int kSteps = 400;
+        const float shadow = at(pixels, from, 0.0f);
+        const float lit = at(pixels, to, 0.0f);
+        float start = to;
+        float end = to;
+        bool started = false;
+        for (int i = 0; i <= kSteps; ++i) {
+            const float x = glm::mix(from, to, static_cast<float>(i) / kSteps);
+            const float share = (at(pixels, x, 0.0f) - shadow) / (lit - shadow);
+            if (!started && share > 0.1f) {
+                start = x;
+                started = true;
+            }
+            if (share > 0.9f) {
+                end = x;
+                break;
+            }
+        }
+
+        return std::abs(end - start);
+    }
+};
+
+// Солнце в ShadowScene::kLux, светит вдоль direction.
+LightData shadowSun(const Vec3& direction, ShadowMode mode, float angularDiameterDegrees = 0.53f)
+{
+    return {
+        .kind = LightKind::Directional,
+        .direction = glm::normalize(direction),
+        .color = Vec3(ShadowScene::kLux),
+        .sun = true,
+        .shadows = mode,
+        .shadowBias = 0.5f,
+        .shadowNormalBias = 1.0f,
+        .sourceSize = glm::radians(angularDiameterDegrees) * 0.5f,
+    };
+}
+
+} // namespace
+
+TEST_CASE("OpenGL: a box above a plane shades it, not without castShadows or receiveShadows")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    // Солнце сверху и сбоку: тень коробки над началом координат падает на x = -2.
+    ShadowScene scene;
+    scene.frame.lights = {shadowSun(Vec3(-1.0f, -1.0f, 0.0f), ShadowMode::Hard)};
+    DrawItem& box = scene.add(Vec3(0.0f, 2.0f, 0.0f), Vec3(1.0f));
+
+    auto pixels = scene.render(*gl->renderer);
+    const float lit = scene.at(pixels, 2.0f, 0.0f);
+    CHECK(lit > 0.2f);
+    CHECK(scene.at(pixels, -2.0f, 0.0f) < lit * 0.1f);
+    // Под самой коробкой света нет только там, куда падает тень.
+    CHECK(scene.at(pixels, 0.0f, 0.0f) == doctest::Approx(lit).epsilon(0.05));
+
+    box.castShadows = false;
+    pixels = scene.render(*gl->renderer);
+    CHECK(scene.at(pixels, -2.0f, 0.0f) == doctest::Approx(lit).epsilon(0.05));
+
+    box.castShadows = true;
+    scene.plane().receiveShadows = false;
+    pixels = scene.render(*gl->renderer);
+    CHECK(scene.at(pixels, -2.0f, 0.0f) == doctest::Approx(lit).epsilon(0.05));
+
+    // Половинная сила - половина света в тени.
+    scene.plane().receiveShadows = true;
+    scene.frame.lights.front().shadowStrength = 0.5f;
+    pixels = scene.render(*gl->renderer);
+    CHECK(scene.at(pixels, -2.0f, 0.0f) == doctest::Approx(lit * 0.5f).epsilon(0.1));
+
+    // Тени выключены в настройках - теней нет.
+    scene.frame.lights.front().shadowStrength = 1.0f;
+    scene.frame.shadows.enabled = false;
+    pixels = scene.render(*gl->renderer);
+    CHECK(scene.at(pixels, -2.0f, 0.0f) == doctest::Approx(lit).epsilon(0.05));
+}
+
+TEST_CASE("OpenGL: a point light casts shadows in every direction")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    ShadowScene scene;
+    LightData point{
+        .kind = LightKind::Point,
+        .position = Vec3(0.0f, 1.0f, 0.0f),
+        .color = Vec3(ShadowScene::kLux),
+        .range = 50.0f,
+        .shadows = ShadowMode::Hard,
+        .shadowBias = 0.5f,
+        .shadowNormalBias = 1.0f,
+        .firstShadowTile = 0,
+    };
+    scene.frame.lights = {point};
+    for (int face = 0; face < kPointShadowFaces; ++face) {
+        scene.frame.shadowTiles.push_back({.viewProjection = shadowTileMatrix(point, face), .light = 0});
+    }
+    // Коробки по +X и -Z от источника: тени падают за ними, в разные грани куба.
+    scene.add(Vec3(1.5f, 0.25f, 0.0f), Vec3(0.5f));
+    scene.add(Vec3(0.0f, 0.25f, -1.5f), Vec3(0.5f));
+
+    const auto pixels = scene.render(*gl->renderer);
+    const float litX = scene.at(pixels, -2.5f, 0.0f);
+    const float litZ = scene.at(pixels, 0.0f, 2.5f);
+    CHECK(litX > 0.01f);
+    CHECK(scene.at(pixels, 2.5f, 0.0f) < litX * 0.1f);
+    CHECK(scene.at(pixels, 0.0f, -2.5f) < litZ * 0.1f);
+}
+
+TEST_CASE("OpenGL: a soft shadow is sharper near its caster and softer for a larger sun")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    ShadowScene scene;
+    // Полутень больше предела по умолчанию: предел её бы срезал.
+    scene.frame.shadows.maxPenumbra = kMaxShadowPenumbra;
+    // Коробки 1 x 1 м: низкая - на 0.3 м над плоскостью, высокая - на 4 м.
+    scene.add(Vec3(-2.0f, 0.8f, 0.0f), Vec3(1.0f));
+    scene.add(Vec3(2.0f, 4.5f, 0.0f), Vec3(1.0f));
+    const auto penumbras = [&](float angularDiameter) {
+        scene.frame.lights = {shadowSun(Vec3(0.0f, -1.0f, 0.0f), ShadowMode::Soft, angularDiameter)};
+        const auto pixels = scene.render(*gl->renderer);
+        // От середины тени наружу.
+        return std::pair(scene.penumbra(pixels, -2.0f, -1.0f), scene.penumbra(pixels, 2.0f, 3.0f));
+    };
+    constexpr float kLargeSun = 10.0f;
+    const auto [lowLarge, highLarge] = penumbras(kLargeSun);
+    const auto [lowSmall, highSmall] = penumbras(kLargeSun / 5.0f);
+    // Ширина полутени - 2 tg(радиуса) * расстояние: у высокой около 0.7 м.
+    CHECK(highLarge > lowLarge * 3.0f);
+    CHECK(highLarge == doctest::Approx(2.0f * std::tan(glm::radians(kLargeSun * 0.5f)) * 4.0f).epsilon(0.5));
+    CHECK(highLarge > highSmall * 2.0f);
 }

@@ -58,6 +58,11 @@ public:
     // без имени. Без загруженного меша или вне сцены - пусто.
     std::vector<std::string> slotNames() const;
 
+    // Меш отбрасывает тени источников с тенями.
+    bool castShadows = true;
+    // На меш падают тени.
+    bool receiveShadows = true;
+
 private:
     ResourceRef m_mesh;
     std::vector<ResourceRef> m_materials;

@@ -3,11 +3,13 @@
 #include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/render/FrameData.hpp"
+#include "yqlora/render/ShadowCascades.hpp"
 #include "yqlora/rhi/RhiTypes.hpp"
 #include "yqlora/shader/ShaderProfile.hpp"
 #include "yqlora/shader/UniformLayout.hpp"
 
 #include <cstddef>
+#include <span>
 
 namespace yqlora {
 
@@ -48,6 +50,9 @@ struct alignas(16) FrameUniforms {
     float ambientIntensity = 0.0f;
     // Последний мип куба отражений, по которому идёт шероховатость.
     float environmentMaxMip = 0.0f;
+    // Угловой радиус солнца в радианах (DirectionalLight3D::angularDiameter):
+    // диск на небе.
+    float sunAngularRadius = 0.0f;
     DirectionalLightUniforms directionalLights[kMaxDirectionalLights]{};
     PunctualLightUniforms punctualLights[kMaxPunctualLights]{};
 };
@@ -95,6 +100,50 @@ struct alignas(16) ObjectUniforms {
     Mat4 model{1.0f};
     // mat3 в std140 - три vec4, проще хранить mat4.
     Mat4 normalMatrix{1.0f};
+    // MeshRenderer::receiveShadows: 0 - тени на объект не падают.
+    int receiveShadows = 1;
+};
+
+// Тени вида (shadows.glsl): каскады солнца для его камеры и плитки атласа
+// точечных и прожекторов. Смещения - в текселях карты, переводятся в метры
+// по размеру текселя в точке.
+struct alignas(16) ShadowUniforms {
+    Mat4 cascadeMatrices[kMaxShadowCascades]{};
+    Mat4 tileMatrices[kMaxShadowTiles]{};
+    // Дальние границы каскадов - глубина вида в метрах.
+    Vec4 cascadeSplits{0.0f};
+    // Ширина квадрата и глубина коробки каскада в метрах.
+    Vec4 cascadeWidths{0.0f};
+    Vec4 cascadeDepthRanges{0.0f};
+    // Взгляд камеры вида: по глубине вдоль него выбирается каскад.
+    Vec3 cameraForward{0.0f, 0.0f, -1.0f};
+    int cascadeCount = 0;
+    // Тени солнца: ShadowMode (0 - нет) и параметры источника.
+    int sunShadows = 0;
+    float sunShadowStrength = 0.0f;
+    float sunShadowSoftness = 0.0f;
+    float sunShadowBias = 0.0f;
+    float sunShadowNormalBias = 0.0f;
+    // Тангенс углового радиуса солнца: ширина полутени на метр от заслоняющего.
+    float sunSourceTangent = 0.0f;
+    int blockerSamples = 1;
+    int filterSamples = 1;
+    // Предел полутени в текселях.
+    float maxPenumbra = 1.0f;
+    // Сторона одного каскада и одной плитки атласа в текселях.
+    float cascadeSize = 1.0f;
+    float tileSize = 1.0f;
+    // ViewData::showShadowCascades.
+    int showCascades = 0;
+    // По номеру в punctualLights блока Frame: x - первая плитка (-1 - теней
+    // нет), y - ShadowMode.
+    // ivec4 в std140 выровнен по 16, glm::ivec4 - по 4.
+    alignas(16) IVec4 punctualShadows[kMaxPunctualLights]{};
+    // strength, softness, bias, normalBias.
+    Vec4 punctualShadowParams[kMaxPunctualLights]{};
+    // x - радиус источника в метрах, y - масштаб проекции плитки (1 /
+    // тангенс половины угла), z - её дальняя плоскость.
+    Vec4 punctualShadowSizes[kMaxPunctualLights]{};
 };
 
 // Отступы (padding) в раскладках не перечислены: шейдер их не объявляет.
@@ -124,6 +173,7 @@ inline const UniformLayout kFrameBlock{
         YQLORA_UNIFORM_MEMBER(FrameUniforms, punctualCount),
         YQLORA_UNIFORM_MEMBER(FrameUniforms, ambientIntensity),
         YQLORA_UNIFORM_MEMBER(FrameUniforms, environmentMaxMip),
+        YQLORA_UNIFORM_MEMBER(FrameUniforms, sunAngularRadius),
         YQLORA_UNIFORM_STRUCT_MEMBER(FrameUniforms, directionalLights, kDirectionalLightMembers),
         YQLORA_UNIFORM_STRUCT_MEMBER(FrameUniforms, punctualLights, kPunctualLightMembers),
     },
@@ -191,11 +241,54 @@ inline const UniformLayout kObjectBlock{
     {
         YQLORA_UNIFORM_MEMBER(ObjectUniforms, model),
         YQLORA_UNIFORM_MEMBER(ObjectUniforms, normalMatrix),
+        YQLORA_UNIFORM_MEMBER(ObjectUniforms, receiveShadows),
     },
 };
 
+inline const UniformLayout kShadowBlock{
+    "Shadows",
+    {kViewSet, 3},
+    sizeof(ShadowUniforms),
+    {
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, cascadeMatrices),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, tileMatrices),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, cascadeSplits),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, cascadeWidths),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, cascadeDepthRanges),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, cameraForward),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, cascadeCount),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, sunShadows),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, sunShadowStrength),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, sunShadowSoftness),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, sunShadowBias),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, sunShadowNormalBias),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, sunSourceTangent),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, blockerSamples),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, filterSamples),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, maxPenumbra),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, cascadeSize),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, tileSize),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, showCascades),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, punctualShadows),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, punctualShadowParams),
+        YQLORA_UNIFORM_MEMBER(ShadowUniforms, punctualShadowSizes),
+    },
+};
+
+// Карты теней вида: каскады солнца и атлас, каждая и со сравнением
+// (фильтр), и как есть (поиск заслоняющих).
+inline constexpr rhi::BindingSlot kShadowCascadesSlot{kViewSet, 4};
+inline constexpr rhi::BindingSlot kShadowCascadesDepthSlot{kViewSet, 5};
+inline constexpr rhi::BindingSlot kShadowAtlasSlot{kViewSet, 6};
+inline constexpr rhi::BindingSlot kShadowAtlasDepthSlot{kViewSet, 7};
+
 // Данные блока Frame из снимка кадра.
 YQLORA_API FrameUniforms frameUniforms(const FrameData& frame);
+
+// Данные блока Shadows вида view с каскадами солнца cascades (пусто -
+// солнце без теней).
+YQLORA_API ShadowUniforms
+shadowUniforms(const FrameData& frame, const ViewData& view, std::span<const ShadowCascade> cascades);
 
 // Данные блока Atmosphere из настроек атмосферы окружения.
 YQLORA_API AtmosphereUniforms atmosphereUniforms(const Atmosphere& atmosphere);
@@ -207,6 +300,7 @@ inline const UniformLayout* const kEngineBlocks[] = {
     &kViewBlock,
     &kObjectBlock,
     &kCaptureBlock,
+    &kShadowBlock,
 };
 
 } // namespace yqlora

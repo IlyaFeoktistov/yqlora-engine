@@ -13,6 +13,7 @@ class AtmospherePass;
 class EnvironmentLighting;
 class MeshPass;
 class OutputPass;
+class ShadowPass;
 class TransientTextures;
 struct RenderContext;
 
@@ -20,7 +21,7 @@ namespace rhi {
 class Texture;
 } // namespace rhi
 
-// Граф кадра сцены: таблицы атмосферы, виды по очереди в линейную HDR-цель
+// Граф кадра сцены: таблицы атмосферы, карты теней, виды по очереди в линейную HDR-цель
 // (непрозрачное, небо, прозрачное), проход вывода в итоговую цель, затем
 // проходы владельцев видов. Устройство, показ кадра и
 // интерфейс - у Renderer; здесь только то, что и в каком порядке рисуется.
@@ -48,6 +49,7 @@ private:
     std::unique_ptr<EnvironmentLighting> m_environment;
     std::unique_ptr<MeshPass> m_meshPass;
     std::unique_ptr<OutputPass> m_outputPass;
+    std::unique_ptr<ShadowPass> m_shadowPass;
 };
 
 } // namespace yqlora

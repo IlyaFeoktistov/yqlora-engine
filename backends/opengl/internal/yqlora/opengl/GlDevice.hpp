@@ -64,7 +64,8 @@ public:
 
     // Framebuffer для пары вложений (у цвета - грань куба и мип); заводится
     // при первом обращении.
-    unsigned int framebuffer(const GlTexture& color, const GlTexture* depth, int face = 0, int mip = 0);
+    // color nullptr - только глубина.
+    unsigned int framebuffer(const GlTexture* color, const GlTexture* depth, int face = 0, int mip = 0);
 
     // Текстура удаляется: её framebuffer больше не нужны.
     void forgetFramebuffers(unsigned int texture);
@@ -77,6 +78,7 @@ private:
     std::unique_ptr<GlTexture> m_backBufferDepth;
     std::unique_ptr<GlCommandList> m_commands;
     struct FramebufferKey {
+        // 0 - без цвета.
         unsigned int color = 0;
         // 0 - без глубины.
         unsigned int depth = 0;

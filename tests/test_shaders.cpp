@@ -125,9 +125,11 @@ TEST_CASE("Shaders: reflection of the Standard shader")
     REQUIRE(object);
     CHECK(object->name == "Object");
     CHECK(object->kind == rhi::BindingKind::UniformBlock);
-    CHECK(object->stages == rhi::stageBit(rhi::ShaderStage::Vertex));
-    REQUIRE(object->fields.size() == 2);
+    // Фрагментная стадия читает receiveShadows.
+    CHECK(object->stages == (rhi::stageBit(rhi::ShaderStage::Vertex) | rhi::stageBit(rhi::ShaderStage::Fragment)));
+    REQUIRE(object->fields.size() == 3);
     CHECK(object->fields[1].name == "normalMatrix");
+    CHECK(object->fields[2].name == "receiveShadows");
 
     const rhi::ShaderBinding* material = reflection.find({kMaterialSet, 0});
     REQUIRE(material);

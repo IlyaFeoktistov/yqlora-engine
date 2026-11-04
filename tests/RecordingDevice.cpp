@@ -39,28 +39,40 @@ void RecordingBuffer::write(std::size_t offset, std::span<const std::byte> data)
 void RecordingCommandList::beginRenderPass(const rhi::RenderPassDesc& desc)
 {
     requireThat(!m_inPass, "beginRenderPass: the previous pass is not ended");
-    requireThat(desc.color != nullptr, "beginRenderPass: no colour target");
-    requireThat(desc.color->state() == rhi::ResourceState::ColorTarget, "beginRenderPass: colour is not a target");
-    const rhi::TextureDesc& color = desc.color->desc();
-    requireThat(
-        desc.colorFace >= 0 && desc.colorFace < (color.cube ? rhi::kCubeFaces : 1),
-        "beginRenderPass: no such face"
-    );
-    requireThat(desc.colorMip >= 0 && desc.colorMip < rhi::mipLevelCount(color), "beginRenderPass: no such mip");
+    requireThat(desc.color != nullptr || desc.depth != nullptr, "beginRenderPass: no target");
+    if (desc.color) {
+        requireThat(desc.color->state() == rhi::ResourceState::ColorTarget, "beginRenderPass: colour is not a target");
+        requireThat(!rhi::isDepthFormat(desc.color->desc().format), "beginRenderPass: colour has a depth format");
+        const rhi::TextureDesc& color = desc.color->desc();
+        requireThat(
+            desc.colorFace >= 0 && desc.colorFace < (color.cube ? rhi::kCubeFaces : 1),
+            "beginRenderPass: no such face"
+        );
+        requireThat(desc.colorMip >= 0 && desc.colorMip < rhi::mipLevelCount(color), "beginRenderPass: no such mip");
+    }
     requireThat(
         !desc.depth || (desc.colorFace == 0 && desc.colorMip == 0),
         "beginRenderPass: depth with a face or mip"
     );
     if (desc.depth) {
         requireThat(desc.depth->state() == rhi::ResourceState::DepthTarget, "beginRenderPass: depth is not a target");
+        requireThat(rhi::isDepthFormat(desc.depth->desc().format), "beginRenderPass: depth has a colour format");
         requireThat(
-            desc.depth->desc().width == desc.color->desc().width
-                && desc.depth->desc().height == desc.color->desc().height,
+            !desc.color
+                || (desc.depth->desc().width == desc.color->desc().width
+                    && desc.depth->desc().height == desc.color->desc().height),
             "beginRenderPass: attachments differ in size"
         );
     }
+    const rhi::TextureDesc& size = desc.color ? desc.color->desc() : desc.depth->desc();
+    m_width = rhi::mipSize(size.width, desc.colorMip);
+    m_height = rhi::mipSize(size.height, desc.colorMip);
     m_inPass = true;
-    m_target = {desc.color->desc().format, desc.depth ? desc.depth->desc().format : rhi::Format::None, 1};
+    m_target = {
+        desc.color ? desc.color->desc().format : rhi::Format::None,
+        desc.depth ? desc.depth->desc().format : rhi::Format::None,
+        1,
+    };
     m_pipeline = nullptr;
     m_device.recorded.push_back({CommandKind::BeginPass});
 }
@@ -71,6 +83,17 @@ void RecordingCommandList::endRenderPass()
     m_inPass = false;
     m_pipeline = nullptr;
     m_device.recorded.push_back({CommandKind::EndPass});
+}
+
+void RecordingCommandList::setViewport(const rhi::Viewport& viewport)
+{
+    requireThat(m_inPass, "setViewport: outside a render pass");
+    requireThat(
+        viewport.x >= 0 && viewport.y >= 0 && viewport.width > 0 && viewport.height > 0
+            && viewport.x + viewport.width <= m_width && viewport.y + viewport.height <= m_height,
+        "setViewport: outside the target"
+    );
+    m_device.recorded.push_back({CommandKind::SetViewport});
 }
 
 void RecordingCommandList::bindPipeline(const rhi::Pipeline& pipeline)
@@ -119,11 +142,24 @@ void RecordingCommandList::setTexture(
     std::uint32_t set,
     std::uint32_t slot,
     const rhi::Texture& texture,
-    const rhi::Sampler&
+    const rhi::Sampler& sampler
 )
 {
-    binding(set, slot, rhi::BindingKind::Texture);
+    const rhi::ShaderBinding& entry = binding(set, slot, rhi::BindingKind::Texture);
     requireThat(hasUsage(texture.desc(), rhi::kSampled), "setTexture: the texture is not for sampling");
+    const bool shadow = entry.dimension == rhi::TextureDimension::Shadow2D;
+    requireThat(
+        sampler.desc().compare == shadow,
+        "setTexture: a shadow texture needs a comparison sampler and only it"
+    );
+    requireThat(
+        !shadow || rhi::isDepthFormat(texture.desc().format),
+        "setTexture: a shadow texture is not a depth texture"
+    );
+    requireThat(
+        texture.desc().cube == (entry.dimension == rhi::TextureDimension::Cube),
+        "setTexture: the texture is not of the shader's dimension"
+    );
     requireThat(texture.state() == rhi::ResourceState::ShaderRead, "setTexture: the texture is not in ShaderRead");
     m_bound.emplace(set, slot);
     m_device.recorded.push_back({CommandKind::SetTexture});
@@ -226,7 +262,15 @@ std::unique_ptr<rhi::Shader> RecordingDevice::createShader(rhi::ShaderDesc desc)
 std::unique_ptr<rhi::Pipeline> RecordingDevice::createPipeline(rhi::PipelineDesc desc)
 {
     requireThat(desc.shader != nullptr, "createPipeline: no shader");
-    requireThat(desc.colorFormat != rhi::Format::None, "createPipeline: no colour format");
+    requireThat(
+        desc.colorFormat != rhi::Format::None || desc.depthFormat != rhi::Format::None,
+        "createPipeline: neither colour nor depth"
+    );
+    requireThat(!rhi::isDepthFormat(desc.colorFormat), "createPipeline: colour has a depth format");
+    requireThat(
+        desc.depthFormat == rhi::Format::None || rhi::isDepthFormat(desc.depthFormat),
+        "createPipeline: depth has a colour format"
+    );
 
     return std::make_unique<rhi::Pipeline>(std::move(desc));
 }

@@ -49,24 +49,25 @@ GlCommandList::~GlCommandList()
 void GlCommandList::beginRenderPass(const rhi::RenderPassDesc& desc)
 {
     requireThat(!m_inPass, "beginRenderPass: the previous pass is not ended");
-    requireThat(desc.color != nullptr, "beginRenderPass: no colour target");
-    const auto& color = static_cast<const GlTexture&>(*desc.color);
+    requireThat(desc.color != nullptr || desc.depth != nullptr, "beginRenderPass: no target");
+    const auto* color = static_cast<const GlTexture*>(desc.color);
     const auto* depth = static_cast<const GlTexture*>(desc.depth);
 
     GLuint framebuffer = 0;
-    if (color.isBackBuffer()) {
+    if (color && color->isBackBuffer()) {
         requireThat(!depth || depth->isBackBuffer(), "beginRenderPass: the back buffer has its own depth");
     } else {
         framebuffer = m_device.framebuffer(color, depth, desc.colorFace, desc.colorMip);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glBindVertexArray(m_vertexArray);
-    glViewport(0, 0, rhi::mipSize(color.desc().width, desc.colorMip), rhi::mipSize(color.desc().height, desc.colorMip));
+    const rhi::TextureDesc& size = color ? color->desc() : depth->desc();
+    glViewport(0, 0, rhi::mipSize(size.width, desc.colorMip), rhi::mipSize(size.height, desc.colorMip));
     // Интерфейс оставляет включённым обрезание по прямоугольнику.
     glDisable(GL_SCISSOR_TEST);
 
     GLbitfield clear = 0;
-    if (desc.colorLoad == rhi::LoadOp::Clear) {
+    if (color && desc.colorLoad == rhi::LoadOp::Clear) {
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glClearColor(desc.clearColor.r, desc.clearColor.g, desc.clearColor.b, desc.clearColor.a);
         clear |= GL_COLOR_BUFFER_BIT;
@@ -82,7 +83,7 @@ void GlCommandList::beginRenderPass(const rhi::RenderPassDesc& desc)
     }
 
     m_inPass = true;
-    m_target = {color.desc().format, depth ? depth->desc().format : rhi::Format::None, 1};
+    m_target = {color ? color->desc().format : rhi::Format::None, depth ? depth->desc().format : rhi::Format::None, 1};
     m_pipeline = nullptr;
     m_vertexBuffer = nullptr;
 }
@@ -94,6 +95,12 @@ void GlCommandList::endRenderPass()
     m_pipeline = nullptr;
     // Интерфейс рисует в окно и ждёт привязанным framebuffer 0.
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void GlCommandList::setViewport(const rhi::Viewport& viewport)
+{
+    requireThat(m_inPass, "setViewport: outside a render pass");
+    glViewport(viewport.x, viewport.y, viewport.width, viewport.height);
 }
 
 void GlCommandList::bindPipeline(const rhi::Pipeline& pipeline)
@@ -110,6 +117,12 @@ void GlCommandList::bindPipeline(const rhi::Pipeline& pipeline)
         glDisable(GL_DEPTH_TEST);
     }
     glDepthMask(desc.depthWrite ? GL_TRUE : GL_FALSE);
+    if (desc.depthBias != rhi::DepthBias{}) {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(desc.depthBias.slope, desc.depthBias.constant);
+    } else {
+        glDisable(GL_POLYGON_OFFSET_FILL);
+    }
     if (desc.cull == rhi::CullMode::Back) {
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);

@@ -23,6 +23,7 @@ public:
 
     void beginRenderPass(const rhi::RenderPassDesc& desc) override;
     void endRenderPass() override;
+    void setViewport(const rhi::Viewport& viewport) override;
     void bindPipeline(const rhi::Pipeline& pipeline) override;
     void setVertexBuffer(const rhi::Buffer& buffer) override;
     void setIndexBuffer(const rhi::Buffer& buffer) override;

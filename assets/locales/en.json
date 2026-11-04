@@ -152,7 +152,8 @@
         },
         "viewport": {
             "cameraPreview": "Preview of the selected camera",
-            "sky": "Scene sky behind objects"
+            "sky": "Scene sky behind objects",
+            "shadowCascades": "Sun shadow cascades in colour"
         },
         "layers": {
             "everything": "Everything",
@@ -417,7 +418,23 @@
         "sky": "Sky",
         "skyColor": "Sky colour",
         "sun": "Sun",
-        "toneMapping": "Tone mapping"
+        "toneMapping": "Tone mapping",
+        "angularDiameter": "Angular diameter",
+        "castShadows": "Cast shadows",
+        "receiveShadows": "Receive shadows",
+        "shadowAtlasSize": "Shadow atlas size",
+        "shadowBias": "Shadow bias, texels",
+        "shadowBlockerSamples": "Blocker search samples",
+        "shadowCascadeSize": "Cascade map size",
+        "shadowCascades": "Cascades",
+        "shadowDistance": "Shadow distance, m",
+        "shadowFilterSamples": "Filter samples",
+        "shadowMaxPenumbra": "Max penumbra, texels",
+        "shadowNormalBias": "Normal bias, texels",
+        "shadowSoftness": "Softness",
+        "shadowStrength": "Strength",
+        "shadows": "Shadows",
+        "sourceRadius": "Source radius, m"
     },
     "enum": {
         "Aces": "ACES",
@@ -430,15 +447,18 @@
         "DepthOnly": "Depth only",
         "Direct3D12": "Direct3D 12",
         "Gradient": "Gradient",
+        "Hard": "Hard",
         "Neutral": "Neutral",
         "None": "None",
         "Nothing": "Nothing",
         "OpenGL": "OpenGL",
         "Release": "Release",
         "Sky": "Sky",
+        "Soft": "Soft",
         "Vulkan": "Vulkan"
     },
     "group": {
-        "ambientLight": "Ambient light"
+        "ambientLight": "Ambient light",
+        "shadows": "Shadows"
     }
 }

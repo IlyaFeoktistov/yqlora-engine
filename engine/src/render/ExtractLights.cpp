@@ -20,16 +20,28 @@ LightData lightData(const Light3D& light)
         .position = light.worldPosition(),
         .direction = light.worldForward(),
         .color = math::srgbToLinear(light.color()) * light.intensity(),
+        .shadows = light.shadows(),
+        .shadowStrength = light.shadowStrength(),
+        .shadowSoftness = light.shadowSoftness(),
+        .shadowBias = light.shadowBias(),
+        .shadowNormalBias = light.shadowNormalBias(),
     };
     switch (light.kind()) {
-    case LightKind::Directional: break;
+    case LightKind::Directional:
+        data.sourceSize = glm::radians(static_cast<const DirectionalLight3D&>(light).angularDiameter()) * 0.5f;
+        break;
     case LightKind::Spot: {
         const auto& spot = static_cast<const SpotLight3D&>(light);
         data.cosInner = std::cos(glm::radians(spot.innerAngleDegrees()));
         data.cosOuter = std::cos(glm::radians(spot.outerAngleDegrees()));
         [[fallthrough]];
     }
-    case LightKind::Point: data.range = static_cast<const PointLight3D&>(light).range(); break;
+    case LightKind::Point: {
+        const auto& point = static_cast<const PointLight3D&>(light);
+        data.range = point.range();
+        data.sourceSize = point.sourceRadius();
+        break;
+    }
     }
 
     return data;

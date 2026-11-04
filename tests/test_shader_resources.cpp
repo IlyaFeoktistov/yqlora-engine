@@ -365,4 +365,5 @@ TEST_CASE_FIXTURE(ProjectFixture, "ProjectFiles: the sky shader template compile
     CHECK(shader->kind == ShaderKind::Sky);
     CHECK(shader->captureDesc);
     CHECK(shader->findField("sunGlow"));
+    CHECK(shader->findField("sunDiscIntensity"));
 }

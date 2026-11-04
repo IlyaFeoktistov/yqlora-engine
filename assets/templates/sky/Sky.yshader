@@ -1,20 +1,24 @@
 #version 450
 
 // Шейдер неба: функция sky() даёт яркость неба в нитах в направлении взгляда.
-// Здесь - цвет от горизонта к зениту и ореол вокруг солнца сцены. Материал
+// Здесь - цвет от горизонта к зениту, диск солнца сцены и ореол вокруг
+// него. Материал
 // с этим шейдером ставится в поле sky узла Environment; поля блока Material
-// видны в инспекторе материала (см. docs/architecture/materials.md).
+// видны в инспекторе материала (см. docs/architecture/materials.md). Размер
+// диска - угловой диаметр солнца (angularDiameter у DirectionalLight3D).
 #include <yqlora/sky.glsl>
 
 layout(set = 2, binding = 0, std140) uniform Material {
-    vec3 zenithColor;     //@ color default(0.25, 0.45, 0.85)
-    vec3 horizonColor;    //@ color default(0.75, 0.8, 0.9)
+    vec3 zenithColor;       //@ color default(0.25, 0.45, 0.85)
+    vec3 horizonColor;      //@ color default(0.75, 0.8, 0.9)
     // Яркость белого в нитах.
-    float luminance;      //@ default(8000)
+    float luminance;        //@ default(8000)
     // Яркость ореола в его середине - доля яркости белой поверхности под солнцем.
-    float sunGlow;        //@ range(0, 1) default(0.2)
+    float sunGlow;          //@ range(0, 1) default(0.2)
     // Чем больше, тем ореол уже.
-    float sunGlowFalloff; //@ range(1, 256) default(16)
+    float sunGlowFalloff;   //@ range(1, 256) default(16)
+    // Яркость диска: 1 - физически, освещённость от солнца на его телесный угол.
+    float sunDiscIntensity; //@ range(0, 10) default(1)
 } material;
 
 const float kPi = 3.14159265358979;
@@ -26,6 +30,14 @@ vec3 sky(vec3 direction)
     if (frame.hasSun != 0) {
         float toSun = max(dot(direction, -frame.sunDirection), 0.0);
         color += frame.sunColor / kPi * material.sunGlow * pow(toSun, material.sunGlowFalloff);
+#ifndef YQLORA_SKY_CAPTURE
+        // Сцену солнце освещает как источник, поэтому в захвате для
+        // освещения (YQLORA_SKY_CAPTURE) диска нет.
+        float cosRadius = cos(frame.sunAngularRadius);
+        if (frame.sunAngularRadius > 0.0 && toSun >= cosRadius) {
+            color += frame.sunColor / (2.0 * kPi * (1.0 - cosRadius)) * material.sunDiscIntensity;
+        }
+#endif
     }
 
     return color;

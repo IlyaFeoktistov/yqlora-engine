@@ -20,6 +20,7 @@ set(YQLORA_ENGINE_SHADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/cube.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/exposure.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/harmonics.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/shadows.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/lighting.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/output.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/sky.glsl
@@ -38,6 +39,8 @@ set(YQLORA_ENGINE_SHADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/atmosphere/aerial_perspective.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/environment/harmonics.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/environment/prefilter.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadow/depth.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadow/depth.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/environment/brdf.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/output.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fullscreen.vert
@@ -143,11 +146,14 @@ add_library(yqlora SHARED
     src/render/EngineUniforms.cpp
     src/render/EnvironmentLighting.cpp
     src/render/ResourceUses.cpp
+    src/render/ShadowCascades.cpp
+    src/render/ShadowPass.cpp
     src/render/SkyPass.cpp
     src/render/SpotLight3D.cpp
     src/render/ExtractDrawItems.cpp
     src/render/ExtractEnvironment.cpp
     src/render/ExtractLights.cpp
+    src/render/ExtractShadows.cpp
     src/render/ExtractViews.cpp
     src/render/FrameBuilder.cpp
     src/render/FrameMaterials.cpp

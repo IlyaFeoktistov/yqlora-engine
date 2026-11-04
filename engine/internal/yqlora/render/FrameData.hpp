@@ -48,6 +48,9 @@ struct ViewData {
     Vec4 background{0.0f, 0.0f, 0.0f, 1.0f};
     LayerMask mask = kAllLayers;
     ViewExposure exposure{};
+    // Отладка: освещённое подкрашено цветом каскада тени солнца (красный,
+    // зелёный, синий, жёлтый от ближнего к дальнему).
+    bool showShadowCascades = false;
     // Проходы владельца вида поверх сцены, по порядку. Живут дольше кадра.
     std::vector<ViewPass*> passes{};
 };
@@ -104,6 +107,9 @@ struct DrawItem {
     std::size_t overrides = kNoOverrides;
     int layer = 0;
     NodeId node = 0; // чей это меш: по нему редактор узнаёт выбранный объект
+    // MeshRenderer::castShadows и receiveShadows.
+    bool castShadows = true;
+    bool receiveShadows = true;
 };
 
 // Источник света в мире, готовый для шейдера.
@@ -122,6 +128,52 @@ struct LightData {
     float cosOuter = 1.0f;
     // Солнце сцены: направленный, первый в FrameData::lights.
     bool sun = false;
+    // Тени: у направленного их даёт только солнце (каскады), у точечного и
+    // прожектора - плитки атласа (FrameData::shadowTiles), если хватило места.
+    ShadowMode shadows = ShadowMode::None;
+    float shadowStrength = 1.0f;
+    float shadowSoftness = 1.0f;
+    // В текселях карты (Light3D::shadowBias).
+    float shadowBias = 0.0f;
+    float shadowNormalBias = 0.0f;
+    // Размер источника: у направленного - угловой радиус в радианах, у
+    // точечного и прожектора - радиус в метрах.
+    float sourceSize = 0.0f;
+    // Первая плитка в FrameData::shadowTiles; -1 - теней в атласе нет.
+    int firstShadowTile = -1;
+};
+
+// Каскадов у солнца не больше: их карта - 2 x 2 каскада.
+inline constexpr int kMaxShadowCascades = 4;
+inline constexpr int kShadowCascadeColumns = 2;
+// Атлас теней точечных и прожекторов - 4 x 4 плитки; точечный занимает
+// шесть (грань куба на плитку), прожектор - одну.
+inline constexpr int kShadowAtlasColumns = 4;
+inline constexpr int kMaxShadowTiles = kShadowAtlasColumns * kShadowAtlasColumns;
+inline constexpr int kPointShadowFaces = 6;
+// Ближняя плоскость карт теней точечных и прожекторов, в метрах.
+inline constexpr float kShadowNearPlane = 0.05f;
+// Пределы настроек теней: отсчётов фильтра и ширины полутени в текселях.
+inline constexpr int kMaxShadowSamples = 64;
+inline constexpr float kMaxShadowPenumbra = 128.0f;
+
+// Настройки теней кадра (GraphicsSettings), уже в своих пределах.
+struct ShadowSettings {
+    bool enabled = true;
+    float distance = 100.0f;
+    int cascades = kMaxShadowCascades;
+    int cascadeSize = 2048;
+    int atlasSize = 4096;
+    int blockerSamples = 16;
+    int filterSamples = 32;
+    float maxPenumbra = 32.0f;
+};
+
+// Плитка атласа теней: карта прожектора или грань куба точечного.
+struct ShadowTile {
+    Mat4 viewProjection{1.0f};
+    // Источник в FrameData::lights.
+    std::size_t light = 0;
 };
 
 // Окружение кадра (узел Environment): небо, свет неба и атмосфера. Без
@@ -155,6 +207,9 @@ struct FrameData {
     // точечных и прожекторов вместе.
     std::vector<LightData> lights;
     EnvironmentData environment;
+    ShadowSettings shadows{};
+    // Не больше kMaxShadowTiles; плитка i - место i атласа (по строкам).
+    std::vector<ShadowTile> shadowTiles;
 };
 
 } // namespace yqlora

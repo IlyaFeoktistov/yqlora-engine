@@ -8,6 +8,7 @@
 #include "yqlora/render/OutputPass.hpp"
 #include "yqlora/render/Prepare.hpp"
 #include "yqlora/render/RenderGraph.hpp"
+#include "yqlora/render/ShadowPass.hpp"
 #include "yqlora/render/SkyPass.hpp"
 #include "yqlora/render/UniformRing.hpp"
 #include "yqlora/render/ViewPass.hpp"
@@ -45,6 +46,7 @@ SceneRenderer::SceneRenderer(const RenderContext& context, TransientTextures& tr
     , m_environment(std::make_unique<EnvironmentLighting>(context))
     , m_meshPass(std::make_unique<MeshPass>(context))
     , m_outputPass(std::make_unique<OutputPass>(context))
+    , m_shadowPass(std::make_unique<ShadowPass>(context))
 {
 }
 
@@ -88,10 +90,14 @@ void SceneRenderer::draw(
         .atmosphere = m_context.uniforms.push(atmosphere),
         .lutSampler = &m_atmosphere->lutSampler(),
         .environmentSampler = &m_environment->sampler(),
+        .shadowCompareSampler = &m_shadowPass->compareSampler(),
+        .shadowDepthSampler = &m_shadowPass->depthSampler(),
     };
     const AtmospherePass::FrameLuts frameLuts = m_atmosphere->addFrame(graph, atmosphere, frameResources);
 
-    // Ресурсы каждого вида: его блок View и таблицы атмосферы.
+    const RenderGraph::TextureId shadowAtlas = m_shadowPass->addAtlas(graph, frame);
+
+    // Ресурсы каждого вида: его блок View, таблицы атмосферы и тени.
     std::vector<PreparedView> prepared(frame.views.size());
     std::vector<UniformSlice> viewUniforms(frame.views.size());
     std::vector<EngineResources> viewResources(frame.views.size(), frameResources);
@@ -110,10 +116,15 @@ void SceneRenderer::draw(
         );
         viewResources[i].view = viewUniforms[i];
         const AtmospherePass::ViewLuts luts = m_atmosphere->addView(graph, atmosphere, viewResources[i], frameLuts);
+        std::vector<ShadowCascade> cascades;
+        const RenderGraph::TextureId shadowCascades = m_shadowPass->addCascades(graph, frame, view, cascades);
+        viewResources[i].shadows = m_context.uniforms.push(shadowUniforms(frame, view, cascades));
         viewTextures[i] = {
             .transmittance = frameLuts.transmittance,
             .skyView = luts.skyView,
             .aerialPerspective = luts.aerialPerspective,
+            .shadowCascades = shadowCascades,
+            .shadowAtlas = shadowAtlas,
         };
     }
     // Небо для освещения - из камеры первого вида, обычно главной.

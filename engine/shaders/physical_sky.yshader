@@ -10,8 +10,6 @@
 layout(set = 2, binding = 0, std140) uniform Material {
     //@ label("Sun disc") range(0, 1)
     int sunDisc;              //@ default(1)
-    // Угловой диаметр в градусах: у настоящего солнца 0.53.
-    float sunAngle;           //@ range(0.1, 20) default(0.53)
     // Насколько темнее край диска: 0 - ровный.
     float limbDarkening;      //@ range(0, 1) default(0.6)
     float sunDiscIntensity;   //@ range(0, 10) default(1)
@@ -22,7 +20,11 @@ const float kPi = 3.14159265358979;
 // Яркость диска солнца в направлении direction, 0 - мимо диска.
 vec3 sunDiscLuminance(vec3 direction)
 {
-    float radius = radians(material.sunAngle) * 0.5;
+    // Размер диска - угловой радиус самого солнца (DirectionalLight3D::angularDiameter).
+    float radius = frame.sunAngularRadius;
+    if (radius <= 0.0) {
+        return vec3(0.0);
+    }
     float cosAngle = dot(direction, atmosphereToSun());
     float cosRadius = cos(radius);
     if (cosAngle < cosRadius) {

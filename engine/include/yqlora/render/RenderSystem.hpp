@@ -20,6 +20,8 @@ enum class RenderReport : std::uint8_t {
     LightLimit,
     // У материала неба окружения шейдер не неба.
     SkyMaterial,
+    // Источникам с тенями не хватило плиток атласа теней.
+    ShadowTileLimit,
     Count,
 };
 

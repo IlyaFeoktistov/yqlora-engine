@@ -64,6 +64,15 @@ struct VertexLayout {
     std::vector<VertexAttribute> attributes{};
 };
 
+// Сдвиг записанной глубины от камеры: постоянный (в единицах точности
+// буфера глубины) и по наклону треугольника. Против самозатенения в картах теней.
+struct DepthBias {
+    float constant = 0.0f;
+    float slope = 0.0f;
+
+    bool operator==(const DepthBias&) const = default;
+};
+
 // Всё состояние отрисовки одним объектом, неизменным после создания.
 struct PipelineDesc {
     const Shader* shader = nullptr;
@@ -71,10 +80,11 @@ struct PipelineDesc {
     bool depthTest = true;
     bool depthWrite = true;
     CompareOp depthCompare = CompareOp::Less;
+    DepthBias depthBias{};
     CullMode cull = CullMode::Back;
     BlendMode blend = BlendMode::Opaque;
     // Конвейер рисует только в цель с такими же форматами и числом образцов;
-    // по умолчанию - в окно.
+    // по умолчанию - в окно. Format::None у цвета - проход только с глубиной.
     Format colorFormat = kBackBufferColorFormat;
     Format depthFormat = kBackBufferDepthFormat;
     int samples = 1;

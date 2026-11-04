@@ -134,8 +134,11 @@ void reflectStage(
             errors.push_back("texture array '" + resource.name + "' is outside the shader profile");
             continue;
         }
-        if (type.image.dim != spv::Dim2D && type.image.dim != spv::DimCube) {
-            errors.push_back("texture '" + resource.name + "': only 2D and cube textures are in the shader profile");
+        if ((type.image.dim != spv::Dim2D && type.image.dim != spv::DimCube)
+            || (type.image.depth && type.image.dim != spv::Dim2D)) {
+            errors.push_back(
+                "texture '" + resource.name + "': only 2D, cube and 2D shadow textures are in the shader profile"
+            );
             continue;
         }
         bindings.push_back({
@@ -143,8 +146,9 @@ void reflectStage(
             .kind = rhi::BindingKind::Texture,
             .slot = slotOf(compiler, resource.id),
             .stages = rhi::stageBit(stage),
-            .dimension = type.image.dim == spv::DimCube ? rhi::TextureDimension::Cube
-                                                        : rhi::TextureDimension::Texture2D,
+            .dimension = type.image.depth                 ? rhi::TextureDimension::Shadow2D
+                         : type.image.dim == spv::DimCube ? rhi::TextureDimension::Cube
+                                                          : rhi::TextureDimension::Texture2D,
         });
     }
     if (stage == rhi::ShaderStage::Vertex) {

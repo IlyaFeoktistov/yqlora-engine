@@ -178,6 +178,7 @@ void ViewportPanel::renderScene(EditorContext& context, float aspect, const Gizm
     frame.views = {{
         .camera = m_camera.cameraData(aspect),
         .exposure = viewExposure(render ? render->mainCamera() : nullptr),
+        .showShadowCascades = context.settings.viewportShadowCascades,
     }};
     // Небо сцены за объектами, а без него (выключено или в сцене нет) -
     // фон темы, первым из проходов поверх кадра, под сеткой и контуром.
@@ -226,7 +227,7 @@ bool ViewportPanel::drawToggles(EditorContext& context, const ImVec2& origin, co
     float right = origin.x + size.x - kToggleMargin;
     const float top = origin.y + kToggleMargin;
     EditorSettings& settings = context.settings;
-    // Не через ||: обе кнопки рисуются в каждом кадре.
+    // Не через ||: все кнопки рисуются в каждом кадре.
     const bool overPreview = drawToggle(
         context,
         icons::kCamera3D,
@@ -237,8 +238,16 @@ bool ViewportPanel::drawToggles(EditorContext& context, const ImVec2& origin, co
     );
     const bool
         overSky = drawToggle(context, icons::kEnvironment, settings.viewportSky, "editor.viewport.sky", right, top);
+    const bool overCascades = drawToggle(
+        context,
+        icons::kShadowCascades,
+        settings.viewportShadowCascades,
+        "editor.viewport.shadowCascades",
+        right,
+        top
+    );
 
-    return overPreview || overSky;
+    return overPreview || overSky || overCascades;
 }
 
 void ViewportPanel::drawCameraPreview(EditorContext& context, const Camera3D& camera, const Rect& rect)

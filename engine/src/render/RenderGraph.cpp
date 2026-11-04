@@ -81,7 +81,9 @@ std::vector<std::size_t> RenderGraph::order() const
     const std::size_t count = m_passes.size();
     std::vector<std::vector<std::size_t>> writers(m_textures.size());
     for (std::size_t i = 0; i < count; ++i) {
-        writers.at(m_passes[i].color.texture).push_back(i);
+        if (m_passes[i].color.texture != kNoTexture) {
+            writers.at(m_passes[i].color.texture).push_back(i);
+        }
         if (m_passes[i].depth) {
             writers.at(m_passes[i].depth->texture).push_back(i);
         }
@@ -169,15 +171,17 @@ void RenderGraph::execute(rhi::CommandList& commands)
         for (const TextureId read : pass.reads) {
             use(read, rhi::ResourceState::ShaderRead);
         }
-        rhi::Texture& color = use(pass.color.texture, rhi::ResourceState::ColorTarget);
+        rhi::Texture* color = pass.color.texture != kNoTexture
+                                  ? &use(pass.color.texture, rhi::ResourceState::ColorTarget)
+                                  : nullptr;
         if (pass.generateMipmaps) {
-            commands.generateMipmaps(color);
+            commands.generateMipmaps(*color);
             continue;
         }
         rhi::Texture* depth = pass.depth ? &use(pass.depth->texture, rhi::ResourceState::DepthTarget) : nullptr;
 
         commands.beginRenderPass({
-            .color = &color,
+            .color = color,
             .depth = depth,
             .colorFace = pass.color.face,
             .colorMip = pass.color.mip,

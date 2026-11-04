@@ -37,7 +37,14 @@ std::vector<RenderGraph::TextureId> EngineTextureIds::reads() const
 {
     std::vector<RenderGraph::TextureId> result;
     for (const auto& id :
-         {transmittance, skyView, aerialPerspective, ambientHarmonics, environmentSpecular, environmentBrdf}) {
+         {transmittance,
+          skyView,
+          aerialPerspective,
+          ambientHarmonics,
+          environmentSpecular,
+          environmentBrdf,
+          shadowCascades,
+          shadowAtlas}) {
         if (id) {
             result.push_back(*id);
         }
@@ -57,6 +64,8 @@ EngineResources withTextures(EngineResources resources, const RenderGraph& graph
     resources.ambientHarmonics = texture(ids.ambientHarmonics);
     resources.environmentSpecular = texture(ids.environmentSpecular);
     resources.environmentBrdf = texture(ids.environmentBrdf);
+    resources.shadowCascades = texture(ids.shadowCascades);
+    resources.shadowAtlas = texture(ids.shadowAtlas);
 
     return resources;
 }
@@ -78,6 +87,11 @@ void bindEngineResources(rhi::CommandList& commands, const rhi::Shader& shader, 
         resources.environmentSampler
     );
     bindTexture(commands, shader, kEnvironmentBrdfSlot, resources.environmentBrdf, resources.environmentSampler);
+    bindBlock(commands, shader, kShadowBlock, resources.shadows);
+    bindTexture(commands, shader, kShadowCascadesSlot, resources.shadowCascades, resources.shadowCompareSampler);
+    bindTexture(commands, shader, kShadowCascadesDepthSlot, resources.shadowCascades, resources.shadowDepthSampler);
+    bindTexture(commands, shader, kShadowAtlasSlot, resources.shadowAtlas, resources.shadowCompareSampler);
+    bindTexture(commands, shader, kShadowAtlasDepthSlot, resources.shadowAtlas, resources.shadowDepthSampler);
 }
 
 } // namespace yqlora

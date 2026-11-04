@@ -20,8 +20,13 @@ PointLight3D::PointLight3D(std::string name)
 }
 
 PointLight3D::PointLight3D(std::string name, LightKind kind)
-    : Light3D(std::move(name), kind, kDefaultIntensity)
+    : Light3D(std::move(name), kind, kDefaultIntensity, ShadowMode::None)
 {
+}
+
+void PointLight3D::setSourceRadius(float radius)
+{
+    m_sourceRadius = std::max(radius, 0.0f);
 }
 
 void PointLight3D::setRange(float range)

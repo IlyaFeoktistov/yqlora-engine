@@ -74,6 +74,7 @@ void MeshPass::draw(
         const ObjectUniforms object{
             .model = item->world,
             .normalMatrix = Mat4(glm::transpose(glm::inverse(Mat3(item->world)))),
+            .receiveShadows = item->receiveShadows ? 1 : 0,
         };
         setUniforms(commands, kObjectBlock, m_context.uniforms.push(object));
         drawMesh(commands, m_context.meshes.get(*item), item->firstIndex, item->indexCount);

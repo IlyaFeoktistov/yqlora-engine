@@ -28,6 +28,13 @@ struct EngineResources {
     const rhi::Texture* environmentSpecular = nullptr;
     const rhi::Texture* environmentBrdf = nullptr;
     const rhi::Sampler* environmentSampler = nullptr;
+    // Тени вида (ShadowPass): блок Shadows, карты и их сэмплеры - со
+    // сравнением и глубина как есть.
+    UniformSlice shadows{};
+    const rhi::Texture* shadowCascades = nullptr;
+    const rhi::Texture* shadowAtlas = nullptr;
+    const rhi::Sampler* shadowCompareSampler = nullptr;
+    const rhi::Sampler* shadowDepthSampler = nullptr;
 };
 
 // Текстуры движка в графе кадра; nullopt - этой текстуры нет.
@@ -38,6 +45,8 @@ struct EngineTextureIds {
     std::optional<RenderGraph::TextureId> ambientHarmonics{};
     std::optional<RenderGraph::TextureId> environmentSpecular{};
     std::optional<RenderGraph::TextureId> environmentBrdf{};
+    std::optional<RenderGraph::TextureId> shadowCascades{};
+    std::optional<RenderGraph::TextureId> shadowAtlas{};
 
     // Что из них есть: читает проход, который их привязывает.
     YQLORA_API std::vector<RenderGraph::TextureId> reads() const;

@@ -8,6 +8,7 @@
 #include <yqlora/brdf.glsl>
 #include <yqlora/exposure.glsl>
 #include <yqlora/harmonics.glsl>
+#include <yqlora/shadows.glsl>
 #include <yqlora/uniforms.glsl>
 
 // Защита от деления на ноль у источника.
@@ -136,7 +137,8 @@ vec3 environmentContribution(Surface surface, vec3 toView)
 }
 
 // Освещённый цвет поверхности: свет неба, все источники кадра (солнце -
-// сквозь атмосферу), свечение и дымка по пути до камеры; с экспозицией вида,
+// сквозь атмосферу) со своими тенями (окружающий свет тени не гасят),
+// свечение и дымка по пути до камеры; с экспозицией вида,
 // готовый для HDR-цели. Альфа - из поверхности.
 vec4 shade(Surface surface)
 {
@@ -146,7 +148,8 @@ vec4 shade(Surface surface)
         DirectionalLight light = frame.directionalLights[i];
         vec3 illuminance = light.color;
         if (i == 0 && frame.hasSun != 0) {
-            illuminance *= atmosphereTransmittance(surface.position, -light.direction);
+            illuminance *= atmosphereTransmittance(surface.position, -light.direction)
+                           * sunShadow(surface.position, surface.normal, -light.direction);
         }
         color += lightContribution(surface, toView, -light.direction, illuminance);
     }
@@ -158,6 +161,7 @@ vec4 shade(Surface surface)
         float cone = clamp(dot(light.direction, -toLight) * light.angleScale + light.angleOffset, 0.0, 1.0);
         float attenuation = rangeWindow(sqrt(distanceSquared), light.range) * cone * cone / distanceSquared;
         if (attenuation > 0.0) {
+            attenuation *= punctualShadow(i, surface.position, surface.normal, light.position);
             color += lightContribution(surface, toView, toLight, light.color * attenuation);
         }
     }
@@ -166,6 +170,7 @@ vec4 shade(Surface surface)
     // так на экране остаётся его заданная яркость.
     float emissionScale = mix(1.0 / max(view.exposure, YQLORA_MIN_EXPOSURE), 1.0, surface.emissionExposureWeight);
     color = applyAerialPerspective(color + surface.emission * emissionScale, surface.position);
+    color *= shadowCascadeTint(surface.position);
 
     return vec4(exposed(color), surface.alpha);
 }

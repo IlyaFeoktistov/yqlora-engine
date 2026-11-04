@@ -36,6 +36,8 @@ void extractDrawItems(const Scene& scene, FrameMaterials& materials, FrameData& 
                 .material = materials.surface(renderer->material(slot).id),
                 .layer = node->layer(),
                 .node = node->id(),
+                .castShadows = renderer->castShadows,
+                .receiveShadows = renderer->receiveShadows,
             };
             if (const MaterialOverrides* overrides = renderer->findOverrides(slot)) {
                 item.overrides = materials.addOverrides(item.material, *overrides);

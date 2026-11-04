@@ -106,7 +106,7 @@ TEST_CASE("TypeRegistry: properties include base types, base first")
     // У компонентов корень - Component.
     CHECK(
         names(registry.properties(*registry.find("MeshRenderer")))
-        == std::vector<std::string>{"enabled", "mesh", "materials"}
+        == std::vector<std::string>{"enabled", "mesh", "materials", "castShadows", "receiveShadows"}
     );
     CHECK_FALSE(registry.find("Component")->creatable());
     // Встроенный компонент выключить нельзя.

@@ -152,7 +152,8 @@
         },
         "viewport": {
             "cameraPreview": "Превью выбранной камеры",
-            "sky": "Небо сцены за объектами"
+            "sky": "Небо сцены за объектами",
+            "shadowCascades": "Каскады теней солнца цветом"
         },
         "layers": {
             "everything": "Все",
@@ -417,7 +418,23 @@
         "sky": "Небо",
         "skyColor": "Цвет неба",
         "sun": "Солнце",
-        "toneMapping": "Тональная компрессия"
+        "toneMapping": "Тональная компрессия",
+        "angularDiameter": "Угловой диаметр",
+        "castShadows": "Отбрасывает тени",
+        "receiveShadows": "Принимает тени",
+        "shadowAtlasSize": "Размер атласа теней",
+        "shadowBias": "Смещение тени, тексели",
+        "shadowBlockerSamples": "Отсчёты поиска заслоняющих",
+        "shadowCascadeSize": "Размер карты каскада",
+        "shadowCascades": "Каскады",
+        "shadowDistance": "Дальность теней, м",
+        "shadowFilterSamples": "Отсчёты фильтра",
+        "shadowMaxPenumbra": "Предел полутени, тексели",
+        "shadowNormalBias": "Смещение по нормали, тексели",
+        "shadowSoftness": "Мягкость",
+        "shadowStrength": "Сила",
+        "shadows": "Тени",
+        "sourceRadius": "Радиус источника, м"
     },
     "enum": {
         "Aces": "ACES",
@@ -430,15 +447,18 @@
         "DepthOnly": "Только глубина",
         "Direct3D12": "Direct3D 12",
         "Gradient": "Градиент",
+        "Hard": "Резкие",
         "Neutral": "Нейтральная",
         "None": "Нет",
         "Nothing": "Ничего",
         "OpenGL": "OpenGL",
         "Release": "Release",
         "Sky": "Небо",
+        "Soft": "Мягкие",
         "Vulkan": "Vulkan"
     },
     "group": {
-        "ambientLight": "Окружающий свет"
+        "ambientLight": "Окружающий свет",
+        "shadows": "Тени"
     }
 }

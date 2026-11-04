@@ -18,6 +18,7 @@ enum class CommandKind {
     Transition,
     BeginPass,
     EndPass,
+    SetViewport,
     BindPipeline,
     SetVertexBuffer,
     SetIndexBuffer,
@@ -68,6 +69,7 @@ public:
 
     void beginRenderPass(const rhi::RenderPassDesc& desc) override;
     void endRenderPass() override;
+    void setViewport(const rhi::Viewport& viewport) override;
     void bindPipeline(const rhi::Pipeline& pipeline) override;
     void setVertexBuffer(const rhi::Buffer& buffer) override;
     void setIndexBuffer(const rhi::Buffer& buffer) override;
@@ -103,6 +105,9 @@ private:
     RecordingDevice& m_device;
     bool m_inPass = false;
     rhi::TargetFormats m_target;
+    // Размер целей открытого прохода: область вывода внутри него.
+    int m_width = 0;
+    int m_height = 0;
     const rhi::Pipeline* m_pipeline = nullptr;
     std::set<std::pair<std::uint32_t, std::uint32_t>> m_bound;
     bool m_hasVertexBuffer = false;

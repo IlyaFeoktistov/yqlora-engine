@@ -21,12 +21,22 @@ public:
 
     void setRange(float range);
 
+    // Радиус светящегося тела в метрах (нить лампы, плафон): по нему ширина
+    // полутени (ShadowMode::Soft). Не меньше нуля.
+    float sourceRadius() const
+    {
+        return m_sourceRadius;
+    }
+
+    void setSourceRadius(float radius);
+
 protected:
     // Для прожектора: он тоже светит из точки, только конусом.
     PointLight3D(std::string name, LightKind kind);
 
 private:
     float m_range = 10.0f;
+    float m_sourceRadius = 0.05f;
 };
 
 } // namespace yqlora

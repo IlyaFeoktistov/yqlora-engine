@@ -24,8 +24,18 @@ public:
         m_sun = sun;
     }
 
+    // Угловой диаметр источника в градусах: у солнца 0.53. По нему ширина
+    // полутени (ShadowMode::Soft) и диск солнца на небе. Не меньше нуля.
+    float angularDiameter() const
+    {
+        return m_angularDiameter;
+    }
+
+    void setAngularDiameter(float degrees);
+
 private:
     bool m_sun = false;
+    float m_angularDiameter = 0.53f;
 };
 
 } // namespace yqlora

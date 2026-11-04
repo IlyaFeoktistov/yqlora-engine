@@ -38,6 +38,8 @@ layout(set = 0, binding = 0, std140) uniform Frame {
     float ambientIntensity;
     // Последний мип куба отражений: мип - шероховатость, умноженная на него.
     float environmentMaxMip;
+    // Угловой радиус солнца в радианах: диск на небе.
+    float sunAngularRadius;
     DirectionalLight directionalLights[YQLORA_MAX_DIRECTIONAL_LIGHTS];
     PunctualLight punctualLights[YQLORA_MAX_PUNCTUAL_LIGHTS];
 } frame;
@@ -55,6 +57,8 @@ layout(set = 3, binding = 0, std140) uniform Object {
     mat4 model;
     // mat3 в std140 - три vec4, проще передавать mat4.
     mat4 normalMatrix;
+    // 0 - тени на объект не падают (MeshRenderer::receiveShadows).
+    int receiveShadows;
 } object;
 
 #endif

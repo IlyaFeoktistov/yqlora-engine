@@ -17,6 +17,7 @@ inline constexpr const char* kSnapGrid = "\uE2B5";       // magnet
 inline constexpr const char* kAlignToSurface = "\uE44E"; // arrow-up-from-dot
 inline constexpr const char* kDropDown = "\uE06D";       // chevron-down
 inline constexpr const char* kPick = "\uE345";           // circle-dot: окно выбора ресурса
+inline constexpr const char* kShadowCascades = "\uE529"; // layers-3: отладка каскадов теней
 
 // Игра в редакторе.
 inline constexpr const char* kPlay = "\uE13C";  // play

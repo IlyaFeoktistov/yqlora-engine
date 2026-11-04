@@ -98,6 +98,7 @@ TEST_CASE_FIXTURE(Fixture, "Extract: the flagged directional light is the sun, w
         REQUIRE(frame.lights.size() >= 2);
         // Солнце - первым, и оно одно.
         CHECK(frame.lights[0].sun);
+        CHECK(frame.lights[0].shadows == ShadowMode::Soft);
         CHECK(std::ranges::count_if(frame.lights, &LightData::sun) == 1);
         const FrameUniforms uniforms = frameUniforms(frame);
         CHECK(uniforms.hasSun == 1);

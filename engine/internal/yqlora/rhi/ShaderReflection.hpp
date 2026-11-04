@@ -88,12 +88,14 @@ struct UniformField {
 
 enum class BindingKind {
     UniformBlock,
-    Texture, // текстура вместе с сэмплером (sampler2D, samplerCube)
+    Texture, // текстура вместе с сэмплером (sampler2D, samplerCube, sampler2DShadow)
 };
 
 enum class TextureDimension {
     Texture2D,
     Cube,
+    // sampler2DShadow: текстура глубины со сравнением (SamplerDesc::compare).
+    Shadow2D,
 };
 
 // Ресурс шейдера, как его видит отражение SPIR-V.

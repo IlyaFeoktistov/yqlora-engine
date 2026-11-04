@@ -24,6 +24,7 @@ GlFormat glFormat(rhi::Format format)
     case rhi::Format::Rgba16Float: return {GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT};
     case rhi::Format::R8: return {GL_R8, GL_RED, GL_UNSIGNED_BYTE};
     case rhi::Format::Depth24Stencil8: return {GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8};
+    case rhi::Format::Depth32Float: return {GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT};
     case rhi::Format::None: break;
     }
     throw std::logic_error("Texture without a format");
@@ -138,6 +139,12 @@ GlSampler::GlSampler(const rhi::SamplerDesc& desc)
     glSamplerParameteri(m_sampler, GL_TEXTURE_WRAP_T, wrapMode(desc.wrap));
     glSamplerParameteri(m_sampler, GL_TEXTURE_MIN_FILTER, minFilter(desc));
     glSamplerParameteri(m_sampler, GL_TEXTURE_MAG_FILTER, magFilter(desc));
+    if (desc.compare) {
+        // Обратная глубина не используется: ближе - меньше, свет доходит,
+        // если глубина точки не больше записанной.
+        glSamplerParameteri(m_sampler, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        glSamplerParameteri(m_sampler, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    }
 }
 
 GlSampler::~GlSampler()
