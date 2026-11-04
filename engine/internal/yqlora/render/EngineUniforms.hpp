@@ -37,6 +37,7 @@ struct alignas(16) PunctualLightUniforms {
 };
 
 struct alignas(16) FrameUniforms {
+    // Окружающий свет: яркость в нитах.
     Vec3 ambient{0.0f};
     int directionalCount = 0;
     int punctualCount = 0;
@@ -46,8 +47,12 @@ struct alignas(16) FrameUniforms {
 
 struct alignas(16) ViewUniforms {
     Mat4 viewProjection{1.0f};
+    // Из точки экрана в мир: по ней небо находит направление пикселя.
+    Mat4 inverseViewProjection{1.0f};
     Vec3 cameraPosition{0.0f};
-    float padding = 0.0f;
+    // Множитель яркости вида (ViewExposure::factor): шейдеры умножают на
+    // него всё, что пишут в HDR-цель.
+    float exposure = 1.0f;
 };
 
 struct alignas(16) ObjectUniforms {
@@ -90,7 +95,9 @@ inline const UniformLayout kViewBlock{
     sizeof(ViewUniforms),
     {
         YQLORA_UNIFORM_MEMBER(ViewUniforms, viewProjection),
+        YQLORA_UNIFORM_MEMBER(ViewUniforms, inverseViewProjection),
         YQLORA_UNIFORM_MEMBER(ViewUniforms, cameraPosition),
+        YQLORA_UNIFORM_MEMBER(ViewUniforms, exposure),
     },
 };
 

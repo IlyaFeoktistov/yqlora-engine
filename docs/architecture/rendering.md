@@ -28,15 +28,16 @@ snapshot made by Extract, never the scene.
         v
  FrameData (snapshot, nothing points back into the scene)
    views[]      one per camera: view and projection, clear mode,
-                background (linear), culling mask, passes of the owner
+                background (linear), culling mask, exposure and tone
+                mapping, passes of the owner
    drawItems[]  one per submesh: mesh with its ID and revision, index
                 range, world matrix, world bounds, material, overrides,
                 layer, node id
    materials[]  each material once, with its shader and textures
    overrides[]  overrides of slots with their textures
    lights[]     up to 4 directional and 32 point and spot lights: world,
-                linear colour times intensity, range, cone
-   environment  ambient light, linear (the sky and the sun in 5.5)
+                linear colour times intensity (lux, candela), range, cone
+   environment  ambient light in nits (the sky and the sun in 5.5b)
         |
         |  Renderer::render(frame)          -> window back buffer
         |  Renderer::render(frame, target)  -> RenderTarget (a texture)
@@ -47,8 +48,10 @@ snapshot made by Extract, never the scene.
                   material, nearest first; then transparent, farthest first
      view pass    clear colour and depth / depth only / nothing,
                   MeshPass: the visible items through the view camera
-                  with their materials (PBR, all lights of the frame)
-   OutputPass     the HDR target from linear to sRGB into the final target
+                  with their materials (PBR, all lights of the frame),
+                  times the exposure of the view
+   OutputPass     tone mapping of the main camera, then sRGB, from the HDR
+                  target into the final target
    ViewPass*      passes of the view owners over the final target: the
                   Viewport adds GridPass and OutlinePass (editor/render)
    graph.execute  orders the passes, makes the transient textures,
@@ -65,7 +68,8 @@ snapshot made by Extract, never the scene.
   window (Viewport, Game, the camera preview) calls `extractFrame` with its
   own aspect and renders into its own `RenderTarget` during the interface
   stage; ImGui then shows the texture. The Viewport adds the editor camera
-  view and its passes (grid, outline).
+  view and its passes (grid, outline), with the exposure and tone mapping
+  of the main camera of the scene.
 
 ### What the stages will hold [planned]
 
@@ -93,24 +97,21 @@ its own parameters, which can be changed or turned off for a style of
 one's own. It is a large stage after the MVP; the decisions of step 5 leave
 room for it:
 
-- **Post-processing** in and before the output pass: tone mapping (a
-  filmic curve), camera exposure and auto exposure, bloom, temporal
-  anti-aliasing (TAA), then depth of field, motion blur, colour grading.
-  The HDR target and the single output pass of step 5 are where they go.
-- **Physical light units** (lux for a directional light, lumens or candela
-  for point and spot lights) and a physical camera (exposure in EV) come
-  together with exposure: without it a 100000 lux sun burns out. Until
-  then intensity is relative (see [lights](materials.md#lights-planned-step-5)),
-  and changing the units is a scene migration.
-- **Image-based lighting**: reflections of the sky and environment maps on
-  metals (IBL), ambient occlusion (SSAO), then global illumination.
+- **Already in step 5**, so nothing is redone: physical light units, the
+  exposure of the camera and tone mapping (AgX by default), the physical
+  sky and atmosphere with aerial perspective, ambient light and reflections
+  from the sky (see [materials](materials.md#light-units-exposure-and-tone-mapping-done)).
+- **Post-processing** in and before the output pass: auto exposure (one
+  more mode of the camera exposure), bloom, temporal anti-aliasing (TAA),
+  then depth of field, motion blur, colour grading.
+- **Lighting**: reflection probes placed in the scene, ambient occlusion
+  (SSAO), then global illumination.
 - **Area lights**: a rectangle and a disc (computed with LTC); directional, point and spot lights exist from step 5,
   and so does the sun, a directional light with a flag.
 - **Shadows beyond step 5** (which brings sun cascades, an atlas for spot
   and point lights, PCF softness): contact shadows, softness by light size
   (PCSS), shadows from transparent surfaces, ray tracing.
-- **A physical sky** (atmospheric scattering) is one more sky shader: the sky is already a material (see
-  [sky](materials.md#sky-and-environment-planned-step-5)).
+- **Clouds and volumetric fog** on top of the tables of the atmosphere.
 
 The content and order of the stage are agreed separately, before it starts.
 
@@ -321,7 +322,7 @@ profile below are checked on every target API when its backend arrives.
 
 Out of the stage: the Vulkan and D3D12 backends, the render thread and
 post-processing (its place in the graph is ready); the sky and shadows are in
-[step 5](materials.md#sky-and-environment-planned-step-5).
+[step 5](materials.md#environment-planned-step-5).
 
 ## Meshes and textures [done]
 

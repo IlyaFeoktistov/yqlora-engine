@@ -4,7 +4,8 @@ namespace yqlora {
 
 namespace {
 
-constexpr float kDefaultIntensity = 1.0f;
+// Освещённость в люксах: солнце ясным днём.
+constexpr float kDefaultIntensity = 100000.0f;
 
 } // namespace
 

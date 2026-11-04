@@ -47,6 +47,14 @@ enum class LoadOp {
     Load,
 };
 
+// Когда фрагмент проходит тест глубины: его глубина меньше записанной или
+// не больше неё. LessEqual нужен тому, что рисуется ровно на дальней
+// плоскости (небо на глубине 1 после очистки в 1).
+enum class CompareOp {
+    Less,
+    LessEqual,
+};
+
 enum class CullMode {
     None,
     Back,

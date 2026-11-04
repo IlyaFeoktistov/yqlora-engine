@@ -105,7 +105,7 @@ void GlCommandList::bindPipeline(const rhi::Pipeline& pipeline)
     glUseProgram(static_cast<const GlShader&>(*desc.shader).program());
     if (desc.depthTest) {
         glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
+        glDepthFunc(desc.depthCompare == rhi::CompareOp::LessEqual ? GL_LEQUAL : GL_LESS);
     } else {
         glDisable(GL_DEPTH_TEST);
     }

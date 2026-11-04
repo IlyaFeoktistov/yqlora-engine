@@ -27,7 +27,17 @@ ViewData cameraView(const Camera3D& camera, float aspect)
         .clear = camera.clear(),
         .background = math::srgbToLinear(camera.background()),
         .mask = camera.cullingMask(),
+        .exposure = viewExposure(&camera),
     };
+}
+
+ViewExposure viewExposure(const Camera3D* camera)
+{
+    if (!camera) {
+        return {.factor = exposureFactor(kDefaultCameraExposure), .toneMapping = kDefaultCameraToneMapping};
+    }
+
+    return {.factor = exposureFactor(camera->exposure()), .toneMapping = camera->toneMapping()};
 }
 
 } // namespace yqlora

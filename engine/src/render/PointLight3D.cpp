@@ -6,9 +6,8 @@ namespace yqlora {
 
 namespace {
 
-// Свет слабеет с квадратом расстояния, поэтому точечному нужно больше, чем
-// направленному: с этим значением в паре метров от него уже светло.
-constexpr float kDefaultIntensity = 10.0f;
+// Сила света в канделах: лампа накаливания 100 Вт.
+constexpr float kDefaultIntensity = 130.0f;
 
 // При нулевой дальности окно затухания делит на ноль.
 constexpr float kMinRange = 0.01f;

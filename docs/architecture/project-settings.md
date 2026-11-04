@@ -54,7 +54,7 @@ never go into the project.
 | Execution Order | order of component types inside every lifecycle phase, overriding the default from code (see [scene](scene.md)); a type is picked from the registered components that use the frame phases, rows of unloaded types are kept. An edit applies from the next frame, in Play too: every write of a section raises `ProjectSettings::revision`, and the phase lists re-sort when it changes | **[done]** |
 | Layers | names of the 32 node layers used by camera masks and physics | **[done]** |
 | Graphics | graphics API per platform (OpenGL; Vulkan and D3D12 come with the RHI), vsync; both apply at once, see [rendering](rendering.md) | **[done]** |
-| Lighting | ambient colour (sRGB) and intensity, read by Extract every frame; the sky, the sun and the ambient source come in step 5.5, see [materials](materials.md#sky-and-environment-planned-step-5) | **[done]** |
+| Lighting | ambient colour (sRGB) and luminance in nits, read by Extract every frame; removed in phase 5.5b: the sky, the ambient light and the atmosphere belong to the `Environment` node of a scene, see [materials](materials.md#environment-planned-step-5) | **[done]** |
 | Scripts | C++ build configuration (Debug, Release), used as `CMAKE_BUILD_TYPE`; each configuration has its own build folder. The toolchain is per machine: it comes from `sdk/toolchain.json`, overrides go to the editor settings (`editor.json`, `toolchain`), see [scripts](scripting.md); Luau later | **[done]** |
 | Physics | gravity, layers, collision matrix | **[planned, step 6]** |
 | Audio | master volume, sample rate | **[planned, step 7]** |

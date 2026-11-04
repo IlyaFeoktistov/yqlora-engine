@@ -3,6 +3,7 @@
 #include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
+#include "yqlora/render/ToneMapping.hpp"
 #include "yqlora/scene/Layers.hpp"
 #include "yqlora/scene/Node3D.hpp"
 
@@ -18,6 +19,12 @@ enum class CameraClear : std::uint8_t {
     DepthOnly,
     Nothing,
 };
+
+// EV100 новой камеры, солнечный день: белое под солнцем в 100000 лк выходит
+// около 0.8. Вне класса: члены экспортируемого класса в dll не видны как
+// constexpr-значения тем, кто берёт на них ссылку.
+inline constexpr float kDefaultCameraExposure = 15.0f;
+inline constexpr ToneMapping kDefaultCameraToneMapping = ToneMapping::AgX;
 
 // Перспективная камера. Смотрит вдоль своей оси -Z.
 // Соотношение сторон это свойство области вывода, а не камеры,
@@ -99,6 +106,28 @@ public:
         m_background = color;
     }
 
+    // Экспозиция в EV100: 15 - солнечный день, около 7 - комната. Больше -
+    // темнее кадр (см. exposureFactor).
+    float exposure() const
+    {
+        return m_exposure;
+    }
+
+    void setExposure(float ev100)
+    {
+        m_exposure = ev100;
+    }
+
+    ToneMapping toneMapping() const
+    {
+        return m_toneMapping;
+    }
+
+    void setToneMapping(ToneMapping toneMapping)
+    {
+        m_toneMapping = toneMapping;
+    }
+
 protected:
     void onEnterScene() override;
     void onExitScene() override;
@@ -111,7 +140,15 @@ private:
     LayerMask m_cullingMask = kAllLayers;
     CameraClear m_clear = CameraClear::ColorAndDepth;
     Vec4 m_background{0.08f, 0.09f, 0.12f, 1.0f};
+    float m_exposure = kDefaultCameraExposure;
+    ToneMapping m_toneMapping = kDefaultCameraToneMapping;
 };
+
+// Множитель яркости при экспозиции ev100: 1 / (1.2 * 2^ev100), как у
+// фотоаппарата с ISO 100 (1.2 - запас до насыщения датчика, 78 / 65).
+// Яркость в нитах, умноженная на него, около 1 у белого при правильной
+// экспозиции.
+YQLORA_API float exposureFactor(float ev100);
 
 // Имя свойства order в реестре: по нему редактор меняет порядок командой с отменой.
 inline constexpr char kCameraOrderProperty[] = "order";

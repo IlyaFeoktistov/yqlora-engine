@@ -12,10 +12,10 @@ namespace yqlora::editor {
 namespace {
 
 // Камера смотрит на сферу (радиус 0.5 в начале координат) спереди, свет -
-// сверху слева, чтобы были видны и блик, и тень на сфере.
+// сверху слева, чтобы были видны и блик, и тень на сфере. Свет и экспозиция -
+// по умолчанию, солнечный день.
 const Vec3 kCameraPosition{0.0f, 0.0f, 1.6f};
 const Vec3 kLightTarget{0.6f, -0.8f, -0.6f};
-constexpr float kLightIntensity = 2.5f;
 
 } // namespace
 
@@ -26,7 +26,6 @@ MaterialPreview::MaterialPreview(const EngineServices& services)
     auto& camera = root.addChild<Camera3D>("Camera");
     camera.transform().setPosition(kCameraPosition);
     auto& light = root.addChild<DirectionalLight3D>("Light");
-    light.setIntensity(kLightIntensity);
     light.transform().lookAt(kLightTarget);
     auto& sphere = root.addChild<Node3D>("Sphere");
     m_sphere = &sphere.addComponent<MeshRenderer>();

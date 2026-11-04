@@ -8,22 +8,32 @@
 
 #include <cstddef>
 #include <deque>
+#include <map>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace yqlora::test {
 
 // Материалы кадров, собранных в тесте вручную: данные живут, пока жив объект.
 class TestMaterials {
 public:
-    // Материал Standard с базовым цветом color (sRGB); его индекс в frame.materials.
-    std::size_t add(FrameData& frame, const Vec4& color = Vec4(1.0f), MaterialBlend blend = MaterialBlend::Opaque)
+    // Материал Standard с базовым цветом color (sRGB) и значениями values
+    // поверх; его индекс в frame.materials.
+    std::size_t add(
+        FrameData& frame,
+        const Vec4& color = Vec4(1.0f),
+        MaterialBlend blend = MaterialBlend::Opaque,
+        const std::map<std::string, std::vector<float>>& values = {}
+    )
     {
-        const MaterialData& material = m_data.emplace_back(
+        MaterialData& material = m_data.emplace_back(
             MaterialData{
                 .blend = blend,
                 .values = {{"baseColor", {color.r, color.g, color.b, color.a}}},
             }
         );
+        material.values.insert(values.begin(), values.end());
         const LoadedData<ShaderData> shader = m_cache.get<ShaderData>(builtin::kStandardShader);
         FrameMaterial frameMaterial{
             .id = kFirstTestMaterial + m_data.size(),

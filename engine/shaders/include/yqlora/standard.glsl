@@ -5,7 +5,6 @@
 #define YQLORA_STANDARD_GLSL
 
 #include <yqlora/lighting.glsl>
-#include <yqlora/output.glsl>
 #include <yqlora/uniforms.glsl>
 #include <yqlora/vertex.glsl>
 

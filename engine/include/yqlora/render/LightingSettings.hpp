@@ -15,22 +15,24 @@ class YQLORA_API LightingSettings final : public SettingsSection {
 public:
     YQLORA_TYPE(LightingSettings, SettingsSection)
 
-    // Цвет в sRGB, как его выбирает человек.
-    Vec3 ambientColor{0.2f, 0.22f, 0.25f};
+    // Цвет в sRGB, как его выбирает человек; голубоватый, как от неба.
+    Vec3 ambientColor{0.5f, 0.6f, 0.75f};
 
     float ambientIntensity() const
     {
         return m_ambientIntensity;
     }
 
-    // Не меньше нуля.
+    // Яркость белого в нитах. Не меньше нуля.
     void setAmbientIntensity(float intensity);
 
-    // Линейный цвет, умноженный на интенсивность: то, что идёт в шейдер.
+    // Яркость окружающего света в нитах: линейный цвет, умноженный на
+    // интенсивность; то, что идёт в шейдер.
     Vec3 linearAmbient() const;
 
 private:
-    float m_ambientIntensity = 1.0f;
+    // Небо в пасмурный день.
+    float m_ambientIntensity = 10000.0f;
 };
 
 // Раздел "Освещение" открытого проекта, а без проекта - значения по умолчанию.

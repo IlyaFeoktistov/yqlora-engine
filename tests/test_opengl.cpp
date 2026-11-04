@@ -20,6 +20,7 @@
 #include <yqlora/render/RenderGraph.hpp>
 #include <yqlora/render/Renderer.hpp>
 #include <yqlora/render/TextureData.hpp>
+#include <yqlora/render/ToneMapping.hpp>
 #include <yqlora/render/ViewPass.hpp>
 #include <yqlora/shader/EngineShaders.hpp>
 #include <yqlora/shader/ShaderBuild.hpp>
@@ -28,9 +29,12 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
 
 using namespace yqlora;
 
@@ -118,10 +122,11 @@ CameraData cameraAtZ(float z)
 // поднимает все каналы одинаково, поэтому сравниваем каналы, а не ждём нулей.
 constexpr int kDominantMargin = 100;
 
-// Белый направленный свет вдоль dir.
+// Белый направленный свет вдоль dir в пи люкс: повёрнутая к нему белая
+// рассеивающая поверхность имеет яркость 1, а вид без камеры - экспозицию 1.
 LightData directional(const Vec3& dir)
 {
-    return {.kind = LightKind::Directional, .direction = glm::normalize(dir), .color = Vec3(1.0f)};
+    return {.kind = LightKind::Directional, .direction = glm::normalize(dir), .color = Vec3(glm::pi<float>())};
 }
 
 // Свет со стороны камеры (она на +Z и смотрит на -Z): освещает то, что камера видит.
@@ -374,7 +379,7 @@ TEST_CASE("OpenGL: half transparent white over black blends in linear RGB")
             commands.draw(3);
         },
     });
-    output.addTo(graph, hdr, target);
+    output.addTo(graph, hdr, target, ToneMapping::None);
     graph.execute(device.commands());
 
     // Линейная середина 0,5 в sRGB - 0,735, то есть 188 из 255; смешивание в
@@ -466,4 +471,202 @@ TEST_CASE("OpenGL: overrides change one of two objects with the same material")
     CHECK(int(overridden[0]) > int(overridden[1]) + kDominantMargin);
     // Общий материал не изменился.
     CHECK(cubeCenter(renderer, frame, white) == plain);
+}
+
+namespace {
+
+// Линейная яркость канала по байту sRGB итоговой цели.
+float linearOf(std::uint8_t value)
+{
+    constexpr float kMax = 255.0f;
+
+    return math::srgbToLinear(float(value) / kMax);
+}
+
+// Совсем шероховатый белый неметалл: отражает почти только рассеянно (4
+// процента Френеля дают блик около 1 процента яркости при свете спереди).
+const std::map<std::string, std::vector<float>> kRough{{"roughness", {1.0f}}};
+
+// Передняя грань куба cameraAtZ(3) с этим светом и экспозицией; яркость
+// посередине в линейном RGB (красный канал, свет белый).
+float frontFaceLuminance(Renderer& renderer, const LightData& light, float exposure)
+{
+    static const MeshData cube = makeCube();
+    test::TestMaterials materials;
+    FrameData frame;
+    frame.views.push_back({.camera = cameraAtZ(3.0f), .exposure = {.factor = exposure}});
+    frame.drawItems.push_back({
+        .mesh = &cube,
+        .meshId = 1,
+        .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
+        .bounds = cube.bounds,
+        .material = materials.add(frame, Vec4(1.0f), MaterialBlend::Opaque, kRough),
+    });
+    frame.lights = {light};
+    auto target = renderer.createRenderTarget(kSize, kSize);
+    renderer.render(frame, *target);
+
+    return linearOf(pixelAt(renderer.device().readPixels(target->color()), kSize / 2, kSize / 2, kSize)[0]);
+}
+
+} // namespace
+
+TEST_CASE("OpenGL: a white surface facing E lux has the luminance E / pi")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    constexpr float kLux = 1000.0f;
+    // Экспозиция, при которой яркость E / пи выходит ровно в 0.5.
+    constexpr float kHalf = 0.5f;
+    const float exposure = kHalf * glm::pi<float>() / kLux;
+    LightData sun{.kind = LightKind::Directional, .direction = Vec3(0.0f, 0.0f, -1.0f), .color = Vec3(kLux)};
+    const float luminance = frontFaceLuminance(*gl->renderer, sun, exposure);
+    // Рассеянная часть - (1 - 0.04) / пи, блик добавляет около 1 процента.
+    CHECK(luminance > kHalf * 0.95f);
+    CHECK(luminance < kHalf * 1.0f);
+}
+
+TEST_CASE("OpenGL: a point light of I candela gives I / d^2 lux")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    constexpr float kCandela = 100.0f;
+    constexpr float kExposure = 0.02f;
+    constexpr float kFrontFace = 0.5f;
+    LightData point{.kind = LightKind::Point, .color = Vec3(kCandela), .range = 100.0f};
+    point.position = Vec3(0.0f, 0.0f, kFrontFace + 1.0f);
+    const float near = frontFaceLuminance(*gl->renderer, point, kExposure);
+    point.position = Vec3(0.0f, 0.0f, kFrontFace + 2.0f);
+    const float far = frontFaceLuminance(*gl->renderer, point, kExposure);
+    // 100 лк на метре, 25 на двух.
+    CHECK(near / far == doctest::Approx(4.0f).epsilon(0.05));
+    CHECK(near == doctest::Approx(kCandela / glm::pi<float>() * kExposure).epsilon(0.05));
+}
+
+TEST_CASE("OpenGL: tone mapping keeps black, grows with luminance and does not clip at 1")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    Renderer& renderer = *gl->renderer;
+    rhi::Device& device = renderer.device();
+    // Слева направо яркость от 2^-8 до 2^8.
+    const std::string fragment = "#version 450\n"
+                                 "layout(location = 0) in vec2 vUv;\n"
+                                 "layout(location = 0) out vec4 fragColor;\n"
+                                 "void main() { fragColor = vec4(vec3(exp2(vUv.x * 16.0 - 8.0)), 1.0); }\n";
+    ShaderCompiler compiler([&](const std::string& path) -> std::optional<std::string> {
+        return path == "test/ramp.frag" ? std::optional(fragment) : std::nullopt;
+    });
+    auto shader = device.createShader(buildBuiltinShader(
+        compiler,
+        {.name = "ramp", .vertexPath = engineShaderPath("fullscreen.vert"), .fragmentPath = "test/ramp.frag"}
+    ));
+    auto pipeline = device.createPipeline({
+        .shader = shader.get(),
+        .depthTest = false,
+        .depthWrite = false,
+        .cull = rhi::CullMode::None,
+        .colorFormat = kHdrColorFormat,
+        .depthFormat = rhi::Format::None,
+    });
+    const OutputPass output(renderer.context());
+    // Пиксель, где яркость 1: середина строки.
+    constexpr int kOne = kSize / 2;
+
+    for (const std::string_view name : EnumNames<ToneMapping>::names) {
+        CAPTURE(name);
+        const ToneMapping toneMapping = *enumFromName<ToneMapping>(name);
+        auto final = device.createTexture(
+            {.width = kSize, .height = kSize, .usage = rhi::kColorTarget | rhi::kSampled}
+        );
+        TransientTextures transients(device);
+        RenderGraph graph(transients);
+        const RenderGraph::TextureId hdr = graph.create({
+            .width = kSize,
+            .height = kSize,
+            .format = kHdrColorFormat,
+            .usage = rhi::kColorTarget | rhi::kSampled,
+        });
+        const RenderGraph::TextureId target = graph.import(*final);
+        graph.addPass({
+            .name = "ramp",
+            .color = {hdr, rhi::LoadOp::Clear},
+            .record = [&](rhi::CommandList& commands, const RenderGraph&) {
+                commands.bindPipeline(*pipeline);
+                commands.draw(3);
+            },
+        });
+        output.addTo(graph, hdr, target, toneMapping);
+        graph.execute(device.commands());
+
+        const std::vector<std::byte> pixels = device.readPixels(*final);
+        int previous = 0;
+        for (int x = 0; x < kSize; ++x) {
+            const int value = pixelAt(pixels, x, kSize / 2, kSize)[0];
+            CHECK(value >= previous);
+            previous = value;
+        }
+        CHECK(pixelAt(pixels, 0, kSize / 2, kSize)[0] < 16);
+        const int atOne = pixelAt(pixels, kOne, kSize / 2, kSize)[0];
+        if (toneMapping == ToneMapping::None) {
+            CHECK(atOne >= 254);
+        } else {
+            CHECK(atOne < 250);
+        }
+    }
+}
+
+TEST_CASE("OpenGL: depth compare LessEqual draws on the far plane, Less does not")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    rhi::Device& device = gl->renderer->device();
+    const std::string vertex = "#version 450\n"
+                               "void main() {\n"
+                               "    vec2 uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);\n"
+                               "    gl_Position = vec4(uv * 2.0 - 1.0, 1.0, 1.0);\n"
+                               "}\n";
+    const std::string fragment = "#version 450\n"
+                                 "layout(location = 0) out vec4 fragColor;\n"
+                                 "void main() { fragColor = vec4(1.0, 0.0, 0.0, 1.0); }\n";
+    ShaderCompiler compiler([&](const std::string& path) -> std::optional<std::string> {
+        if (path == "test/far.vert") {
+            return vertex;
+        }
+
+        return path == "test/far.frag" ? std::optional(fragment) : std::nullopt;
+    });
+    auto shader = device.createShader(
+        buildBuiltinShader(compiler, {.name = "far", .vertexPath = "test/far.vert", .fragmentPath = "test/far.frag"})
+    );
+    auto color = device.createTexture({.width = kSize, .height = kSize, .usage = rhi::kColorTarget | rhi::kSampled});
+    auto depth = device.createTexture(
+        {.width = kSize, .height = kSize, .format = kDepthFormat, .usage = rhi::kDepthTarget}
+    );
+
+    const auto drawn = [&](rhi::CompareOp compare) {
+        auto pipeline = device.createPipeline({
+            .shader = shader.get(),
+            .depthWrite = false,
+            .depthCompare = compare,
+            .cull = rhi::CullMode::None,
+        });
+        rhi::CommandList& commands = device.commands();
+        commands.beginRenderPass({.color = color.get(), .depth = depth.get()});
+        commands.bindPipeline(*pipeline);
+        commands.draw(3);
+        commands.endRenderPass();
+
+        return pixelAt(device.readPixels(*color), kSize / 2, kSize / 2, kSize)[0] == 255;
+    };
+    CHECK_FALSE(drawn(rhi::CompareOp::Less));
+    CHECK(drawn(rhi::CompareOp::LessEqual));
 }

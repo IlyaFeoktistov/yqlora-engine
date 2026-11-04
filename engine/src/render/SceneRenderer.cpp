@@ -80,10 +80,13 @@ void SceneRenderer::draw(
     for (std::size_t i = 0; i < frame.views.size(); ++i) {
         const ViewData& view = frame.views[i];
         visible[i] = prepareView(frame.drawItems, frame.materials, view);
+        const Mat4 viewProjection = view.camera.projection * view.camera.view;
         viewUniforms[i] = m_context.uniforms.push(
             ViewUniforms{
-                .viewProjection = view.camera.projection * view.camera.view,
+                .viewProjection = viewProjection,
+                .inverseViewProjection = glm::inverse(viewProjection),
                 .cameraPosition = view.camera.position,
+                .exposure = view.exposure.factor,
             }
         );
         graph.addPass({
@@ -100,7 +103,8 @@ void SceneRenderer::draw(
             },
         });
     }
-    m_outputPass->addTo(graph, hdrId, colorId);
+    // Все виды кадра в одной HDR-цели, поэтому компрессия одна: главной камеры.
+    m_outputPass->addTo(graph, hdrId, colorId, frame.views.front().exposure.toneMapping);
     // Проходы владельцев видов рисуют поверх итогового кадра, в sRGB, и
     // проверяют глубину сцены. В кадре из нескольких видов глубина - уже
     // общая, поэтому проходы владельца ставят виду, который рисуется один

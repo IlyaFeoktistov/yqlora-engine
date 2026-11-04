@@ -16,4 +16,9 @@ YQLORA_API FrameData extractFrame(const Scene& scene, float aspect);
 // Вид через одну камеру, например для превью камеры в редакторе.
 YQLORA_API ViewData cameraView(const Camera3D& camera, float aspect);
 
+// Экспозиция и тональная компрессия камеры: их берёт и вид не через
+// камеру сцены (окно сцены редактора показывает кадр как главная камера).
+// nullptr - как у новой камеры.
+YQLORA_API ViewExposure viewExposure(const Camera3D* camera);
+
 } // namespace yqlora

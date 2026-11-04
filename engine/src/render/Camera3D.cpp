@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 
 namespace yqlora {
 
@@ -19,7 +20,15 @@ constexpr float kMaxFovDegrees = 179.0f;
 constexpr float kMinNearPlane = 0.001f;
 constexpr float kMinPlaneGap = 0.001f;
 
+// Насыщение датчика ISO 100 относительно средней яркости: 78 / 65.
+constexpr float kSaturationMargin = 1.2f;
+
 } // namespace
+
+float exposureFactor(float ev100)
+{
+    return 1.0f / (kSaturationMargin * std::exp2(ev100));
+}
 
 Camera3D::Camera3D(std::string name)
     : Node3D(std::move(name))

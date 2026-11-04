@@ -1,5 +1,6 @@
 // Освещение PBR metallic-roughness, как в glTF: блик GGX с геометрией Смита
-// и Френелем Шлика, рассеяние Ламберта. Всё в линейном RGB.
+// и Френелем Шлика, рассеяние Ламберта. Всё в линейном RGB и в физических
+// единицах: свет в люксах и канделах, результат - яркость в нитах.
 #ifndef YQLORA_LIGHTING_GLSL
 #define YQLORA_LIGHTING_GLSL
 
@@ -28,7 +29,7 @@ struct Surface {
     float roughness;
     // Затенение окружающего света: 1 - не затенено. Прямой свет не гасит.
     float occlusion;
-    // Свечение: линейный цвет, может быть больше 1.
+    // Свечение: яркость в нитах по каналам.
     vec3 emission;
 };
 
@@ -71,10 +72,11 @@ vec3 fresnelSchlick(float cosViewHalf, vec3 f0)
     return f0 + (1.0 - f0) * pow(1.0 - cosViewHalf, 5.0);
 }
 
-// Свет одного источника: toLight - единичное направление к нему, radiance -
-// его цвет у поверхности. Умножение на пи: белая поверхность, повёрнутая к
-// источнику с интенсивностью 1, получает ровно его цвет.
-vec3 lightContribution(Surface surface, vec3 toView, vec3 toLight, vec3 radiance)
+// Яркость в нитах от одного источника: toLight - единичное направление к
+// нему, illuminance - освещённость от него в люксах на площадке, повёрнутой к
+// нему. Белая рассеивающая поверхность, повёрнутая к источнику, получает
+// illuminance / пи.
+vec3 lightContribution(Surface surface, vec3 toView, vec3 toLight, vec3 illuminance)
 {
     float cosNormalLight = dot(surface.normal, toLight);
     if (cosNormalLight <= 0.0) {
@@ -93,7 +95,7 @@ vec3 lightContribution(Surface surface, vec3 toView, vec3 toLight, vec3 radiance
                     * fresnel;
     vec3 diffuse = (1.0 - fresnel) * (1.0 - surface.metallic) * surface.baseColor / YQLORA_PI;
 
-    return (diffuse + specular) * radiance * cosNormalLight * YQLORA_PI;
+    return (diffuse + specular) * illuminance * cosNormalLight;
 }
 
 // Плавное окно до нуля на дальности, как в glTF KHR_lights_punctual.
@@ -106,7 +108,7 @@ float rangeWindow(float distanceToLight, float range)
 }
 
 // Освещённый цвет поверхности: окружающий свет, все источники кадра,
-// свечение. Альфа - из поверхности.
+// свечение; с экспозицией вида, готовый для HDR-цели. Альфа - из поверхности.
 vec4 shade(Surface surface)
 {
     vec3 toView = normalize(view.cameraPosition - surface.position);
@@ -127,7 +129,7 @@ vec4 shade(Surface surface)
         }
     }
 
-    return vec4(color + surface.emission, surface.alpha);
+    return vec4((color + surface.emission) * view.exposure, surface.alpha);
 }
 
 #endif

@@ -115,6 +115,32 @@ TEST_CASE_FIXTURE(Fixture, "Extract: one view per camera with its clear, backgro
     CHECK_FALSE(inMask(frame.views[1].mask, 0));
 }
 
+TEST_CASE_FIXTURE(Fixture, "Camera3D: exposure in EV100 and tone mapping go into the view")
+{
+    // ISO 100: 1 / (1.2 * 2^EV100); EV100 15 - солнечный день.
+    CHECK(exposureFactor(15.0f) == doctest::Approx(1.0f / (1.2f * 32768.0f)));
+    CHECK(exposureFactor(0.0f) == doctest::Approx(1.0f / 1.2f));
+    CHECK(exposureFactor(16.0f) == doctest::Approx(exposureFactor(15.0f) / 2.0f));
+
+    auto& root = scene.createRoot<Node3D>();
+    auto& camera = root.addChild<Camera3D>("Camera");
+    CHECK(camera.exposure() == kDefaultCameraExposure);
+    CHECK(camera.toneMapping() == ToneMapping::AgX);
+    camera.setExposure(12.0f);
+    camera.setToneMapping(ToneMapping::Neutral);
+
+    const FrameData frame = extractFrame(scene, 1.0f);
+    REQUIRE(frame.views.size() == 1);
+    CHECK(frame.views[0].exposure.factor == doctest::Approx(exposureFactor(12.0f)));
+    CHECK(frame.views[0].exposure.toneMapping == ToneMapping::Neutral);
+    // Без камеры - как у новой камеры.
+    CHECK(viewExposure(nullptr).factor == doctest::Approx(exposureFactor(kDefaultCameraExposure)));
+    CHECK(viewExposure(nullptr).toneMapping == kDefaultCameraToneMapping);
+    // Вид, собранный вручную, нейтрален.
+    CHECK(ViewData{}.exposure.factor == 1.0f);
+    CHECK(ViewData{}.exposure.toneMapping == ToneMapping::None);
+}
+
 TEST_CASE("Node: layer stays inside the layer range")
 {
     Node node;

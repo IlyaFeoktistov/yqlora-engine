@@ -44,11 +44,15 @@ Status marks: see [README](README.md).
 - **Forward rendering, every light per pixel**, with shadows from the
   sun, spot and point lights (see "Shadows"); post-processing comes after
   the MVP (its place in the graph is ready).
+- **Physical light**: lights, emission and the sky in physical units,
+  the exposure of the camera and tone mapping (see "Light units, exposure
+  and tone mapping").
 - **Sky and sun**: the sky is a material with a sky shader
-  (the built-in `Procedural` and `Panoramic` or your own), the sun is a
-  directional light; a camera with the `Sky` clear draws the sky as its
-  background, and the ambient light can come from the sky (see "Sky and
-  environment").
+  (the built-in `Physical`, `Panoramic`, `Gradient` or your own), the sun
+  is a directional light; the sky, the ambient light and the atmosphere
+  belong to the `Environment` node of the scene; the sky lights the scene
+  as ambient light and reflections (see "Environment" and the sections
+  after it).
 - **Linear colour, one output pass.** Lighting and blending of transparent
   surfaces happen in linear RGB:
   1. colour textures (base colour, emission) are sampled as sRGB and
@@ -59,8 +63,8 @@ Status marks: see [README](README.md).
      final target, so transparent items blend in linear RGB;
   3. an output pass (`<yqlora/output.glsl>`) encodes the HDR target into
      sRGB and writes the final target (the window or a `RenderTarget`,
-     `kOutputColorFormat`), which ImGui shows unchanged. Tone mapping takes the same
-     pass after the MVP.
+     `kOutputColorFormat`), which ImGui shows unchanged. Tone mapping is in
+     the same pass, before the encoding.
 
   Passes of a view's owner (the grid, the outline) draw over the final
   target after the output pass, with colours given in sRGB, and still test
@@ -232,12 +236,13 @@ renderer.overrides(0).clear();
 
 - **Nodes** (engine nodes, see [scene](scene.md)): `DirectionalLight3D`,
   `PointLight3D`, `SpotLight3D`, all `Node3D`. Common: colour (sRGB, shown
-  as a colour), intensity. Point and spot: range. Spot: inner and outer
+  as a colour), intensity in lux or candela (see "Light units, exposure and
+  tone mapping"). Point and spot: range. Spot: inner and outer
   angle. The direction is the `-Z` of the node, like a camera.
 - **Extract** puts the lights of the scene into `FrameData::lights` (world
   position and direction, linear colour times intensity); a disabled node
   gives no light.
-- **The frame block** holds the ambient colour, up to 4 directional lights
+- **The frame block** holds the sun, the ambient multiplier, up to 4 directional lights
   and up to 32 point and spot lights together, with their counts. More
   lights than that: the nearest to the camera of the first view are kept
   and the log says so once. A near light may still miss an object; per
@@ -246,64 +251,157 @@ renderer.overrides(0).clear();
   window to zero at the range, as in glTF `KHR_lights_punctual`:
   `intensity / max(d², ε) * saturate(1 - (d / range)⁴)²`; a spot also fades
   smoothly between the inner and outer angle.
-- **Ambient light**: in the Lighting section of the project settings,
-  until environment settings per scene appear. It is a separate diffuse
-  term, not image-based lighting: it does not replace direct lights, and
-  sky reflections on metals and IBL are outside step 5. Phase 5.1 gives a
-  constant colour and intensity, phase 5.5 adds the sky and a gradient (see
-  "Sky and environment").
-- **A new scene** has a camera and a directional light, so a new object is lit at once.
+- **Ambient light and reflections** come from the `Environment` of the
+  scene (see "Ambient light and reflections").
+- **A new scene** has a camera, the sun and an `Environment`, so a new object is lit at once.
 - **The editor** draws light icons and their range or direction in the
   viewport, as it does for cameras.
 
-## Sky and environment [planned, step 5]
+## Light units, exposure and tone mapping [done]
 
-The sky is a material, the sun is a directional light, the
-ambient light comes from the sky, a gradient or a colour.
+Light is given in physical units from the start, so that scenes, imported
+models and the sky agree with each other and nothing is converted later.
 
-- **A sky material** is an ordinary `.ymat` with a sky shader. A sky shader
-  includes `<yqlora/sky.glsl>` and defines one function
-  `vec3 sky(vec3 direction)`: the linear colour of the sky in a direction
-  from the camera (world axes). The library gives everything else (`main`
-  of both stages, a full screen triangle on the far plane, the direction of
-  the pixel), so your own sky is just this function and a `Material` block
-  with annotations, as for any material.
+- **Units** (the units of glTF `KHR_lights_punctual`, so lights of a model
+  come in as they are):
+  - `DirectionalLight3D::intensity`: illuminance in lux. A new light has
+    100000 lux (the sun above the atmosphere is about 128000; with the
+    atmosphere on, the light of the sun is dimmed by it on the way, see
+    "Atmosphere");
+  - `PointLight3D` and `SpotLight3D`: luminous intensity in candela (a 100 W
+    bulb is about 130 cd, the default); the spot has it along its axis;
+  - emission of a material: luminance in nits (cd/m2), `emission` (a
+    colour) times `emissionIntensity`;
+  - the sky, the gradient and the colour of the environment: luminance in
+    nits.
+- **Lighting without fudge factors**: a white diffuse surface facing a light
+  of E lux has the luminance E / pi; a point light of I candela gives
+  I / d2 lux at the distance d.
+- **Exposure of the camera**: `Camera3D::exposure` in EV100 (15 by default:
+  a sunny day), the factor is `1 / (1.2 * 2^EV100)`. The exposure is
+  applied in the shaders before writing the HDR target (pre-exposure), so
+  the sun and its disc stay within `Rgba16Float`. The editor viewport uses
+  the exposure of the main camera of the scene, so the editor shows what
+  the game shows. Auto exposure comes after the MVP as one more mode of the
+  same property.
+- **Tone mapping** in the output pass: `Camera3D::toneMapping` (`AgX` by
+  default, `Aces`, `Neutral` (Khronos PBR Neutral), `None`), taken from the
+  main camera, since all views of a frame share one HDR target. After tone
+  mapping comes the sRGB encoding, as now.
+
+## Environment [planned, step 5]
+
+The sky, the ambient light and the atmosphere of a scene are a node of the
+scene, so every scene (a day level, a night level) has its own and edits
+are undone like any other.
+
+- **`Environment` node** (an engine node, not spatial). The first active one
+  in the scene is used (`RenderSystem` keeps the list, as for cameras); a
+  scene without it has no sky, no ambient light and no atmosphere. A new
+  scene has one, with the defaults below.
+- **Properties**:
+  - `sky`: a material with a sky shader (the built-in `Default Sky` by
+    default); empty: no sky, a `Sky` camera clears to black;
+  - `ambientSource`: `Sky`, `Gradient`, `Color`; `ambientIntensity`, a
+    multiplier (1 is physical);
+  - for `Gradient`: `skyColor`, `equatorColor`, `groundColor` (sRGB) and
+    `gradientLuminance` in nits; for `Color`: `ambientColor` and the same
+    luminance;
+  - the atmosphere (group "Atmosphere"): `atmosphere` (on), `groundAlbedo`,
+    `planetRadius` and `atmosphereHeight` in km, `rayleighScattering` (per
+    megametre, RGB) and `rayleighHeight` (km), `mieScattering`,
+    `mieAbsorption` (per megametre), `mieHeight` (km), `mieAnisotropy`,
+    `ozoneAbsorption` (per megametre, RGB). The defaults are the Earth.
+- **The sun** is the directional light with the `sun` flag; when no enabled
+  light has the flag, the brightest directional light is the sun. Extract
+  puts it first among directional lights, the frame block gets `hasSun`,
+  `sunDirection`, `sunColor`, so any shader knows where the sun is.
+- **The `Sky` camera clear** (`CameraClear::Sky`, the default of a new
+  camera): the sky pass draws the sky material after the opaque items and
+  before the transparent ones, on the far plane (depth test `<=`, no
+  write), so it fills only the pixels where nothing is.
+
+## Sky shaders [planned, step 5]
+
+- **A sky shader** is an ordinary `.yshader` that includes
+  `<yqlora/sky.glsl>` and defines one function `vec3 sky(vec3 direction)`:
+  the luminance of the sky in nits in a direction (world axes, unit). The
+  library gives `main` of both stages (a full screen triangle on the far
+  plane, the direction of the pixel from the inverse view projection) and
+  applies the exposure. Including `sky.glsl` is what makes a shader a sky
+  shader (`ShaderData::kind`); a sky material takes only such a shader, and
+  a mesh slot with a sky material draws with `Error`.
+- **The capture variant**: the engine builds every sky shader a second time
+  with `YQLORA_SKY_CAPTURE` defined, for lighting (see "Ambient light and
+  reflections"). In it a sky leaves out what lights already give, such as
+  the disc of the sun.
 - **Built-in sky shaders** with fixed IDs, like `Standard`:
-  - `Procedural`: the sun (none, simple,
-    high quality), sun size, its convergence (edge softness), atmosphere
-    thickness, sky tint, ground colour, exposure. The sky follows a
-    simplified atmospheric scattering, so sunrise and sunset change its
-    colour by themselves, from the height of the sun;
-  - `Panoramic`: a panorama image (equirectangular, an sRGB texture), a
-    rotation around the vertical, a tint, exposure.
-  The built-in `Default Sky` material is `Procedural` with its defaults.
-- **The sun** is the directional light with the `sun` flag; when no enabled light has the flag, the brightest directional
-  light is the sun. The frame block gets `sunDirection`, `sunColor` and
-  `hasSun`, so any shader (sky, water, your own material) knows where the
-  sun is. The sun lights the scene as an ordinary directional light and
-  stays in its array.
-- **The `Sky` camera clear** (`CameraClear::Sky`): the sky pass draws the sky material of the settings after the
-  opaque pass (depth test on the far plane, no write), so the sky fills
-  only the pixels where nothing is. A new camera gets `Sky`.
-- **The Lighting section** (`LightingSettings`): the sky material
-  (`skybox`, only materials with a sky shader; empty: no sky, a `Sky`
-  camera clears to black), the ambient source `ambientSource` (`Sky`,
-  `Gradient`, `Color`), its multiplier `ambientIntensity`, the gradient
-  colours (sky, equator, ground) and the colour for `Color`.
-- **Ambient light from the sky** is second order spherical harmonics (9
-  coefficients): the ambient pass calls `sky(direction)` of
-  the same shader over a set of directions (a shader variant with the
-  `YQLORA_SKY_AMBIENT` define) and writes the coefficients into a small
-  texture. It runs only when the sky material, its shader or the sun
-  changed, fully on the GPU with no read back to the CPU, so a day and
-  night cycle does not stall the frame. `Gradient` and `Color` need no
-  pass. `lighting.glsl` takes the ambient light along the normal
-  (`ambientLight(normal)`) the same way for all three sources.
-- **Editor**: the viewport has its own sky toggle; the
-  material preview draws the sky behind the sphere; a sky shader shows the
-  same fields in the material inspector as any other.
-- Sky reflections on metals (environment maps, IBL), clouds and fog come
-  after the MVP.
+  - `Physical`: the sky of the atmosphere of the environment, with the disc
+    of the sun (`sunDisc`, its angular size `sunAngle`, limb darkening).
+    The luminance of the disc is the illuminance of the sun divided by its
+    solid angle, dimmed by the atmosphere: no factors to tune.
+    `Default Sky` is this shader with its defaults;
+  - `Panoramic`: an equirectangular image (8 bit sRGB or HDR `.hdr`), a
+    rotation around the vertical, a tint and `luminance` in nits for the
+    value 1;
+  - `Gradient`: three colours by height and a luminance; the `Gradient` and
+    `Color` ambient sources light the scene through it.
+
+## Atmosphere [planned, step 5]
+
+The physical sky by the method of Hillaire ("A Scalable and Production
+Ready Sky and Atmosphere Rendering Technique", 2020): single scattering
+computed by ray marching, multiple scattering from a small table,
+Rayleigh, Mie and ozone. All tables are 2D and are filled by fragment
+shaders, so every backend can do it.
+
+- **Tables** (`Rgba16Float`):
+  - transmittance, 256 x 64: by height and the angle to the zenith; filled
+    when the atmosphere of the environment changes;
+  - multiple scattering, 32 x 32: by height and the angle to the sun;
+    filled after the transmittance;
+  - the sky view, 192 x 108: the sky around the camera for its height and
+    the sun, every frame per view; the horizon gets more rows;
+  - aerial perspective, 32 slices of 32 x 32 side by side (1024 x 32):
+    in-scattering and transmittance along the view of the camera up to
+    32 km, every frame per view.
+- **`<yqlora/atmosphere.glsl>`** gives every shader the functions of the
+  atmosphere: `atmosphereSky(direction)`, `atmosphereTransmittance(position,
+  direction)`, `applyAerialPerspective(color, position)`. The `Atmosphere`
+  block (set 0) holds its parameters in shader units.
+- **The sun through the atmosphere**: `lighting.glsl` dims the light of the
+  sun at a point by the transmittance from that point towards the sun, so
+  the sun turns yellow and red near the horizon by itself.
+- **Aerial perspective**: `shade()` applies it to every lit surface, opaque
+  and transparent, so far objects fade into the haze of the sky colour.
+- **Heights**: the scene origin lies on the ground of the planet, the Y of
+  the camera is its height (at least 1 m above the ground).
+- Clouds and volumetric fog come after the MVP, on top of the same
+  tables.
+
+## Ambient light and reflections [planned, step 5]
+
+The sky lights the scene twice: as diffuse ambient light and as
+reflections on metals and glossy surfaces (image-based lighting).
+
+- **Capture**: when the sky changes (its material, shader, textures, the
+  sun, the atmosphere, the height of the camera by steps of 100 m, the
+  ambient source and colours), the sky is drawn into a cube texture, 128 x
+  128 per face, with the capture variant of its shader. `Gradient` and
+  `Color` draw the built-in `Gradient` sky into the same cube, so all three
+  sources take one path.
+- **Diffuse**: 9 coefficients of second order spherical harmonics are
+  projected from the cube into a 9 x 1 texture; `ambientLight(normal)` in
+  `lighting.glsl` reads them.
+- **Specular**: the mips of a second cube are filtered by GGX for growing
+  roughness (filtered importance sampling); a 2D table of the split-sum
+  BRDF (128 x 128) is made once. `lighting.glsl` adds the reflection with
+  the energy compensation for multiple scattering in rough metals; the
+  occlusion of the material dims it too.
+- Everything stays on the GPU, with no read back, so a day and night cycle
+  does not stall the frame.
+- Reflection probes (local cubes placed in the scene) come after the MVP
+  and use the same filtering.
 
 ## Shadows [planned, step 5]
 
@@ -321,8 +419,7 @@ Lights give shadows, their meshes cast and receive them.
   scheme (a mix of uniform and logarithmic), each cascade snapped to the
   texels of the map so the shadow does not shimmer when the camera moves;
   a smooth blend between cascades. One directional light has shadows: the
-  sun (see "Sky and environment"), and until phase 5.5 the first one with
-  shadows.
+  sun (see "Environment").
 - **A spot light** uses one perspective map, **a point light** six cube
   faces; both are tiles in a shared shadow atlas, up to 16 tiles per frame
   (a point light takes six). More shadowed lights: the nearest to the
@@ -337,7 +434,7 @@ Lights give shadows, their meshes cast and receive them.
   not dim the ambient light.
 - **RHI**: a depth format the shader reads (`Depth32Float`) and a
   comparison sampler (`sampler2DShadow` in the shader profile).
-- **Settings** (Lighting section): shadow distance (100 m by default), the
+- **Settings** (Graphics section, quality): shadow distance (100 m by default), the
   cascade count, the size of a cascade map and of the atlas (quality).
 - **After the MVP**: contact shadows, softness by light size (PCSS),
   shadows from transparent surfaces, ray tracing.
@@ -589,37 +686,67 @@ Lights give shadows, their meshes cast and receive them.
   changes the cache and not the file; resource fields of a script know
   their kind.
 
-### 5.5 Sky and environment
+### 5.5a Light units, exposure, tone mapping [done]
 
-- **RHI for the sky**: a depth compare op in the pipeline (`<=`: the sky
-  lies at depth 1, and the comparison is always `<` now), a cube texture
-  and its binding in OpenGL (any texture is bound as 2D now).
-- **`<yqlora/sky.glsl>`**: the stages of a sky shader around
-  `sky(direction)` (a full screen triangle at depth 1, the direction from
-  the inverse view projection) and the `YQLORA_SKY_AMBIENT` variant for the
-  ambient pass. A sky shader is told by its reflection (no vertex inputs,
-  has `sky`), and a sky material takes only such a shader.
-- **Built-in `Procedural` and `Panoramic`** (`builtin::kProceduralSkyShader`,
-  `builtin::kPanoramicSkyShader`) and the `Default Sky` material.
-- **The sun**: the `sun` flag on `DirectionalLight3D`, the sun chosen in
-  Extract (flagged, otherwise the brightest), `sunDirection`, `sunColor`,
-  `hasSun` in the frame block.
-- **`CameraClear::Sky`**, the default of a new camera; `SkyPass` after the
-  opaque pass in the same view.
-- **`LightingSettings`**: `skybox`, `ambientSource`, `ambientIntensity`,
-  the gradient colours and the colour; `ambientLight(normal)` for shaders.
-- **`AmbientPass`**: 9 coefficients into a 9 x 1 `Rgba16Float` texture,
-  keyed by the revisions of the sky material and its shader and by the sun;
-  the coefficients are read in `lighting.glsl`.
-- **Editor**: the sky toggle of the viewport, the sky in the material
-  preview, "Create resource > Sky shader" from `assets/templates/sky`.
+- **Lights**: intensity in lux and candela, the defaults above;
+  `lighting.glsl` without the factor pi; `Standard` gets
+  `emissionIntensity` in nits.
+- **Camera**: `exposure` (EV100) and `toneMapping`; the View block gets
+  the exposure and the inverse view projection, shaders apply the
+  exposure (`shade`, the sky).
+- **Output pass**: `AgX`, `Aces`, `Neutral`, `None` in
+  `<yqlora/output.glsl>`, chosen by the main camera.
+- **RHI**: the depth compare op of the pipeline (`Less`, `LessEqual`).
+- **Tests**: a white surface facing 1000 lux at exposure factor 1 has the
+  luminance 1000 / pi; a point light of 100 cd lights 1 m away with 100
+  lux and 2 m away with 25; EV100 15 gives `1 / (1.2 * 32768)`; tone
+  mapping keeps 0 at 0, is monotonic and stays below 1; `None` with factor
+  1 keeps the old output.
+
+### 5.5b Environment, sky shaders, atmosphere
+
+- **`Environment`** node with its properties, kept by `RenderSystem`; the
+  `sun` flag of `DirectionalLight3D` and the choice of the sun in Extract;
+  the `Lighting` section of the project settings is removed.
+- **Shaders**: `<yqlora/sky.glsl>`, `<yqlora/atmosphere.glsl>`,
+  `ShaderData::kind` and the capture variant; built-in `Physical`,
+  `Panoramic`, `Gradient` and the `Default Sky` material.
+- **HDR textures**: `.hdr` through stb_image, `TextureData` in `Rgba8` or
+  `Rgba16Float`.
+- **Passes**: the atmosphere tables, `CameraClear::Sky` and the sky pass
+  between opaque and transparent items (`prepareView` tells where the
+  opaque ones end), the sun dimmed by the atmosphere, aerial perspective in
+  `shade()`.
 - **Tests**: Extract picks the flagged sun, without a flag the brightest;
-  the sky template compiles, a shader without `sky` is refused as a sky
-  material; on OpenGL: a `Sky` camera draws the sky only where there are no
-  objects, the harmonics of a constant sky give its colour along any
-  normal, `Procedural` near the horizon is redder at sunset than at noon;
-  `Gradient` lights the top of a cube with the sky colour and the bottom
-  with the ground colour.
+  a shader with `sky.glsl` is a sky shader and gets a capture variant; a
+  sky material on a mesh draws with `Error`; on OpenGL: a `Sky` camera
+  draws the sky only where there are no objects; the sky near the horizon
+  is redder at sunset than at noon; the sun light on a white plane is
+  dimmer and redder at sunset; a far object is closer to the sky colour
+  than a near one.
+
+### 5.5c Ambient light and reflections
+
+- **RHI**: cube textures (`TextureDesc::cube`), drawing into a face and a
+  mip, `generateMipmaps`, `samplerCube` in the profile; the OpenGL backend
+  and the test device.
+- **Passes**: the capture into the cube, the projection into harmonics, the
+  GGX filtering of the mips, the BRDF table; the frame set gets their
+  textures; `ambientLight` and the specular term in `lighting.glsl`.
+- **Tests**: the harmonics of a constant sky give its luminance along any
+  normal; `Gradient` lights the top of a cube with the sky colour and the
+  bottom with the ground colour; a smooth metal sphere reflects the sky,
+  a rough one its average; the capture is not repeated while nothing
+  changes.
+
+### 5.5d Editor
+
+- The sky toggle of the viewport; the sky and the ambient light of the
+  default environment in the material preview; "Create resource > Sky
+  shader" from `assets/templates/sky`; `Environment` in the "Add node"
+  menu with its icon; the `sky` field offers only sky materials.
+- **Tests**: a new scene has a camera with `Sky`, the sun and an
+  `Environment`; the sky template compiles.
 
 ### 5.6 Shadows
 
@@ -631,7 +758,7 @@ Lights give shadows, their meshes cast and receive them.
   tiles); the OpenGL backend.
 - **Properties**: `shadows`, `shadowStrength`, `shadowBias`,
   `shadowNormalBias` on `Light3D`; `castShadows`, `receiveShadows` on
-  `MeshRenderer`; distance, cascades and map sizes in `LightingSettings`.
+  `MeshRenderer`; distance, cascades and map sizes in `GraphicsSettings`.
 - **Extract**: which lights get shadows, the cascades of the directional
   light (splits, texel-snapped matrices), atlas tiles of spot lights and
   point light faces; per map lists of shadow casters culled by its
@@ -684,5 +811,5 @@ Lights give shadows, their meshes cast and receive them.
 This file, rendering (lighting, sRGB, Prepare with materials), resources
 (shaders, materials, dependencies), scene (light nodes, `MeshRenderer`
 slots and overrides), project (formats of `.yshader`, `.ymat`, scene 2,
-project upgrade steps), project settings (Lighting), editor, the guide
+project upgrade steps), project settings (Graphics), editor, the guide
 "Your own shader, material and sky", README. After this phase step 5 is closed.

@@ -21,6 +21,7 @@
 #include "yqlora/material/MaterialData.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/FrameBuilder.hpp"
+#include "yqlora/render/RenderSystem.hpp"
 #include "yqlora/render/Renderer.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/scene/Scene.hpp"
@@ -137,10 +138,14 @@ void ViewportPanel::draw(EditorContext& context)
 void ViewportPanel::renderScene(EditorContext& context, float aspect, const GizmoContext& gizmoContext)
 {
     const EditorHost& host = context.host;
-    FrameData frame = extractFrame(context.session.scene(), aspect);
+    const Scene& scene = context.session.scene();
+    FrameData frame = extractFrame(scene, aspect);
+    // Окно сцены показывает кадр с экспозицией главной камеры: как в игре.
+    const RenderSystem* render = scene.system<RenderSystem>();
     frame.views = {{
         .camera = m_camera.cameraData(aspect),
         .background = context.theme.colors().viewportBackground,
+        .exposure = viewExposure(render ? render->mainCamera() : nullptr),
     }};
     m_gizmos.prepareView(frame.views.front(), host.renderer().context(), gizmoContext);
     m_view.render(host.renderer(), frame);

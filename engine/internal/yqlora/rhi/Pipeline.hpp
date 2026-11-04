@@ -70,6 +70,7 @@ struct PipelineDesc {
     VertexLayout vertexLayout{};
     bool depthTest = true;
     bool depthWrite = true;
+    CompareOp depthCompare = CompareOp::Less;
     CullMode cull = CullMode::Back;
     BlendMode blend = BlendMode::Opaque;
     // Конвейер рисует только в цель с такими же форматами и числом образцов;

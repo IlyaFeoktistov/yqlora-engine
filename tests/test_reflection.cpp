@@ -88,8 +88,20 @@ TEST_CASE("TypeRegistry: properties include base types, base first")
     const auto properties = registry.properties(*registry.find("Camera3D"));
     CHECK(
         names(properties)
-        == std::vector<
-            std::string>{"name", "active", "layer", "fov", "near", "far", "order", "cullingMask", "clear", "background"}
+        == std::vector<std::string>{
+            "name",
+            "active",
+            "layer",
+            "fov",
+            "near",
+            "far",
+            "order",
+            "cullingMask",
+            "clear",
+            "background",
+            "exposure",
+            "toneMapping"
+        }
     );
     // У компонентов корень - Component.
     CHECK(

@@ -24,7 +24,9 @@ void registerRenderTypes(TypeRegistry& registry)
         .property(kCameraOrderProperty, &Camera3D::order, &Camera3D::setOrder)
         .property("cullingMask", &Camera3D::cullingMask, &Camera3D::setCullingMask, PropertyHint::Layers)
         .property("clear", &Camera3D::clear, &Camera3D::setClear)
-        .property("background", &Camera3D::background, &Camera3D::setBackground, PropertyHint::Color);
+        .property("background", &Camera3D::background, &Camera3D::setBackground, PropertyHint::Color)
+        .property("exposure", &Camera3D::exposure, &Camera3D::setExposure)
+        .property("toneMapping", &Camera3D::toneMapping, &Camera3D::setToneMapping);
 
     registry.registerNode<Light3D>()
         .property("color", &Light3D::color, &Light3D::setColor, PropertyHint::Color)

@@ -10,7 +10,7 @@
 struct DirectionalLight {
     // Куда свет идёт, единичный.
     vec3 direction;
-    // Линейный цвет, умноженный на интенсивность.
+    // Освещённость в люксах по каналам.
     vec3 color;
 };
 
@@ -26,7 +26,7 @@ struct PunctualLight {
 };
 
 layout(set = 0, binding = 0, std140) uniform Frame {
-    // Окружающий свет: линейный цвет, умноженный на интенсивность.
+    // Окружающий свет: яркость в нитах.
     vec3 ambient;
     int directionalCount;
     int punctualCount;
@@ -36,7 +36,11 @@ layout(set = 0, binding = 0, std140) uniform Frame {
 
 layout(set = 1, binding = 0, std140) uniform View {
     mat4 viewProjection;
+    // Из точки экрана в мир: по ней небо находит направление пикселя.
+    mat4 inverseViewProjection;
     vec3 cameraPosition;
+    // Множитель экспозиции: всё, что пишется в HDR-цель, умножается на него.
+    float exposure;
 } view;
 
 layout(set = 3, binding = 0, std140) uniform Object {
