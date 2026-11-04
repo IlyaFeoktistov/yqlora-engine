@@ -198,3 +198,23 @@ dragged from Files into the viewport.
   not menu actions; the button tooltips name them. They become rebindable
   together with the editor key settings.
 - A snapped move is one edit in the history, as an unsnapped one.
+
+## External code editor [planned, after step 5]
+
+A file with an error opens at its line in the code editor the person uses.
+
+- Editor settings (`EditorSettings::codeEditor`, a file in the user
+  folder, a habit of the person, not of a project): the path of the
+  program and the arguments, a template with `{file}`, `{line}`,
+  `{column}` and `{project}`. Ready rows for common editors fill the
+  template (`code --goto {file}:{line}:{column}`, `clion --line {line}
+  {file}`, `subl {file}:{line}:{column}`); an empty path keeps opening with
+  the system (`platform::openWithSystem`), which knows no line.
+- A click on a log entry with `file:line` (shader errors, compiler errors
+  from `CompilerDiagnostics`) opens it there; so does a double click on a
+  `.yshader`, `.cpp` or `.hpp` in Files, at line 1.
+- The arguments are passed as a list to the process (`platform::Process`),
+  never through a shell, so a path with spaces or quotes stays one
+  argument.
+- When the Scripts tab comes (see [code editor](code-editor.md)), it is one
+  more choice in the same setting.

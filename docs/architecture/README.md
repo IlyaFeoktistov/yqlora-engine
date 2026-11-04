@@ -17,6 +17,10 @@ documents keep only how the engine works.
 | [Engine context and the frame](frame.md) | engine services, game time, scene systems, the order of a frame |
 | [Rendering](rendering.md) | cameras, layers, views, the RHI, shaders, Prepare and the render graph |
 | [Shaders, materials and lights](materials.md) | project shaders, materials and their slots, light nodes (step 5 plan) |
+| [Noise](noise.md) | noise in code, scripts, textures and shaders from one set of algorithms |
+| [Animation](animation.md) | the animation resource, `AnimationPlayer`, the Animation panel with keys |
+| [Particles](particles.md) | particle effects: the effect resource, `ParticleEmitter`, instanced drawing |
+| [Physics](physics.md) | rigid bodies, colliders, queries, joints (step 6) |
 | [Scripts](scripting.md) | C++, Luau, visual scripts, hot reload |
 | [Editor](editor.md) | parts of the editor: session, document, Play, panels |
 | [Code editor](code-editor.md) | the Scripts tab: Luau with highlighting and hints, later shaders |

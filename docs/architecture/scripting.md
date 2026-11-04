@@ -234,6 +234,32 @@ never regular expressions; it writes code the compiler checks) comes after
 the MVP: it needs LLVM as a dependency, and `YQLORA_FIELDS` already covers
 every attribute.
 
+## What scripts get next [planned]
+
+What a script cannot do yet, and where each item is done. Every item is a
+registered method or type, so Luau and visual scripts get it through the
+bindings without extra work.
+
+- **Timers and delayed actions** (after step 5, with noise): a `Timer`
+  component (`duration`, `repeat`, `autostart`, the `onTimeout` event) and
+  `time().after(seconds, callback)` for one call. Delays run on game time,
+  so pause and time scale apply; a callback of a destroyed component is
+  never called (the owner is part of the handle).
+- **Creating objects from resources in a game** (after step 5): a model
+  now, `scene().instantiate(model, parent)`, the same tree a drop into the
+  editor makes, deferred like other tree changes. Scenes as prefabs need
+  stable IDs of nodes inside nested scenes and come as their own stage
+  before step 9.
+- **Rays and overlaps** (step 6): `physics().raycast`, `sphereCast`,
+  `overlap` in the physics world, with layers. Picking of the editor stays
+  in the editor.
+- **Saving game data** (step 9): `SaveData`, a record or a JSON object
+  written atomically into the folder of user data of the platform, by slot
+  name; the editor and Play use a folder of their own inside the project
+  cache so tests of a game never touch saves of a released one.
+- **Audio and the game interface**: steps 7 and 8.
+- **Luau**: after the MVP (below).
+
 ## Scripts in Luau [planned, after MVP]
 
 [Luau](https://luau.org) (MIT): Lua 5.1 with gradual typing, a built-in
