@@ -22,9 +22,13 @@
 #define STBI_WRITE_NO_STDIO
 #include <stb_image_write.h>
 
+#include <yqlora/math/Half.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -120,6 +124,40 @@ TEST_CASE("ImageLoader: JPG becomes RGBA, opaque")
     CHECK(data.pixels[3] == 255);
     CHECK(data.pixels[0] > 190);
     CHECK(data.pixels[0] < 210);
+}
+
+TEST_CASE("ImageLoader: HDR keeps values above 1 as half floats, always linear")
+{
+    const fs::path file = test::freshDirectory("texture_hdr") / "sky.hdr";
+    // 2 x 1 без сжатия: яркий (4) и тёмный (0.25) серые в RGBE, значение -
+    // мантисса * 2^(порядок - 136): 128 * 2^-5 = 4, 128 * 2^-9 = 0.25.
+    const std::string header = "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 1 +X 2\n";
+    std::vector<char> bytes(header.begin(), header.end());
+    for (const char exponent : {char(131), char(127)}) {
+        bytes.insert(bytes.end(), {char(128), char(128), char(128), exponent});
+    }
+    save(file, bytes);
+
+    const LoadResult result = ImageLoader{}.load({file});
+    const TextureData& data = texture(result);
+    CHECK(data.format == PixelFormat::Rgba16Float);
+    CHECK(data.sampling.colorSpace == ColorSpace::Linear);
+    REQUIRE(data.pixels.size() == 2 * kRgba * sizeof(std::uint16_t));
+    const auto channel = [&](std::size_t index) {
+        std::uint16_t half = 0;
+        std::memcpy(&half, data.pixels.data() + index * sizeof(half), sizeof(half));
+
+        return math::fromHalf(half);
+    };
+    CHECK(channel(0) == doctest::Approx(4.0f).epsilon(0.02));
+    CHECK(channel(3) == doctest::Approx(1.0f));
+    CHECK(channel(4) == doctest::Approx(0.25f).epsilon(0.02));
+
+    // Для показа: яркое обрезается до белого, тёмное кодируется в sRGB.
+    const std::vector<std::uint8_t> shown = displayPixels(data);
+    REQUIRE(shown.size() == 2 * kRgba);
+    CHECK(shown[0] == 255);
+    CHECK(std::abs(int(shown[4]) - int(math::linearToSrgb(0.25f) * 255.0f + 0.5f)) <= 1);
 }
 
 TEST_CASE("ImageLoader: broken and missing files give an error")

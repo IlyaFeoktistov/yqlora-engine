@@ -4,9 +4,9 @@
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/DirectionalLight3D.hpp"
+#include "yqlora/render/Environment.hpp"
 #include "yqlora/render/GraphicsSettings.hpp"
 #include "yqlora/render/Light3D.hpp"
-#include "yqlora/render/LightingSettings.hpp"
 #include "yqlora/render/MeshData.hpp"
 #include "yqlora/render/MeshRenderer.hpp"
 #include "yqlora/render/PointLight3D.hpp"
@@ -31,7 +31,7 @@ void registerRenderTypes(TypeRegistry& registry)
     registry.registerNode<Light3D>()
         .property("color", &Light3D::color, &Light3D::setColor, PropertyHint::Color)
         .property("intensity", &Light3D::intensity, &Light3D::setIntensity);
-    registry.registerNode<DirectionalLight3D>();
+    registry.registerNode<DirectionalLight3D>().property("sun", &DirectionalLight3D::sun, &DirectionalLight3D::setSun);
     registry.registerNode<PointLight3D>().property("range", &PointLight3D::range, &PointLight3D::setRange);
     registry.registerNode<SpotLight3D>()
         .property(
@@ -46,6 +46,23 @@ void registerRenderTypes(TypeRegistry& registry)
             &SpotLight3D::setOuterAngleDegrees,
             PropertyHint::Angle
         );
+
+    registry.registerNode<Environment>()
+        .property("sky", &Environment::sky)
+        .resource(MaterialData::kResourceKind)
+        .property("ambientSource", &Environment::ambientSource)
+        .property("ambientIntensity", &Environment::ambientIntensity, &Environment::setAmbientIntensity)
+        .property("skyColor", &Environment::skyColor, PropertyHint::Color)
+        .group("Gradient")
+        .property("equatorColor", &Environment::equatorColor, PropertyHint::Color)
+        .group("Gradient")
+        .property("groundColor", &Environment::groundColor, PropertyHint::Color)
+        .group("Gradient")
+        .property("ambientColor", &Environment::ambientColor, PropertyHint::Color)
+        .group("Gradient")
+        .property("gradientLuminance", &Environment::gradientLuminance, &Environment::setGradientLuminance)
+        .group("Gradient")
+        .property("atmosphere", &Environment::atmosphere);
 
     registry.registerComponent<MeshRenderer>()
         .requiresNode<Node3D>()
@@ -63,10 +80,6 @@ void registerRenderTypes(TypeRegistry& registry)
         .property("windowsApi", &GraphicsSettings::windowsApi)
         .property("linuxApi", &GraphicsSettings::linuxApi)
         .property("vsync", &GraphicsSettings::vsync);
-
-    registry.registerSettings<LightingSettings>("lighting")
-        .property("ambientColor", &LightingSettings::ambientColor, PropertyHint::Color)
-        .property("ambientIntensity", &LightingSettings::ambientIntensity, &LightingSettings::setAmbientIntensity);
 }
 
 } // namespace yqlora

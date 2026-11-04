@@ -47,7 +47,8 @@ How to choose:
 Node                     no position: a group, a root, a holder of scripts
 |-- Node3D               built-in Transform3D (cannot be removed)
 |   |-- Camera3D
-|   `-- DirectionalLight3D, PointLight3D, SpotLight3D      [planned, step 5]
+|   `-- DirectionalLight3D, PointLight3D, SpotLight3D
+|-- Environment          the sky, the ambient light and the atmosphere of the scene
 |-- Control              built-in RectTransform, anchors   [planned, step 8]
 |   `-- Label, Button, ...
 `-- Node2D               built-in Transform2D              [planned, after MVP]

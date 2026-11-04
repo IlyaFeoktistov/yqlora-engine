@@ -3,10 +3,8 @@
 #include "yqlora/core/Log.hpp"
 #include "yqlora/render/EngineUniforms.hpp"
 #include "yqlora/render/FrameFormats.hpp"
-#include "yqlora/render/GpuMaterial.hpp"
 #include "yqlora/render/GpuMesh.hpp"
-#include "yqlora/render/GpuTexture.hpp"
-#include "yqlora/render/MaterialBlock.hpp"
+#include "yqlora/render/MaterialBinding.hpp"
 #include "yqlora/render/PipelineCache.hpp"
 #include "yqlora/resource/BuiltinResourceTable.hpp"
 #include "yqlora/shader/ShaderProfile.hpp"
@@ -32,33 +30,34 @@ void MeshPass::draw(
     rhi::CommandList& commands,
     const FrameData& frame,
     std::span<const DrawItem* const> visible,
-    const UniformSlice& frameUniforms,
-    const UniformSlice& viewUniforms
+    const EngineResources& resources
 )
 {
     const rhi::Pipeline* bound = nullptr;
     for (const DrawItem* item : visible) {
         const FrameMaterial* material = &frame.materials[item->material];
-        const rhi::Pipeline* pipeline = m_context.pipelines.get(*material, kHdrColorFormat, kDepthFormat);
+        const rhi::Pipeline* pipeline = m_context.pipelines
+                                            .get(*material, MaterialPass::Surface, kHdrColorFormat, kDepthFormat);
         if (!pipeline) {
             material = &m_error;
-            pipeline = m_context.pipelines.get(*material, kHdrColorFormat, kDepthFormat);
+            pipeline = m_context.pipelines.get(*material, MaterialPass::Surface, kHdrColorFormat, kDepthFormat);
         }
         if (!pipeline) {
             continue;
         }
         if (pipeline != bound) {
             commands.bindPipeline(*pipeline);
-            setUniforms(commands, kFrameBlock, frameUniforms);
-            setUniforms(commands, kViewBlock, viewUniforms);
+            bindEngineResources(commands, *pipeline->desc().shader, resources);
             bound = pipeline;
         }
 
         const bool overridden = item->overrides != DrawItem::kNoOverrides && material != &m_error;
-        const FrameOverrides* overrides = overridden ? &frame.overrides[item->overrides] : nullptr;
-        if (overrides && material->shader->materialSize != 0) {
-            // Замены - свои данные материала у этого элемента на этот кадр.
-            const auto block = materialBlock(*material->shader, *material->data, &overrides->values, [&](auto name) {
+        bindMaterial(
+            commands,
+            m_context,
+            *material,
+            overridden ? &frame.overrides[item->overrides] : nullptr,
+            [&](std::string_view name) {
                 if (m_reportedOverrides.emplace(material->shaderId, std::string(name)).second) {
                     log::warn(
                         "Material override '{}' does not fit shader '{}' and is skipped",
@@ -66,21 +65,8 @@ void MeshPass::draw(
                         material->shader->desc.name
                     );
                 }
-            });
-            const UniformSlice slice = m_context.uniforms.push(std::span<const std::byte>(block));
-            commands
-                .setUniformBuffer(kMaterialSet, kMaterialBlockSlot.binding, *slice.buffer, slice.offset, slice.size);
-        } else if (const rhi::Buffer* block = m_context.materials.block(*material)) {
-            commands.setUniformBuffer(kMaterialSet, kMaterialBlockSlot.binding, *block, 0, block->desc().size);
-        }
-        for (const FrameTexture& texture : overrides ? overrides->textures : material->textures) {
-            commands.setTexture(
-                texture.slot.set,
-                texture.slot.binding,
-                m_context.textures.texture(texture),
-                m_context.textures.sampler(texture)
-            );
-        }
+            }
+        );
 
         // Нормали поворачиваются вместе с объектом, но неравномерный масштаб
         // их бы исказил: для этого и нужна обратная транспонированная матрица.

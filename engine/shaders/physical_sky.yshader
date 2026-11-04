@@ -1,0 +1,51 @@
+#version 450
+
+// Небо атмосферы окружения (Environment::atmosphere) с диском солнца.
+// Яркость диска - освещённость от солнца, делённая на его телесный угол и
+// ослабленная атмосферой по пути к камере: подбирать нечего, а для стиля
+// есть множитель.
+#include <yqlora/atmosphere.glsl>
+#include <yqlora/sky.glsl>
+
+layout(set = 2, binding = 0, std140) uniform Material {
+    //@ label("Sun disc") range(0, 1)
+    int sunDisc;              //@ default(1)
+    // Угловой диаметр в градусах: у настоящего солнца 0.53.
+    float sunAngle;           //@ range(0.1, 20) default(0.53)
+    // Насколько темнее край диска: 0 - ровный.
+    float limbDarkening;      //@ range(0, 1) default(0.6)
+    float sunDiscIntensity;   //@ range(0, 10) default(1)
+} material;
+
+const float kPi = 3.14159265358979;
+
+// Яркость диска солнца в направлении direction, 0 - мимо диска.
+vec3 sunDiscLuminance(vec3 direction)
+{
+    float radius = radians(material.sunAngle) * 0.5;
+    float cosAngle = dot(direction, atmosphereToSun());
+    float cosRadius = cos(radius);
+    if (cosAngle < cosRadius) {
+        return vec3(0.0);
+    }
+    float solidAngle = 2.0 * kPi * (1.0 - cosRadius);
+    float fromCenter = acos(min(cosAngle, 1.0)) / radius;
+    float mu = sqrt(max(1.0 - fromCenter * fromCenter, 0.0));
+    // Закон потемнения к краю, нормированный: средняя яркость диска та же.
+    float limb = (1.0 - material.limbDarkening * (1.0 - mu)) / (1.0 - material.limbDarkening / 3.0);
+    vec3 transmittance = atmosphereTransmittance(view.cameraPosition, direction);
+
+    return frame.sunColor / solidAngle * limb * transmittance * material.sunDiscIntensity;
+}
+
+vec3 sky(vec3 direction)
+{
+    vec3 color = atmosphereSky(direction);
+#ifndef YQLORA_SKY_CAPTURE
+    if (material.sunDisc != 0 && frame.hasSun != 0) {
+        color += sunDiscLuminance(direction);
+    }
+#endif
+
+    return color;
+}

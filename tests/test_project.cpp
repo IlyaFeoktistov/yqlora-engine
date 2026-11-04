@@ -15,6 +15,8 @@
 #include <yqlora/reflection/TypeRegistry.hpp>
 #include <yqlora/render/Camera3D.hpp>
 #include <yqlora/render/DirectionalLight3D.hpp>
+#include <yqlora/render/Environment.hpp>
+#include <yqlora/resource/BuiltinResources.hpp>
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
 #include <yqlora/scripting/GameModule.hpp>
@@ -54,9 +56,17 @@ TEST_CASE("Project: create makes a folder with the project file and a starter sc
     Scene scene{EngineServices::none()};
     REQUIRE(serializer.load(scene, loaded->directory() / *loaded->startupScenePath()));
     REQUIRE(scene.root());
-    CHECK(scene.root()->children().size() == 3);
+    CHECK(scene.root()->children().size() == 4);
     CHECK(dynamic_cast<Camera3D*>(scene.root()->findChild("Camera")) != nullptr);
-    CHECK(dynamic_cast<DirectionalLight3D*>(scene.root()->findChild("Sun")) != nullptr);
+    const auto* sun = dynamic_cast<DirectionalLight3D*>(scene.root()->findChild("Sun"));
+    REQUIRE(sun);
+    CHECK(sun->sun());
+    // Окружение с атмосферой проходит через файл сцены.
+    const auto* environment = dynamic_cast<Environment*>(scene.root()->findChild("Environment"));
+    REQUIRE(environment);
+    CHECK(environment->sky.id == builtin::kDefaultSkyMaterial);
+    CHECK(environment->atmosphere.enabled);
+    CHECK(environment->atmosphere.mieAnisotropy == Atmosphere{}.mieAnisotropy);
 
     // Второй раз в ту же папку нельзя.
     CHECK_FALSE(createProject(location, "My Game", serializer, error));

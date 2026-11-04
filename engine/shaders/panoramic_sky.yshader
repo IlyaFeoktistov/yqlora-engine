@@ -1,0 +1,40 @@
+#version 450
+
+// Небо из равнопромежуточной панорамы (8 бит sRGB или HDR .hdr): верх
+// картинки - зенит, середина - горизонт. Значение 1 картинки светит
+// luminance нит.
+#include <yqlora/sky.glsl>
+
+layout(set = 2, binding = 0, std140) uniform Material {
+    vec3 tint;        //@ color default(1, 1, 1)
+    float luminance;  //@ default(20000)
+    // Поворот вокруг вертикали в градусах.
+    float rotation;   //@ range(0, 360) default(0)
+} material;
+
+layout(set = 2, binding = 1) uniform sampler2D panorama; //@ default(black)
+
+const float kPi = 3.14159265358979;
+
+// Только во фрагментной стадии: производные (dFdx) есть только там.
+#ifdef YQLORA_FRAGMENT
+vec3 sky(vec3 direction)
+{
+    float u = atan(direction.x, -direction.z) / (2.0 * kPi) + 0.5 - material.rotation / 360.0;
+    float v = acos(clamp(direction.y, -1.0, 1.0)) / kPi;
+    vec2 uv = vec2(fract(u), v);
+    // На шве u перескакивает с 1 на 0, и производные для мипа взлетают;
+    // берём производные той развёртки, где шва в этом месте нет.
+    vec2 seamless = vec2(fract(u + 0.5) - 0.5, v);
+    vec2 dx = dFdx(uv);
+    vec2 dy = dFdy(uv);
+    vec2 seamlessDx = dFdx(seamless);
+    vec2 seamlessDy = dFdy(seamless);
+    if (abs(seamlessDx.x) + abs(seamlessDy.x) < abs(dx.x) + abs(dy.x)) {
+        dx = seamlessDx;
+        dy = seamlessDy;
+    }
+
+    return textureGrad(panorama, uv, dx, dy).rgb * material.tint * material.luminance;
+}
+#endif

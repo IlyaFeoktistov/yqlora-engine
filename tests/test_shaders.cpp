@@ -322,7 +322,7 @@ TEST_CASE("Shaders: the engine library is included with angle brackets")
 {
     Files files;
     files.files["a.frag"] = "#version 450\n#include <yqlora/uniforms.glsl>\n"
-                            "layout(location = 0) out vec4 c;\nvoid main() { c = vec4(frame.ambient, 1.0); }\n";
+                            "layout(location = 0) out vec4 c;\nvoid main() { c = vec4(frame.sunColor, 1.0); }\n";
     ShaderCompiler compiler(files.reader());
     CHECK(compiler.compile({.path = "a.frag", .stage = rhi::ShaderStage::Fragment}).ok());
 }

@@ -183,7 +183,7 @@ TEST_CASE("Prepare: a view keeps what is in its frustum and mask, nearest first"
     // Все слои, кроме третьего.
     const ViewData view{.camera = lookingDownMinusZ(), .mask = kAllLayers & ~(LayerMask{1} << 3)};
 
-    const std::vector<const DrawItem*> visible = prepareView(items, kPrepareMaterials, view);
+    const std::vector<const DrawItem*> visible = prepareView(items, kPrepareMaterials, view).items;
     REQUIRE(visible.size() == 2);
     CHECK(visible[0] == &items[2]);
     CHECK(visible[1] == &items[0]);
@@ -201,9 +201,11 @@ TEST_CASE("Prepare: opaque by pipeline and material, nearest first in a group, t
     };
     const ViewData view{.camera = lookingDownMinusZ()};
 
-    const std::vector<const DrawItem*> visible = prepareView(items, kPrepareMaterials, view);
+    const PreparedView prepared = prepareView(items, kPrepareMaterials, view);
     const std::vector<const DrawItem*> expected{&items[5], &items[3], &items[4], &items[1], &items[2], &items[0]};
-    CHECK(visible == expected);
+    CHECK(prepared.items == expected);
+    // Четыре непрозрачных, за ними небо, потом два прозрачных.
+    CHECK(prepared.opaqueCount == 4);
 }
 
 TEST_CASE("Prepare: bounds follow the transform")

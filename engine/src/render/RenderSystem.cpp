@@ -1,11 +1,11 @@
 #include "yqlora/render/RenderSystem.hpp"
 
 #include "yqlora/render/Camera3D.hpp"
+#include "yqlora/render/Environment.hpp"
 #include "yqlora/render/Light3D.hpp"
 
 #include <algorithm>
 #include <limits>
-#include <utility>
 
 namespace yqlora {
 
@@ -37,9 +37,22 @@ std::vector<const Light3D*> RenderSystem::lights() const
     return result;
 }
 
-bool RenderSystem::takeLightLimitReport() const
+const Environment* RenderSystem::environment() const
 {
-    return !std::exchange(m_lightLimitReported, true);
+    const auto found = std::ranges::find_if(m_environments, [](const Environment* environment) {
+        return environment->activeInHierarchy();
+    });
+
+    return found != m_environments.end() ? *found : nullptr;
+}
+
+bool RenderSystem::takeReport(RenderReport report) const
+{
+    const auto index = static_cast<std::size_t>(report);
+    const bool first = !m_reported.test(index);
+    m_reported.set(index);
+
+    return first;
 }
 
 std::optional<int> orderToBecomeMain(const RenderSystem& render, const Camera3D& camera)
@@ -70,6 +83,16 @@ void RenderSystem::addLight(const Light3D& light)
 void RenderSystem::removeLight(const Light3D& light)
 {
     std::erase(m_lights, &light);
+}
+
+void RenderSystem::addEnvironment(const Environment& environment)
+{
+    m_environments.push_back(&environment);
+}
+
+void RenderSystem::removeEnvironment(const Environment& environment)
+{
+    std::erase(m_environments, &environment);
 }
 
 } // namespace yqlora

@@ -54,9 +54,10 @@ TEST_CASE("PropertyValues: copied text pastes into a property of the same kind")
     const Property& fov = propertyOf(registry, cameraType, "fov");
     const Property& name = propertyOf(registry, cameraType, "name");
 
-    const std::string text = valueToText(clear, EnumValue{1});
+    const auto depthOnly = EnumValue{static_cast<int>(CameraClear::DepthOnly)};
+    const std::string text = valueToText(clear, depthOnly);
     CHECK(text == "\"DepthOnly\"");
-    CHECK(valueFromText(clear, text) == PropertyValue{EnumValue{1}});
+    CHECK(valueFromText(clear, text) == PropertyValue{depthOnly});
     CHECK_FALSE(valueFromText(fov, text));
     CHECK(valueFromText(fov, "2.5") == PropertyValue{2.5f});
 

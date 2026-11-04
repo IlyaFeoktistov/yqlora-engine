@@ -1,11 +1,13 @@
 #include "yqlora/render/SceneRenderer.hpp"
 
+#include "yqlora/render/AtmospherePass.hpp"
 #include "yqlora/render/EngineUniforms.hpp"
 #include "yqlora/render/FrameFormats.hpp"
 #include "yqlora/render/MeshPass.hpp"
 #include "yqlora/render/OutputPass.hpp"
 #include "yqlora/render/Prepare.hpp"
 #include "yqlora/render/RenderGraph.hpp"
+#include "yqlora/render/SkyPass.hpp"
 #include "yqlora/render/UniformRing.hpp"
 #include "yqlora/render/ViewPass.hpp"
 
@@ -20,10 +22,13 @@ namespace {
 // Кадр без единого вида (в сцене нет активной камеры).
 const Vec4 kNoViewColor(0.0f, 0.0f, 0.0f, 1.0f);
 
+// Sky стирает цвет в чёрный: небо закрасит то, что останется пустым.
 rhi::LoadOp colorLoad(CameraClear clear)
 {
-    return clear == CameraClear::ColorAndDepth ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
+    return clear == CameraClear::ColorAndDepth || clear == CameraClear::Sky ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
 }
+
+const Vec4 kSkyClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 rhi::LoadOp depthLoad(CameraClear clear)
 {
@@ -35,6 +40,7 @@ rhi::LoadOp depthLoad(CameraClear clear)
 SceneRenderer::SceneRenderer(const RenderContext& context, TransientTextures& transients)
     : m_context(context)
     , m_transients(transients)
+    , m_atmosphere(std::make_unique<AtmospherePass>(context))
     , m_meshPass(std::make_unique<MeshPass>(context))
     , m_outputPass(std::make_unique<OutputPass>(context))
 {
@@ -72,14 +78,20 @@ void SceneRenderer::draw(
         .format = kHdrColorFormat,
         .usage = rhi::kColorTarget | rhi::kSampled,
     });
-    const UniformSlice frameUniforms = m_context.uniforms.push(yqlora::frameUniforms(frame));
+    const AtmosphereUniforms atmosphere = atmosphereUniforms(frame.environment.atmosphere);
+    const EngineResources frameResources{
+        .frame = m_context.uniforms.push(frameUniforms(frame)),
+        .atmosphere = m_context.uniforms.push(atmosphere),
+        .lutSampler = &m_atmosphere->lutSampler(),
+    };
+    const AtmospherePass::FrameLuts frameLuts = m_atmosphere->addFrame(graph, atmosphere, frameResources);
     // Списки видимого живут до execute: на них ссылаются записанные проходы.
-    std::vector<std::vector<const DrawItem*>> visible(frame.views.size());
+    std::vector<PreparedView> prepared(frame.views.size());
     std::vector<UniformSlice> viewUniforms(frame.views.size());
     // Виды по очереди: следующая камера рисует поверх предыдущей.
     for (std::size_t i = 0; i < frame.views.size(); ++i) {
         const ViewData& view = frame.views[i];
-        visible[i] = prepareView(frame.drawItems, frame.materials, view);
+        prepared[i] = prepareView(frame.drawItems, frame.materials, view);
         const Mat4 viewProjection = view.camera.projection * view.camera.view;
         viewUniforms[i] = m_context.uniforms.push(
             ViewUniforms{
@@ -89,21 +101,32 @@ void SceneRenderer::draw(
                 .exposure = view.exposure.factor,
             }
         );
+        EngineResources viewResources = frameResources;
+        viewResources.view = viewUniforms[i];
+        const AtmospherePass::ViewLuts luts = m_atmosphere->addView(graph, atmosphere, viewResources, frameLuts);
         graph.addPass({
             .name = "view " + std::to_string(i),
             .color = {hdrId, colorLoad(view.clear)},
             .depth = RenderGraph::Target{depthId, depthLoad(view.clear)},
-            .clearColor = view.background,
-            .record = [this,
-                       &frame,
-                       items = std::span<const DrawItem* const>(visible[i]),
-                       frameUniforms,
-                       slice = viewUniforms[i]](rhi::CommandList& commands, const RenderGraph&) {
-                m_meshPass->draw(commands, frame, items, frameUniforms, slice);
+            .clearColor = view.clear == CameraClear::Sky ? kSkyClearColor : view.background,
+            .reads = {frameLuts.transmittance, luts.skyView, luts.aerialPerspective},
+            .record = [this, &frame, &view, &items = prepared[i], viewResources, frameLuts, luts](
+                          rhi::CommandList& commands,
+                          const RenderGraph& passes
+                      ) {
+                EngineResources resources = viewResources;
+                resources.transmittance = &passes.texture(frameLuts.transmittance);
+                resources.skyView = &passes.texture(luts.skyView);
+                resources.aerialPerspective = &passes.texture(luts.aerialPerspective);
+                const std::span<const DrawItem* const> all(items.items);
+                m_meshPass->draw(commands, frame, all.first(items.opaqueCount), resources);
+                if (view.clear == CameraClear::Sky) {
+                    drawSky(commands, m_context, frame, resources);
+                }
+                m_meshPass->draw(commands, frame, all.subspan(items.opaqueCount), resources);
             },
         });
     }
-    // Все виды кадра в одной HDR-цели, поэтому компрессия одна: главной камеры.
     m_outputPass->addTo(graph, hdrId, colorId, frame.views.front().exposure.toneMapping);
     // Проходы владельцев видов рисуют поверх итогового кадра, в sRGB, и
     // проверяют глубину сцены. В кадре из нескольких видов глубина - уже
@@ -114,7 +137,7 @@ void SceneRenderer::draw(
         const ViewPassInput input{
             .frame = frame,
             .view = view,
-            .visible = visible[i],
+            .visible = prepared[i].items,
             .viewUniforms = viewUniforms[i],
             .color = colorId,
             .depth = depthId,

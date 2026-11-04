@@ -201,21 +201,21 @@ TEST_CASE("PipelineCache: one pipeline per state, a new shader revision gets new
         .shaderRevision = standard.revision,
         .shader = standard.data,
     };
-    const rhi::Pipeline* first = pipelines.get(material, kHdrColorFormat, kDepthFormat);
+    const rhi::Pipeline* first = pipelines.get(material, MaterialPass::Surface, kHdrColorFormat, kDepthFormat);
     REQUIRE(first);
-    CHECK(pipelines.get(material, kHdrColorFormat, kDepthFormat) == first);
+    CHECK(pipelines.get(material, MaterialPass::Surface, kHdrColorFormat, kDepthFormat) == first);
     // Другой материал с тем же состоянием - тот же конвейер.
     FrameMaterial other = material;
     other.id = 2;
-    CHECK(pipelines.get(other, kHdrColorFormat, kDepthFormat) == first);
+    CHECK(pipelines.get(other, MaterialPass::Surface, kHdrColorFormat, kDepthFormat) == first);
     other.data = &transparent;
-    const rhi::Pipeline* blended = pipelines.get(other, kHdrColorFormat, kDepthFormat);
+    const rhi::Pipeline* blended = pipelines.get(other, MaterialPass::Surface, kHdrColorFormat, kDepthFormat);
     CHECK(blended != first);
     CHECK_FALSE(blended->desc().depthWrite);
     CHECK(pipelines.size() == 2);
 
     material.shaderRevision += 1;
-    CHECK(pipelines.get(material, kHdrColorFormat, kDepthFormat) != nullptr);
+    CHECK(pipelines.get(material, MaterialPass::Surface, kHdrColorFormat, kDepthFormat) != nullptr);
     CHECK(pipelines.size() == 1);
 }
 

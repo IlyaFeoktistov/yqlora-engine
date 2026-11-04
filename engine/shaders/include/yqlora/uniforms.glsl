@@ -26,8 +26,12 @@ struct PunctualLight {
 };
 
 layout(set = 0, binding = 0, std140) uniform Frame {
-    // Окружающий свет: яркость в нитах.
-    vec3 ambient;
+    // Куда идёт свет солнца, единичный; без солнца hasSun = 0. Солнце -
+    // directionalLights[0].
+    vec3 sunDirection;
+    int hasSun;
+    // Освещённость от солнца в люксах по каналам, до атмосферы.
+    vec3 sunColor;
     int directionalCount;
     int punctualCount;
     DirectionalLight directionalLights[YQLORA_MAX_DIRECTIONAL_LIGHTS];

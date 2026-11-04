@@ -5,8 +5,10 @@
 
 #include <yqlora/editor/ProjectFiles.hpp>
 #include <yqlora/import/ShaderLoader.hpp>
+#include <yqlora/material/MaterialData.hpp>
 #include <yqlora/project/Project.hpp>
 #include <yqlora/render/EngineUniforms.hpp>
+#include <yqlora/render/FrameMaterials.hpp>
 #include <yqlora/resource/BuiltinResources.hpp>
 #include <yqlora/resource/ResourceCache.hpp>
 #include <yqlora/resource/ResourceMeta.hpp>
@@ -213,6 +215,62 @@ TEST_CASE("ResourceCache: built-in shaders are there as resources")
     CHECK(standard->findField("roughness"));
     CHECK(cache.find<ShaderData>(builtin::kErrorShader));
     CHECK(cache.find<MeshData>(builtin::kStandardShader) == nullptr);
+}
+
+TEST_CASE("Shader data: a shader with sky.glsl is a sky shader with a capture variant")
+{
+    const ShaderDataResult sky = build(
+        "#version 450\n"
+        "#include <yqlora/sky.glsl>\n"
+        "layout(set = 2, binding = 0, std140) uniform Material {\n"
+        "    vec3 tint; //@ color default(1, 1, 1)\n"
+        "} material;\n"
+        "vec3 sky(vec3 direction) { return material.tint * max(direction.y, 0.0); }\n"
+    );
+    REQUIRE(sky.data);
+    CHECK(sky.data->kind == ShaderKind::Sky);
+    REQUIRE(sky.data->captureDesc);
+    CHECK_FALSE(sky.data->captureDesc->fragment.empty());
+    CHECK(sky.data->findField("tint"));
+    // Без вершинных входов: треугольник на весь экран строит сам шейдер.
+    CHECK(sky.data->desc.reflection.vertexInputs.empty());
+
+    const ShaderDataResult surface = build(shaderWith("    vec4 baseColor;\n    float roughness;\n"));
+    REQUIRE(surface.data);
+    CHECK(surface.data->kind == ShaderKind::Surface);
+    CHECK_FALSE(surface.data->captureDesc);
+}
+
+TEST_CASE("ResourceCache: built-in sky shaders and the default sky")
+{
+    ResourceCache cache;
+    for (const ResourceId id :
+         {builtin::kPhysicalSkyShader, builtin::kPanoramicSkyShader, builtin::kGradientSkyShader}) {
+        const ShaderData* shader = cache.find<ShaderData>(id);
+        REQUIRE(shader);
+        CHECK(shader->kind == ShaderKind::Sky);
+    }
+    const MaterialData* sky = cache.find<MaterialData>(builtin::kDefaultSkyMaterial);
+    REQUIRE(sky);
+    CHECK(sky->shader == builtin::kPhysicalSkyShader);
+}
+
+TEST_CASE("Frame materials: a sky material in a mesh slot draws with Error, a surface one is no sky")
+{
+    ResourceCache cache;
+    FrameData frame;
+    FrameMaterials materials(cache, frame);
+    const std::size_t slot = materials.surface(builtin::kDefaultSkyMaterial);
+    CHECK(frame.materials[slot].id == builtin::kErrorMaterial);
+    // Тот же материал в небе - сам по себе.
+    const std::optional<std::size_t> sky = materials.sky(builtin::kDefaultSkyMaterial);
+    REQUIRE(sky);
+    CHECK(frame.materials[*sky].id == builtin::kDefaultSkyMaterial);
+
+    bool misfit = false;
+    CHECK_FALSE(materials.sky(builtin::kDefaultMaterial, &misfit));
+    CHECK(misfit);
+    CHECK_FALSE(materials.sky(0));
 }
 
 TEST_CASE_FIXTURE(ProjectFixture, "ShaderLoader: one file gives both stages, the .meta keeps the profile version")

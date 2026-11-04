@@ -3,18 +3,21 @@
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineServices.hpp>
+#include <yqlora/editor/NewScene.hpp>
 #include <yqlora/input/Input.hpp>
 #include <yqlora/render/Camera3D.hpp>
 #include <yqlora/render/DirectionalLight3D.hpp>
 #include <yqlora/render/EngineUniforms.hpp>
+#include <yqlora/render/Environment.hpp>
 #include <yqlora/render/FrameBuilder.hpp>
 #include <yqlora/render/FrameExtract.hpp>
-#include <yqlora/render/LightingSettings.hpp>
 #include <yqlora/render/PointLight3D.hpp>
 #include <yqlora/render/RenderSystem.hpp>
 #include <yqlora/render/SpotLight3D.hpp>
+#include <yqlora/resource/BuiltinResources.hpp>
 #include <yqlora/scene/Scene.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -76,8 +79,62 @@ TEST_CASE_FIXTURE(Fixture, "Extract: lights of the scene in the world, inactive 
     CHECK(math::nearlyEqual(point.position, Vec3(1.0f, 2.0f, 3.0f)));
     CHECK(point.range == doctest::Approx(4.0f));
 
-    // Окружающий свет без проекта - из настроек по умолчанию.
-    CHECK(math::nearlyEqual(frame.environment.ambient, LightingSettings{}.linearAmbient()));
+    // Без узла Environment - ни неба, ни атмосферы.
+    CHECK_FALSE(frame.environment.sky);
+    CHECK_FALSE(frame.environment.atmosphere.enabled);
+}
+
+TEST_CASE_FIXTURE(Fixture, "Extract: the flagged directional light is the sun, without a flag the brightest")
+{
+    auto& root = scene.createRoot<Node3D>();
+    auto& dim = root.addChild<DirectionalLight3D>("Dim");
+    dim.setIntensity(10.0f);
+    auto& bright = root.addChild<DirectionalLight3D>("Bright");
+    bright.setIntensity(1000.0f);
+    root.addChild<PointLight3D>("Lamp");
+
+    const auto sunOf = [&] {
+        const FrameData frame = extractFrame(scene, kAspect);
+        REQUIRE(frame.lights.size() >= 2);
+        // Солнце - первым, и оно одно.
+        CHECK(frame.lights[0].sun);
+        CHECK(std::ranges::count_if(frame.lights, &LightData::sun) == 1);
+        const FrameUniforms uniforms = frameUniforms(frame);
+        CHECK(uniforms.hasSun == 1);
+        CHECK(uniforms.sunColor == frame.lights[0].color);
+
+        return frame.lights[0].color.r;
+    };
+    CHECK(sunOf() == doctest::Approx(1000.0f));
+    dim.setSun(true);
+    CHECK(sunOf() == doctest::Approx(10.0f));
+    dim.setActive(false);
+    CHECK(sunOf() == doctest::Approx(1000.0f));
+}
+
+TEST_CASE_FIXTURE(Fixture, "Extract: the first active environment gives the sky and the atmosphere")
+{
+    auto& root = scene.createRoot<Node3D>();
+    auto& off = root.addChild<Environment>("Off");
+    off.setActive(false);
+    auto& environment = root.addChild<Environment>("Environment");
+    environment.atmosphere.mieAnisotropy = 0.5f;
+
+    FrameData frame = extractFrame(scene, kAspect);
+    REQUIRE(frame.environment.sky);
+    const FrameMaterial& sky = frame.materials[*frame.environment.sky];
+    CHECK(sky.id == builtin::kDefaultSkyMaterial);
+    CHECK(sky.shader->kind == ShaderKind::Sky);
+    CHECK(frame.environment.atmosphere.enabled);
+    CHECK(frame.environment.atmosphere.mieAnisotropy == 0.5f);
+
+    // Материал не неба в небе пропускается, и об этом один раз сказано.
+    environment.sky = ResourceRef{builtin::kDefaultMaterial};
+    frame = extractFrame(scene, kAspect);
+    CHECK_FALSE(frame.environment.sky);
+    CHECK_FALSE(scene.system<RenderSystem>()->takeReport(RenderReport::SkyMaterial));
+    environment.sky = {};
+    CHECK_FALSE(extractFrame(scene, kAspect).environment.sky);
 }
 
 TEST_CASE_FIXTURE(Fixture, "Extract: a spot light has its range and the cosines of its cone")
@@ -124,13 +181,12 @@ TEST_CASE_FIXTURE(Fixture, "Extract: past the limits the nearest point lights to
     // Два самых дальних (100 и 99) отброшены.
     CHECK(farthest == doctest::Approx(98.0f));
     // Сообщение о лишних - один раз на сцену.
-    CHECK_FALSE(scene.system<RenderSystem>()->takeLightLimitReport());
+    CHECK_FALSE(scene.system<RenderSystem>()->takeReport(RenderReport::LightLimit));
 }
 
 TEST_CASE("Frame block: lights by kind, a spot cone is 1 inside and 0 outside")
 {
     FrameData frame;
-    frame.environment.ambient = Vec3(0.1f);
     frame.lights.push_back({.kind = LightKind::Directional, .color = Vec3(1.0f)});
     frame.lights.push_back({.kind = LightKind::Point, .range = 5.0f});
     LightData spot{.kind = LightKind::Spot, .range = 5.0f};
@@ -139,7 +195,7 @@ TEST_CASE("Frame block: lights by kind, a spot cone is 1 inside and 0 outside")
     frame.lights.push_back(spot);
 
     const FrameUniforms uniforms = frameUniforms(frame);
-    CHECK(uniforms.ambient == Vec3(0.1f));
+    CHECK(uniforms.hasSun == 0);
     CHECK(uniforms.directionalCount == 1);
     REQUIRE(uniforms.punctualCount == 2);
     // У точечного конуса нет: множитель всегда 1.
@@ -151,4 +207,20 @@ TEST_CASE("Frame block: lights by kind, a spot cone is 1 inside and 0 outside")
     };
     CHECK(factor(spot.cosInner) == doctest::Approx(1.0f));
     CHECK(factor(spot.cosOuter) == doctest::Approx(0.0f));
+}
+
+TEST_CASE_FIXTURE(Fixture, "New scene: a camera with the sky, the sun and an environment")
+{
+    editor::buildNewScene(scene, "Scene");
+    const RenderSystem& render = *scene.system<RenderSystem>();
+    REQUIRE(render.mainCamera());
+    CHECK(render.mainCamera()->clear() == CameraClear::Sky);
+    REQUIRE(render.environment());
+    CHECK(render.environment()->sky.id == builtin::kDefaultSkyMaterial);
+
+    const FrameData frame = extractFrame(scene, kAspect);
+    REQUIRE_FALSE(frame.lights.empty());
+    CHECK(frame.lights[0].sun);
+    CHECK(frame.environment.sky);
+    CHECK(frame.environment.atmosphere.enabled);
 }

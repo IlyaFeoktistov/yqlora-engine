@@ -16,6 +16,8 @@ namespace yqlora {
 // .yshader отличается от другой (#ifdef YQLORA_VERTEX).
 inline constexpr char kVertexStageDefine[] = "YQLORA_VERTEX";
 inline constexpr char kFragmentStageDefine[] = "YQLORA_FRAGMENT";
+// Вариант шейдера неба для захвата неба в освещение (см. sky.glsl).
+inline constexpr char kSkyCaptureDefine[] = "YQLORA_SKY_CAPTURE";
 
 struct ShaderBuildRequest {
     std::string name{};

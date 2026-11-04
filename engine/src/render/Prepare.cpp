@@ -58,7 +58,7 @@ Bounds transformBounds(const Bounds& bounds, const Mat4& matrix)
     return {newCenter - newExtent, newCenter + newExtent};
 }
 
-std::vector<const DrawItem*> prepareView(
+PreparedView prepareView(
     std::span<const DrawItem> items,
     std::span<const FrameMaterial> materials,
     const ViewData& view
@@ -99,13 +99,13 @@ std::vector<const DrawItem*> prepareView(
     // равном расстоянии порядок кадра, картинка не мерцает.
     std::ranges::stable_sort(transparent, std::ranges::greater{}, &Visible::distance);
 
-    std::vector<const DrawItem*> result;
-    result.reserve(opaque.size() + transparent.size());
+    PreparedView result{.opaqueCount = opaque.size()};
+    result.items.reserve(opaque.size() + transparent.size());
     for (const Visible& visible : opaque) {
-        result.push_back(visible.item);
+        result.items.push_back(visible.item);
     }
     for (const Visible& visible : transparent) {
-        result.push_back(visible.item);
+        result.items.push_back(visible.item);
     }
 
     return result;

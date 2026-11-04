@@ -15,13 +15,24 @@ target_compile_definitions(yqlora_engine_code INTERFACE
 
 # Шейдеры движка лежат файлами в shaders/ и вшиваются в библиотеку при сборке.
 set(YQLORA_ENGINE_SHADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/atmosphere.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/exposure.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/lighting.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/output.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/sky.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/standard.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/uniforms.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/vertex.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/standard.yshader
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/error.yshader
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/physical_sky.yshader
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/panoramic_sky.yshader
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/gradient_sky.yshader
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/atmosphere/march.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/atmosphere/transmittance.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/atmosphere/multiple_scattering.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/atmosphere/sky_view.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/atmosphere/aerial_perspective.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/output.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fullscreen.vert
 )
@@ -115,22 +126,27 @@ add_library(yqlora SHARED
     src/reflection/TypeBuilder.cpp
     src/reflection/TypeInfo.cpp
     src/reflection/TypeRegistry.cpp
+    src/render/AtmospherePass.cpp
     src/render/Camera3D.cpp
     src/render/DirectionalLight3D.cpp
     src/render/Light3D.cpp
-    src/render/LightingSettings.cpp
+    src/render/Environment.cpp
     src/render/OutputPass.cpp
     src/render/PointLight3D.cpp
+    src/render/EngineBindings.cpp
     src/render/EngineUniforms.cpp
+    src/render/SkyPass.cpp
     src/render/SpotLight3D.cpp
     src/render/ExtractDrawItems.cpp
     src/render/ExtractEnvironment.cpp
     src/render/ExtractLights.cpp
     src/render/ExtractViews.cpp
     src/render/FrameBuilder.cpp
+    src/render/FrameMaterials.cpp
     src/render/GpuMaterial.cpp
     src/render/GpuMesh.cpp
     src/render/GpuTexture.cpp
+    src/render/MaterialBinding.cpp
     src/render/MaterialBlock.cpp
     src/render/PipelineCache.cpp
     src/render/GraphicsBackend.cpp
@@ -140,6 +156,7 @@ add_library(yqlora SHARED
     src/render/Renderer.cpp
     src/render/RenderTarget.cpp
     src/render/SceneRenderer.cpp
+    src/render/TextureData.cpp
     src/render/TextureSampler.cpp
     src/render/GraphicsSettings.cpp
     src/render/BuiltinMeshes.cpp

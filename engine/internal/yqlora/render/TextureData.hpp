@@ -1,5 +1,6 @@
 #pragma once
 
+#include "yqlora/core/Export.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/resource/ResourceKinds.hpp"
 #include <cstdint>
@@ -37,16 +38,31 @@ struct TextureSampling {
     bool operator==(const TextureSampling&) const = default;
 };
 
-// Картинка на стороне CPU: RGBA по байту на канал, строки сверху вниз.
-// Так же, как uv0 в glTF: (0, 0) - левый верхний угол.
+// Как лежат пиксели TextureData.
+enum class PixelFormat {
+    // По байту на канал; цвет или данные, см. ColorSpace.
+    Rgba8,
+    // Половинные float по каналу, линейные: HDR-картинки (.hdr), яркость
+    // может быть больше 1.
+    Rgba16Float,
+};
+
+// Картинка на стороне CPU: RGBA, строки сверху вниз. Так же, как uv0 в
+// glTF: (0, 0) - левый верхний угол.
 struct TextureData {
     static constexpr std::string_view kResourceKind = kinds::kTexture;
 
     int width = 0;
     int height = 0;
+    PixelFormat format = PixelFormat::Rgba8;
+    // Плотно, без выравнивания строк, в формате format.
     std::vector<std::uint8_t> pixels{};
     TextureSampling sampling{};
 };
+
+// Пиксели для показа человеку (превью, иконка окна): RGBA8 в sRGB. HDR
+// обрезается до 1 и кодируется в sRGB; 8-битные отдаются как есть.
+YQLORA_API std::vector<std::uint8_t> displayPixels(const TextureData& texture);
 
 } // namespace yqlora
 

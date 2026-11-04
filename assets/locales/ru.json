@@ -39,6 +39,9 @@
         "RenderSystem": {
             "description": "Хранит камеры сцены и порядок их отрисовки; первая - главная камера."
         },
+        "Environment": {
+            "description": "Небо, окружающий свет и атмосфера сцены. Работает первое активное окружение."
+        },
         "MeshRenderer": {
             "description": "Рисует меш в положении узла Node3D."
         },
@@ -62,9 +65,6 @@
         },
         "GraphicsSettings": {
             "description": "Графический API для каждой системы и vsync. Смена API пересоздаёт только рендер, без перезапуска."
-        },
-        "LightingSettings": {
-            "description": "Окружающий свет сцены: цвет и интенсивность рассеянного света со всех сторон."
         },
         "ScriptsSettings": {
             "description": "Сборка модуля игры из папки scripts/: Debug или Release."
@@ -248,7 +248,6 @@
             "clearLayer": "Убрать имя",
             "ExecutionOrderSettings": "Порядок выполнения",
             "GraphicsSettings": "Графика",
-            "LightingSettings": "Освещение",
             "ScriptsSettings": "Скрипты",
             "InputSettings": "Ввод"
         },

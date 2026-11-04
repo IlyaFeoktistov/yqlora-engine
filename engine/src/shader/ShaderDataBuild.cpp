@@ -1,5 +1,6 @@
 #include "yqlora/shader/ShaderDataBuild.hpp"
 
+#include "yqlora/shader/EngineShaders.hpp"
 #include "yqlora/shader/MaterialAnnotations.hpp"
 #include "yqlora/shader/ShaderAnnotations.hpp"
 #include "yqlora/shader/ShaderBuild.hpp"
@@ -67,6 +68,21 @@ ShaderDataResult buildShaderData(
     }
 
     ShaderData data;
+    if (std::ranges::find(result.includes, engineShaderPath(kSkyShaderInclude)) != result.includes.end()) {
+        data.kind = ShaderKind::Sky;
+        ShaderBuildResult capture = buildShader(
+            compiler,
+            {
+                .name = built.desc->name,
+                .vertexPath = path,
+                .fragmentPath = path,
+                .defines = {{.name = kSkyCaptureDefine}},
+                .layouts = layouts,
+            }
+        );
+        result.errors.insert(result.errors.end(), capture.errors.begin(), capture.errors.end());
+        data.captureDesc = std::move(capture.desc);
+    }
     std::vector<std::string> materialErrors;
     collectMaterial(built.desc->reflection, data, materialErrors);
     for (std::string& text : materialErrors) {

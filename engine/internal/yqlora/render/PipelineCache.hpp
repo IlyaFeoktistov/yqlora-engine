@@ -14,6 +14,13 @@
 
 namespace yqlora {
 
+// Чем рисует материал: подмеш (вершины меша, смешивание и отсечение из
+// материала) или небо (треугольник на весь экран на дальней плоскости).
+enum class MaterialPass : std::uint8_t {
+    Surface,
+    Sky,
+};
+
 // Конвейеры материалов: по шейдеру и его ревизии, смешиванию, отсечению и
 // форматам цели - один конвейер на состояние. Шейдер в видеопамяти - один на
 // ревизию; новая ревизия даёт новые конвейеры, старые освобождаются по
@@ -25,7 +32,7 @@ public:
 
     // nullptr, если бэкенд не собрал шейдер (сообщение в логе один раз на
     // ревизию): тогда рисуется материал Error.
-    const rhi::Pipeline* get(const FrameMaterial& material, rhi::Format color, rhi::Format depth);
+    const rhi::Pipeline* get(const FrameMaterial& material, MaterialPass pass, rhi::Format color, rhi::Format depth);
 
     void endFrame();
 
@@ -35,7 +42,8 @@ public:
     }
 
 private:
-    using Key = std::tuple<ResourceId, std::uint64_t, MaterialBlend, MaterialCull, rhi::Format, rhi::Format>;
+    using Key = std::
+        tuple<ResourceId, std::uint64_t, MaterialPass, MaterialBlend, MaterialCull, rhi::Format, rhi::Format>;
 
     struct Entry {
         std::unique_ptr<rhi::Pipeline> pipeline;

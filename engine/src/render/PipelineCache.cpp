@@ -20,7 +20,39 @@ PipelineCache::~PipelineCache()
     m_pipelines.clear();
 }
 
-const rhi::Pipeline* PipelineCache::get(const FrameMaterial& material, rhi::Format color, rhi::Format depth)
+namespace {
+
+// Состояние конвейера по проходу и материалу.
+rhi::PipelineDesc pipelineDesc(const FrameMaterial& material, MaterialPass pass)
+{
+    if (pass == MaterialPass::Sky) {
+        // Небо на глубине 1: проходит там, где после очистки ничего не нарисовано.
+        return {
+            .depthTest = true,
+            .depthWrite = false,
+            .depthCompare = rhi::CompareOp::LessEqual,
+            .cull = rhi::CullMode::None,
+        };
+    }
+    const bool transparent = material.data->blend == MaterialBlend::Transparent;
+
+    return {
+        .vertexLayout = meshVertexLayout(),
+        .depthTest = true,
+        .depthWrite = !transparent,
+        .cull = material.data->cull == MaterialCull::Back ? rhi::CullMode::Back : rhi::CullMode::None,
+        .blend = transparent ? rhi::BlendMode::Alpha : rhi::BlendMode::Opaque,
+    };
+}
+
+} // namespace
+
+const rhi::Pipeline* PipelineCache::get(
+    const FrameMaterial& material,
+    MaterialPass pass,
+    rhi::Format color,
+    rhi::Format depth
+)
 {
     std::unique_ptr<rhi::Shader>& shader = m_shaders.get(material.shaderId, material.shaderRevision, [&] {
         // Прежняя ревизия шейдера сейчас уйдёт: её конвейеры - раньше неё.
@@ -43,20 +75,22 @@ const rhi::Pipeline* PipelineCache::get(const FrameMaterial& material, rhi::Form
     if (!shader) {
         return nullptr;
     }
-    const Key key{material.shaderId, material.shaderRevision, material.data->blend, material.data->cull, color, depth};
+    const Key key{
+        material.shaderId,
+        material.shaderRevision,
+        pass,
+        material.data->blend,
+        material.data->cull,
+        color,
+        depth,
+    };
     Entry& entry = m_pipelines[key];
     if (!entry.pipeline) {
-        const bool transparent = material.data->blend == MaterialBlend::Transparent;
-        entry.pipeline = m_device.createPipeline({
-            .shader = shader.get(),
-            .vertexLayout = meshVertexLayout(),
-            .depthTest = true,
-            .depthWrite = !transparent,
-            .cull = material.data->cull == MaterialCull::Back ? rhi::CullMode::Back : rhi::CullMode::None,
-            .blend = transparent ? rhi::BlendMode::Alpha : rhi::BlendMode::Opaque,
-            .colorFormat = color,
-            .depthFormat = depth,
-        });
+        rhi::PipelineDesc desc = pipelineDesc(material, pass);
+        desc.shader = shader.get();
+        desc.colorFormat = color;
+        desc.depthFormat = depth;
+        entry.pipeline = m_device.createPipeline(std::move(desc));
     }
     entry.lastUsedFrame = m_frame;
 

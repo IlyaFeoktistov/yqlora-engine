@@ -12,6 +12,7 @@
 #include <yqlora/platform/Window.hpp>
 #include <yqlora/render/EngineUniforms.hpp>
 #include <yqlora/render/FrameFormats.hpp>
+#include <yqlora/render/FrameMaterials.hpp>
 #include <yqlora/render/GraphicsBackend.hpp>
 #include <yqlora/render/MeshData.hpp>
 #include <yqlora/render/OutputPass.hpp>
@@ -22,6 +23,8 @@
 #include <yqlora/render/TextureData.hpp>
 #include <yqlora/render/ToneMapping.hpp>
 #include <yqlora/render/ViewPass.hpp>
+#include <yqlora/resource/BuiltinResources.hpp>
+#include <yqlora/resource/ResourceCache.hpp>
 #include <yqlora/shader/EngineShaders.hpp>
 #include <yqlora/shader/ShaderBuild.hpp>
 
@@ -669,4 +672,175 @@ TEST_CASE("OpenGL: depth compare LessEqual draws on the far plane, Less does not
     };
     CHECK_FALSE(drawn(rhi::CompareOp::Less));
     CHECK(drawn(rhi::CompareOp::LessEqual));
+}
+
+namespace {
+
+// Солнце в 100000 лк, к которому направление toSun.
+LightData sunTowards(const Vec3& toSun)
+{
+    constexpr float kSunLux = 100000.0f;
+
+    return {.kind = LightKind::Directional, .direction = -glm::normalize(toSun), .color = Vec3(kSunLux), .sun = true};
+}
+
+// Направление к солнцу на высоте elevation (градусы) над горизонтом, по
+// азимуту along (единичный вектор в плоскости земли).
+Vec3 sunAt(float elevationDegrees, const Vec3& along)
+{
+    const float elevation = glm::radians(elevationDegrees);
+
+    return along * std::cos(elevation) + Vec3(0.0f, std::sin(elevation), 0.0f);
+}
+
+// Кадр с окружением: небо Default Sky и атмосфера Земли; камера на высоте
+// человека смотрит вдоль -Z, без компрессии, с экспозицией exposure.
+struct SkyFrame {
+    ResourceCache cache;
+    test::TestMaterials materials;
+    FrameData frame;
+
+    SkyFrame(const Vec3& toSun, float exposure, float far = 100.0f)
+    {
+        constexpr float kEyeHeight = 1.7f;
+        const Vec3 eye(0.0f, kEyeHeight, 0.0f);
+        frame.views.push_back({
+            .camera =
+                {
+                    .view = glm::lookAt(eye, eye + Vec3(0.0f, 0.0f, -1.0f), Vec3(0.0f, 1.0f, 0.0f)),
+                    .projection = math::perspective(glm::radians(60.0f), 1.0f, 0.1f, far),
+                    .position = eye,
+                },
+            .clear = CameraClear::Sky,
+            .exposure = {.factor = exposure},
+        });
+        FrameMaterials frameMaterials(cache, frame);
+        frame.environment = {.sky = frameMaterials.sky(builtin::kDefaultSkyMaterial), .atmosphere = Atmosphere{}};
+        frame.lights = {sunTowards(toSun)};
+    }
+
+    // Куб материала material в мире world (с его границами).
+    void addCube(const Mat4& world, std::size_t material)
+    {
+        static const MeshData cube = makeCube();
+        frame.drawItems.push_back({
+            .mesh = &cube,
+            .meshId = 1,
+            .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
+            .world = world,
+            .bounds = transformBounds(cube.bounds, world),
+            .material = material,
+        });
+    }
+
+    std::vector<std::byte> render(Renderer& renderer)
+    {
+        auto target = renderer.createRenderTarget(kSize, kSize);
+        renderer.render(frame, *target);
+
+        return renderer.device().readPixels(target->color());
+    }
+};
+
+// Линейный цвет пикселя.
+Vec3 linearPixel(const std::vector<std::byte>& pixels, int x, int y)
+{
+    const Pixel pixel = pixelAt(pixels, x, y, kSize);
+
+    return {linearOf(pixel[0]), linearOf(pixel[1]), linearOf(pixel[2])};
+}
+
+// Экспозиция, при которой голубое небо днём (несколько тысяч нит) выходит в
+// середину диапазона.
+constexpr float kDaylightExposure = 1.0f / 20000.0f;
+
+} // namespace
+
+TEST_CASE("OpenGL: a Sky camera draws the sky only where there are no objects")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    SkyFrame sky(sunAt(60.0f, Vec3(0.0f, 0.0f, 1.0f)), kDaylightExposure);
+    const std::size_t red = sky.materials.add(sky.frame, Vec4(1.0f, 0.0f, 0.0f, 1.0f));
+    sky.addCube(glm::translate(Mat4(1.0f), Vec3(0.0f, 1.7f, -3.0f)), red);
+    const std::vector<std::byte> pixels = sky.render(*gl->renderer);
+
+    // Посередине - куб, вверху - голубое небо.
+    const Vec3 cube = linearPixel(pixels, kSize / 2, kSize / 2);
+    CHECK(cube.r > cube.b * 4.0f);
+    const Vec3 zenith = linearPixel(pixels, kSize / 2, 2);
+    CHECK(zenith.b > zenith.r * 1.5f);
+    CHECK(zenith.b > 0.02f);
+}
+
+TEST_CASE("OpenGL: the sky near the horizon is redder at sunset than at noon")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    // Солнце сбоку (по +X), вне кадра; пиксель чуть выше горизонта.
+    const auto redness = [&](float elevation) {
+        SkyFrame sky(sunAt(elevation, Vec3(1.0f, 0.0f, 0.0f)), kDaylightExposure * 4.0f);
+        const Vec3 color = linearPixel(sky.render(*gl->renderer), kSize / 2, kSize / 2 - 3);
+        REQUIRE(color.b > 0.0f);
+
+        return color.r / color.b;
+    };
+    CHECK(redness(2.0f) > redness(60.0f) * 1.5f);
+}
+
+TEST_CASE("OpenGL: at sunset the sun through the atmosphere is dimmer and redder")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    // Солнце низко за камерой: белый куб перед ней освещён почти в лоб.
+    const auto lit = [&](bool atmosphere) {
+        SkyFrame sky(sunAt(3.0f, Vec3(0.0f, 0.0f, 1.0f)), kDaylightExposure);
+        sky.frame.environment.atmosphere.enabled = atmosphere;
+        sky.addCube(glm::translate(Mat4(1.0f), Vec3(0.0f, 1.7f, -3.0f)), sky.materials.add(sky.frame));
+
+        return linearPixel(sky.render(*gl->renderer), kSize / 2, kSize / 2);
+    };
+    const Vec3 clear = lit(false);
+    const Vec3 sunset = lit(true);
+    CHECK(math::luminance(sunset) < math::luminance(clear) * 0.5f);
+    REQUIRE(sunset.b > 0.0f);
+    CHECK(sunset.r / sunset.b > clear.r / clear.b * 1.5f);
+}
+
+TEST_CASE("OpenGL: a far object is closer to the sky colour than a near one")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    constexpr float kFar = 100000.0f;
+    SkyFrame sky(sunAt(60.0f, Vec3(0.0f, 0.0f, 1.0f)), kDaylightExposure, kFar);
+    const std::size_t red = sky.materials.add(sky.frame, Vec4(1.0f, 0.0f, 0.0f, 1.0f));
+    // Ближний слева в 5 м, дальний справа в 20 км и большой, чтобы его было видно.
+    sky.addCube(glm::translate(Mat4(1.0f), Vec3(-1.5f, 1.7f, -5.0f)), red);
+    sky.addCube(glm::scale(glm::translate(Mat4(1.0f), Vec3(6000.0f, 1.7f, -20000.0f)), Vec3(3000.0f)), red);
+    const std::vector<std::byte> pixels = sky.render(*gl->renderer);
+    // Проекции центров: x / z = -0.3 и 0.3 при tg(30) = 0.577.
+    constexpr int kNearX = 15;
+    constexpr int kFarX = 48;
+    const Vec3 near = linearPixel(pixels, kNearX, kSize / 2);
+    const Vec3 far = linearPixel(pixels, kFarX, kSize / 2);
+    const Vec3 skyColor = linearPixel(pixels, kSize / 2, 2);
+    // Оттенок без яркости: доли каналов.
+    const auto hue = [](const Vec3& color) {
+        return color / std::max(color.r + color.g + color.b, 1e-6f);
+    };
+    const float nearToSky = glm::distance(hue(near), hue(skyColor));
+    const float farToSky = glm::distance(hue(far), hue(skyColor));
+    CHECK(farToSky < nearToSky * 0.9f);
+    // Без дымки они одного оттенка.
+    sky.frame.environment.atmosphere.aerialPerspective = 0.0f;
+    const std::vector<std::byte> clear = sky.render(*gl->renderer);
+    CHECK(glm::distance(hue(linearPixel(clear, kFarX, kSize / 2)), hue(linearPixel(clear, kNearX, kSize / 2))) < 0.05f);
 }

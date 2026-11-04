@@ -39,6 +39,9 @@
         "RenderSystem": {
             "description": "Keeps the cameras of the scene and their order of drawing; the first one is the main camera."
         },
+        "Environment": {
+            "description": "The sky, the ambient light and the atmosphere of the scene. The first active one works."
+        },
         "MeshRenderer": {
             "description": "Draws a mesh at the position of its Node3D."
         },
@@ -62,9 +65,6 @@
         },
         "GraphicsSettings": {
             "description": "Graphics API per system and vsync. Changing the API rebuilds only the renderer, no restart."
-        },
-        "LightingSettings": {
-            "description": "Ambient light of the scene: colour and intensity of diffuse light from all sides."
         },
         "ScriptsSettings": {
             "description": "Building the game module from the scripts/ folder: Debug or Release."
@@ -248,7 +248,6 @@
             "clearLayer": "Clear name",
             "ExecutionOrderSettings": "Execution Order",
             "GraphicsSettings": "Graphics",
-            "LightingSettings": "Lighting",
             "ScriptsSettings": "Scripts",
             "InputSettings": "Input"
         },

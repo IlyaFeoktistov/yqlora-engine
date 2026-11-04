@@ -3,6 +3,7 @@
 #include "yqlora/material/MaterialData.hpp"
 #include "yqlora/material/MaterialOverrides.hpp"
 #include "yqlora/math/Math.hpp"
+#include "yqlora/render/Atmosphere.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/Light3D.hpp"
 #include "yqlora/render/MeshData.hpp"
@@ -13,6 +14,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace yqlora {
@@ -38,6 +40,9 @@ struct ViewExposure {
 // Один вид кадра: камера, чем стереть перед ней и какие слои она рисует.
 struct ViewData {
     CameraData camera;
+    // Перед рисованием вид заливается цветом background. У видов камер
+    // сцены здесь стоит очистка камеры, а новая камера по умолчанию рисует
+    // за объектами небо (CameraClear::Sky).
     CameraClear clear = CameraClear::ColorAndDepth;
     // В линейном RGB, как и всё, что рисуется в HDR-цель.
     Vec4 background{0.0f, 0.0f, 0.0f, 1.0f};
@@ -115,13 +120,16 @@ struct LightData {
     // У прожектора: косинусы внутреннего и внешнего угла от оси.
     float cosInner = 1.0f;
     float cosOuter = 1.0f;
+    // Солнце сцены: направленный, первый в FrameData::lights.
+    bool sun = false;
 };
 
-// Окружение кадра: то, что освещает сцену помимо источников. С небом сюда
-// придут его материал и солнце.
+// Окружение кадра (узел Environment): небо и атмосфера. Без окружения -
+// ни неба, ни атмосферы.
 struct EnvironmentData {
-    // Окружающий свет: яркость в нитах (линейный цвет, умноженный на интенсивность).
-    Vec3 ambient{0.0f};
+    // Материал неба в FrameData::materials; nullopt - неба нет.
+    std::optional<std::size_t> sky{};
+    Atmosphere atmosphere{.enabled = false};
 };
 
 // Сколько источников шейдер видит за кадр (массивы блока Frame).

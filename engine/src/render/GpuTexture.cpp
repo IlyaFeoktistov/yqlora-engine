@@ -22,9 +22,13 @@ constexpr std::array<std::array<std::uint8_t, 4>, std::size(EnumNames<DefaultTex
 
 } // namespace
 
-rhi::Format gpuTextureFormat(const TextureSampling& sampling)
+rhi::Format gpuTextureFormat(const TextureData& texture)
 {
-    return sampling.colorSpace == ColorSpace::Srgb ? rhi::Format::Rgba8Srgb : rhi::Format::Rgba8;
+    if (texture.format == PixelFormat::Rgba16Float) {
+        return rhi::Format::Rgba16Float;
+    }
+
+    return texture.sampling.colorSpace == ColorSpace::Srgb ? rhi::Format::Rgba8Srgb : rhi::Format::Rgba8;
 }
 
 GpuTextureCache::GpuTextureCache(rhi::Device& device)
@@ -50,7 +54,7 @@ const rhi::Texture& GpuTextureCache::texture(const FrameTexture& texture)
         return m_device.createTexture(
             {.width = data.width,
              .height = data.height,
-             .format = gpuTextureFormat(data.sampling),
+             .format = gpuTextureFormat(data),
              .mipmaps = data.sampling.mipmaps},
             std::as_bytes(std::span(data.pixels))
         );

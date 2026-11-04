@@ -1,6 +1,7 @@
 #include "yqlora/render/FrameExtract.hpp"
 
 #include "yqlora/core/Log.hpp"
+#include "yqlora/render/DirectionalLight3D.hpp"
 #include "yqlora/render/RenderSystem.hpp"
 #include "yqlora/render/SpotLight3D.hpp"
 
@@ -34,15 +35,47 @@ LightData lightData(const Light3D& light)
     return data;
 }
 
+// Солнце - первый с флажком sun, без флажков - самый яркий; оно встаёт
+// первым среди направленных, чтобы его не отбросил предел кадра.
+void markSun(std::vector<LightData>& directional, const std::vector<const DirectionalLight3D*>& nodes)
+{
+    if (directional.empty()) {
+        return;
+    }
+    auto flagged = std::ranges::find_if(nodes, &DirectionalLight3D::sun);
+    std::size_t sun = 0;
+    if (flagged != nodes.end()) {
+        sun = static_cast<std::size_t>(flagged - nodes.begin());
+    } else {
+        const auto brightest = std::ranges::max_element(directional, {}, [](const LightData& light) {
+            return math::luminance(light.color);
+        });
+        sun = static_cast<std::size_t>(brightest - directional.begin());
+    }
+    directional[sun].sun = true;
+    std::rotate(
+        directional.begin(),
+        directional.begin() + static_cast<std::ptrdiff_t>(sun),
+        directional.begin() + static_cast<std::ptrdiff_t>(sun) + 1
+    );
+}
+
 } // namespace
 
 std::vector<LightData> extractLights(const RenderSystem& render, const Vec3& camera)
 {
     std::vector<LightData> directional;
+    std::vector<const DirectionalLight3D*> directionalNodes;
     std::vector<LightData> punctual;
     for (const Light3D* light : render.lights()) {
-        (light->kind() == LightKind::Directional ? directional : punctual).push_back(lightData(*light));
+        if (light->kind() == LightKind::Directional) {
+            directional.push_back(lightData(*light));
+            directionalNodes.push_back(static_cast<const DirectionalLight3D*>(light));
+        } else {
+            punctual.push_back(lightData(*light));
+        }
     }
+    markSun(directional, directionalNodes);
     const bool trimmed = directional.size() > kMaxDirectionalLights || punctual.size() > kMaxPunctualLights;
     if (punctual.size() > kMaxPunctualLights) {
         const auto distance = [&](const LightData& light) {
@@ -55,7 +88,7 @@ std::vector<LightData> extractLights(const RenderSystem& render, const Vec3& cam
         punctual.resize(kMaxPunctualLights);
     }
     directional.resize(std::min(directional.size(), kMaxDirectionalLights));
-    if (trimmed && render.takeLightLimitReport()) {
+    if (trimmed && render.takeReport(RenderReport::LightLimit)) {
         log::warn(
             "The scene has more lights than a frame takes ({} directional, {} point and spot): the nearest "
             "to the camera are kept",

@@ -37,8 +37,11 @@ struct alignas(16) PunctualLightUniforms {
 };
 
 struct alignas(16) FrameUniforms {
-    // Окружающий свет: яркость в нитах.
-    Vec3 ambient{0.0f};
+    // Куда идёт свет солнца; без солнца hasSun = 0. Солнце - directionalLights[0].
+    Vec3 sunDirection{0.0f, -1.0f, 0.0f};
+    int hasSun = 0;
+    // Освещённость от солнца в люксах по каналам, до атмосферы.
+    Vec3 sunColor{0.0f};
     int directionalCount = 0;
     int punctualCount = 0;
     DirectionalLightUniforms directionalLights[kMaxDirectionalLights]{};
@@ -53,6 +56,26 @@ struct alignas(16) ViewUniforms {
     // Множитель яркости вида (ViewExposure::factor): шейдеры умножают на
     // него всё, что пишут в HDR-цель.
     float exposure = 1.0f;
+};
+
+// Атмосфера в единицах шейдера (atmosphere.glsl): км и коэффициенты на км.
+// Плотность слоя Рэлея и Ми - exp(высота * densityScale).
+struct alignas(16) AtmosphereUniforms {
+    Vec3 rayleighScattering{0.0f};
+    float bottomRadius = 0.0f;
+    Vec3 mieScattering{0.0f};
+    float topRadius = 0.0f;
+    Vec3 mieExtinction{0.0f};
+    float mieAnisotropy = 0.0f;
+    Vec3 ozoneAbsorption{0.0f};
+    float rayleighDensityScale = 0.0f;
+    // Линейный.
+    Vec3 groundAlbedo{0.0f};
+    float mieDensityScale = 0.0f;
+    // 0 - атмосферы нет: небо чёрное, свет солнца не ослабляется, дымки нет.
+    int enabled = 0;
+    // Сила воздушной перспективы: 0 - без дымки, 1 - физически.
+    float aerialPerspective = 0.0f;
 };
 
 struct alignas(16) ObjectUniforms {
@@ -81,7 +104,9 @@ inline const UniformLayout kFrameBlock{
     {kFrameSet, 0},
     sizeof(FrameUniforms),
     {
-        YQLORA_UNIFORM_MEMBER(FrameUniforms, ambient),
+        YQLORA_UNIFORM_MEMBER(FrameUniforms, sunDirection),
+        YQLORA_UNIFORM_MEMBER(FrameUniforms, hasSun),
+        YQLORA_UNIFORM_MEMBER(FrameUniforms, sunColor),
         YQLORA_UNIFORM_MEMBER(FrameUniforms, directionalCount),
         YQLORA_UNIFORM_MEMBER(FrameUniforms, punctualCount),
         YQLORA_UNIFORM_STRUCT_MEMBER(FrameUniforms, directionalLights, kDirectionalLightMembers),
@@ -101,6 +126,32 @@ inline const UniformLayout kViewBlock{
     },
 };
 
+inline const UniformLayout kAtmosphereBlock{
+    "Atmosphere",
+    {kFrameSet, 1},
+    sizeof(AtmosphereUniforms),
+    {
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, rayleighScattering),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, bottomRadius),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, mieScattering),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, topRadius),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, mieExtinction),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, mieAnisotropy),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, ozoneAbsorption),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, rayleighDensityScale),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, groundAlbedo),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, mieDensityScale),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, enabled),
+        YQLORA_UNIFORM_MEMBER(AtmosphereUniforms, aerialPerspective),
+    },
+};
+
+// Таблицы атмосферы (AtmospherePass), которые читают шейдеры: пропускание
+// на кадр, вид неба и воздушная перспектива на вид.
+inline constexpr rhi::BindingSlot kTransmittanceLutSlot{kFrameSet, 2};
+inline constexpr rhi::BindingSlot kSkyViewLutSlot{kViewSet, 1};
+inline constexpr rhi::BindingSlot kAerialPerspectiveLutSlot{kViewSet, 2};
+
 inline const UniformLayout kObjectBlock{
     "Object",
     {kObjectSet, 0},
@@ -114,7 +165,10 @@ inline const UniformLayout kObjectBlock{
 // Данные блока Frame из снимка кадра.
 YQLORA_API FrameUniforms frameUniforms(const FrameData& frame);
 
+// Данные блока Atmosphere из настроек атмосферы окружения.
+YQLORA_API AtmosphereUniforms atmosphereUniforms(const Atmosphere& atmosphere);
+
 // Все блоки движка: их сверяют все шейдеры.
-inline const UniformLayout* const kEngineBlocks[] = {&kFrameBlock, &kViewBlock, &kObjectBlock};
+inline const UniformLayout* const kEngineBlocks[] = {&kFrameBlock, &kAtmosphereBlock, &kViewBlock, &kObjectBlock};
 
 } // namespace yqlora

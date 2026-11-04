@@ -4,6 +4,8 @@
 #ifndef YQLORA_LIGHTING_GLSL
 #define YQLORA_LIGHTING_GLSL
 
+#include <yqlora/atmosphere.glsl>
+#include <yqlora/exposure.glsl>
 #include <yqlora/uniforms.glsl>
 
 const float YQLORA_PI = 3.14159265358979;
@@ -107,15 +109,20 @@ float rangeWindow(float distanceToLight, float range)
     return window * window;
 }
 
-// Освещённый цвет поверхности: окружающий свет, все источники кадра,
-// свечение; с экспозицией вида, готовый для HDR-цели. Альфа - из поверхности.
+// Освещённый цвет поверхности: все источники кадра (солнце - сквозь
+// атмосферу), свечение и дымка по пути до камеры; с экспозицией вида,
+// готовый для HDR-цели. Альфа - из поверхности.
 vec4 shade(Surface surface)
 {
     vec3 toView = normalize(view.cameraPosition - surface.position);
-    vec3 color = frame.ambient * surface.baseColor * (1.0 - surface.metallic) * surface.occlusion;
+    vec3 color = vec3(0.0);
     for (int i = 0; i < frame.directionalCount; ++i) {
         DirectionalLight light = frame.directionalLights[i];
-        color += lightContribution(surface, toView, -light.direction, light.color);
+        vec3 illuminance = light.color;
+        if (i == 0 && frame.hasSun != 0) {
+            illuminance *= atmosphereTransmittance(surface.position, -light.direction);
+        }
+        color += lightContribution(surface, toView, -light.direction, illuminance);
     }
     for (int i = 0; i < frame.punctualCount; ++i) {
         PunctualLight light = frame.punctualLights[i];
@@ -129,7 +136,9 @@ vec4 shade(Surface surface)
         }
     }
 
-    return vec4((color + surface.emission) * view.exposure, surface.alpha);
+    color = applyAerialPerspective(color + surface.emission, surface.position);
+
+    return vec4(exposed(color), surface.alpha);
 }
 
 #endif

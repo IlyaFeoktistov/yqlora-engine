@@ -26,14 +26,20 @@ YQLORA_API bool intersects(const Frustum& frustum, const Bounds& bounds);
 // Коробка по осям вокруг bounds, преобразованной matrix.
 YQLORA_API Bounds transformBounds(const Bounds& bounds, const Mat4& matrix);
 
+// Что рисует вид и в каком порядке: сначала непрозрачное, потом прозрачное.
+// Между ними встаёт небо: оно закрывает только пустые пиксели и должно
+// оказаться за прозрачным.
+struct PreparedView {
+    std::vector<const DrawItem*> items{};
+    // Первые opaqueCount элементов items непрозрачные.
+    std::size_t opaqueCount = 0;
+};
+
 // Prepare одного вида: что из кадра вид рисует и в каком порядке. Слой в
 // маске вида, границы в пирамиде его камеры. Сначала непрозрачное, группами
 // по конвейеру и материалу, внутри группы спереди назад; потом прозрачное
 // сзади вперёд. materials - FrameData::materials.
-YQLORA_API std::vector<const DrawItem*> prepareView(
-    std::span<const DrawItem> items,
-    std::span<const FrameMaterial> materials,
-    const ViewData& view
-);
+YQLORA_API PreparedView
+prepareView(std::span<const DrawItem> items, std::span<const FrameMaterial> materials, const ViewData& view);
 
 } // namespace yqlora

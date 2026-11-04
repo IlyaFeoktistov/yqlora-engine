@@ -40,6 +40,12 @@ std::span<const BuiltinResourceEntry> builtinResourceTable()
         entries.push_back(
             {builtin::kErrorMaterial, MaterialData::kResourceKind, "Error", material(builtin::kErrorShader)}
         );
+        entries.push_back(
+            {builtin::kDefaultSkyMaterial,
+             MaterialData::kResourceKind,
+             "Default Sky",
+             material(builtin::kPhysicalSkyShader)}
+        );
 
         return entries;
     }();

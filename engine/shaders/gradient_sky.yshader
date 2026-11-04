@@ -1,0 +1,24 @@
+#version 450
+
+// Небо из трёх цветов по высоте: зенит, горизонт, земля. Через него сцену
+// освещают и источники окружающего света Gradient и Color окружения.
+#include <yqlora/sky.glsl>
+
+layout(set = 2, binding = 0, std140) uniform Material {
+    vec3 skyColor;      //@ color default(0.35, 0.55, 0.85)
+    vec3 equatorColor;  //@ color default(0.7, 0.75, 0.8)
+    vec3 groundColor;   //@ color default(0.3, 0.27, 0.22)
+    // Яркость белого в нитах.
+    float luminance;    //@ default(10000)
+    // Как быстро цвет уходит от горизонта: меньше 1 - широкая полоса горизонта.
+    float falloff;      //@ range(0.1, 4) default(0.5)
+} material;
+
+vec3 sky(vec3 direction)
+{
+    float height = pow(abs(direction.y), material.falloff);
+    vec3 color = direction.y >= 0.0 ? mix(material.equatorColor, material.skyColor, height)
+                                    : mix(material.equatorColor, material.groundColor, height);
+
+    return color * material.luminance;
+}

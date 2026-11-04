@@ -74,6 +74,26 @@ inline Vec4 srgbToLinear(const Vec4& color)
     return {srgbToLinear(Vec3(color)), color.a};
 }
 
+// Яркость линейного цвета по весам Rec. 709 (они же у sRGB).
+inline float luminance(const Vec3& linear)
+{
+    return glm::dot(linear, Vec3(0.2126f, 0.7152f, 0.0722f));
+}
+
+// Обратное к srgbToLinear: линейное значение 0..1 в sRGB для показа.
+inline float linearToSrgb(float value)
+{
+    constexpr float kLinearSegmentEnd = 0.0031308f;
+    constexpr float kLinearSlope = 12.92f;
+    constexpr float kOffset = 0.055f;
+    constexpr float kGamma = 2.4f;
+    if (value <= kLinearSegmentEnd) {
+        return value * kLinearSlope;
+    }
+
+    return (1.0f + kOffset) * std::pow(value, 1.0f / kGamma) - kOffset;
+}
+
 } // namespace math
 
 } // namespace yqlora

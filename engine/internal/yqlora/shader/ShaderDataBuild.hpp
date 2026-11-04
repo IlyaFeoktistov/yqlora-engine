@@ -22,7 +22,8 @@ struct ShaderDataResult {
 
 // Шейдер из одного файла path (обе стадии) в ресурс: компиляция, профиль,
 // сверка блоков движка layouts, правила набора материала (блок Material на
-// привязке 0, остальное - текстуры) и пометки файла.
+// привязке 0, остальное - текстуры) и пометки файла. Шейдер, подключивший
+// <yqlora/sky.glsl>, - шейдер неба: он собирается ещё и вариантом захвата.
 YQLORA_API ShaderDataResult buildShaderData(
     ShaderCompiler& compiler,
     const std::string& path,

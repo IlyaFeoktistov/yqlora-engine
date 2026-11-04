@@ -313,7 +313,7 @@ void Application::applyGameIcon()
     // Без иконки в настройках остаётся та, что уже стоит: SDL не умеет вернуть
     // иконку системы.
     if (texture) {
-        m_window->setIcon(texture.data->width, texture.data->height, texture.data->pixels);
+        m_window->setIcon(texture.data->width, texture.data->height, displayPixels(*texture.data));
     }
 }
 

@@ -24,6 +24,14 @@ enum class DefaultTexture : std::uint8_t {
     Normal,
 };
 
+// Что рисует шейдер. Шейдер неба - тот, что подключает <yqlora/sky.glsl>:
+// его материал годится только в небо окружения, а слот меша с ним
+// рисуется материалом Error.
+enum class ShaderKind : std::uint8_t {
+    Surface,
+    Sky,
+};
+
 } // namespace yqlora
 
 // Так их пишут в пометке default() шейдера.
@@ -64,6 +72,10 @@ struct ShaderData {
     static constexpr std::string_view kResourceKind = kinds::kShader;
 
     rhi::ShaderDesc desc{};
+    ShaderKind kind = ShaderKind::Surface;
+    // У шейдера неба: он же с определением YQLORA_SKY_CAPTURE, для захвата
+    // неба в освещение (без того, что дают источники, например диска солнца).
+    std::optional<rhi::ShaderDesc> captureDesc{};
     // Размер блока Material; 0 - блока нет.
     std::uint32_t materialSize = 0;
     // В порядке объявления в шейдере.

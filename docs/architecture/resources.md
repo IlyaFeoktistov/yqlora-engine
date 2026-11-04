@@ -50,7 +50,7 @@ Status marks: see [README](README.md).
   format come with step 9, between the source file and `ResourceCache`,
   without changing the resource interface.
 - **Libraries**: cgltf (MIT) for glTF 2.0, stb_image (public domain or MIT)
-  for PNG, JPG, TGA, BMP, from a file and from memory (images inside a GLB
+  for PNG, JPG, TGA, BMP and HDR (`.hdr`), from a file and from memory (images inside a GLB
   later). No FBX (closed format) and no OBJ (glTF covers it).
 - **Three levels, not mixed**: the source file, the loaded data in
   `ResourceCache` (`MeshData`, `TextureData`), the GPU copies in the graphics
@@ -142,7 +142,10 @@ own `ResourceId`, so a `ResourceRef` stays a single 64-bit number.
 
 ### Textures
 
-- `TextureData`: RGBA8, width, height. Import settings: color space (sRGB
+- `TextureData`: RGBA, width, height, `PixelFormat`: `Rgba8`, or
+  `Rgba16Float` for HDR pictures (half floats, always linear, may exceed
+  1: sky panoramas). `displayPixels` gives RGBA8 in sRGB for previews and
+  the window icon. Import settings: color space (sRGB
   for color, Linear for data: normal, roughness, metallic), filter, wrap,
   mipmaps. The settings are a record, so new ones are added without changing
   the loader.

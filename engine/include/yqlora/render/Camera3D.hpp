@@ -15,6 +15,9 @@ namespace yqlora {
 // (руки игрока поверх мира) стирает только глубину: мир остаётся, а руки
 // не уходят в стены.
 enum class CameraClear : std::uint8_t {
+    // Стереть глубину, а пустые пиксели закрыть небом окружения сцены.
+    Sky,
+    // Стереть цветом фона и глубину.
     ColorAndDepth,
     DepthOnly,
     Nothing,
@@ -138,7 +141,7 @@ private:
     float m_far = 1000.0f;
     int m_order = 0;
     LayerMask m_cullingMask = kAllLayers;
-    CameraClear m_clear = CameraClear::ColorAndDepth;
+    CameraClear m_clear = CameraClear::Sky;
     Vec4 m_background{0.08f, 0.09f, 0.12f, 1.0f};
     float m_exposure = kDefaultCameraExposure;
     ToneMapping m_toneMapping = kDefaultCameraToneMapping;
@@ -155,4 +158,4 @@ inline constexpr char kCameraOrderProperty[] = "order";
 
 } // namespace yqlora
 
-YQLORA_ENUM_NAMES(yqlora::CameraClear, "ColorAndDepth", "DepthOnly", "Nothing")
+YQLORA_ENUM_NAMES(yqlora::CameraClear, "Sky", "ColorAndDepth", "DepthOnly", "Nothing")

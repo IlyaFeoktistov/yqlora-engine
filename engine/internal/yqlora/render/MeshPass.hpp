@@ -1,7 +1,7 @@
 #pragma once
 
+#include "yqlora/render/EngineBindings.hpp"
 #include "yqlora/render/FrameData.hpp"
-#include "yqlora/render/UniformRing.hpp"
 #include "yqlora/render/ViewPass.hpp"
 #include "yqlora/rhi/Device.hpp"
 
@@ -19,13 +19,13 @@ public:
     explicit MeshPass(const RenderContext& context);
     ~MeshPass();
 
-    // Подмеши в открытый проход, в порядке visible (Prepare).
+    // Подмеши в открытый проход, в порядке visible (Prepare); ресурсы
+    // движка - кадра и вида, к которому относится проход.
     void draw(
         rhi::CommandList& commands,
         const FrameData& frame,
         std::span<const DrawItem* const> visible,
-        const UniformSlice& frameUniforms,
-        const UniformSlice& viewUniforms
+        const EngineResources& resources
     );
 
 private:

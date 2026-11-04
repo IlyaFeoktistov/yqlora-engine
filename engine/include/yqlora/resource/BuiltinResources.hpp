@@ -16,11 +16,18 @@ inline constexpr ResourceId kPlaneMesh = 3;
 inline constexpr ResourceId kStandardShader = 0x101;
 // Пурпурный: им рисуется материал, чей шейдер не компилируется.
 inline constexpr ResourceId kErrorShader = 0x102;
+// Шейдеры неба: атмосфера окружения с диском солнца, равнопромежуточная
+// панорама, три цвета по высоте.
+inline constexpr ResourceId kPhysicalSkyShader = 0x103;
+inline constexpr ResourceId kPanoramicSkyShader = 0x104;
+inline constexpr ResourceId kGradientSkyShader = 0x105;
 
 // Материал пустого слота: шейдер Standard, белый.
 inline constexpr ResourceId kDefaultMaterial = 0x201;
 // Шейдер Error: им рисуется материал, чей шейдер не компилируется или пропал.
 inline constexpr ResourceId kErrorMaterial = 0x202;
+// Небо нового окружения: шейдер Physical со значениями по умолчанию.
+inline constexpr ResourceId kDefaultSkyMaterial = 0x203;
 
 inline constexpr ResourceId kFirstProjectId = 1024;
 

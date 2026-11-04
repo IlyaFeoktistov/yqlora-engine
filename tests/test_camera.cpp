@@ -104,7 +104,8 @@ TEST_CASE_FIXTURE(Fixture, "Extract: one view per camera with its clear, backgro
     const FrameData frame = extractFrame(scene, 16.0f / 9.0f);
     REQUIRE(frame.views.size() == 2);
     CHECK(frame.views[0].camera.position == Vec3(1.0f, 2.0f, 3.0f));
-    CHECK(frame.views[0].clear == CameraClear::ColorAndDepth);
+    // Новая камера рисует за объектами небо.
+    CHECK(frame.views[0].clear == CameraClear::Sky);
     // Камера хранит фон в sRGB, кадр рисуется в линейном.
     CHECK(math::nearlyEqual(frame.views[0].background, math::srgbToLinear(Vec4(0.1f, 0.2f, 0.3f, 1.0f))));
     CHECK(frame.views[1].clear == CameraClear::DepthOnly);

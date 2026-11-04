@@ -17,7 +17,7 @@ snapshot made by Extract, never the scene.
 ```
  SCENE (simulated, world matrices ready)
    RenderSystem: active cameras sorted by order, active lights
-   LightingSettings: ambient light
+   Environment: the sky material and the atmosphere
    MeshRenderer: enabled components, their mesh and materials (from
                  ResourceCache), overrides, node layer
    Node3D: world matrices
@@ -36,20 +36,27 @@ snapshot made by Extract, never the scene.
    materials[]  each material once, with its shader and textures
    overrides[]  overrides of slots with their textures
    lights[]     up to 4 directional and 32 point and spot lights: world,
-                linear colour times intensity (lux, candela), range, cone
-   environment  ambient light in nits (the sky and the sun in 5.5b)
+                linear colour times intensity (lux, candela), range, cone;
+                the sun first, marked
+   environment  the sky material (an index into materials) and the
+                atmosphere
         |
         |  Renderer::render(frame)          -> window back buffer
         |  Renderer::render(frame, target)  -> RenderTarget (a texture)
         v
  SceneRenderer::draw: one RenderGraph per call       engine/render
+   AtmospherePass the transmittance and multiple scattering tables, only
+                  when the atmosphere changed
    for each view, in camera order, into the HDR target (kHdrColorFormat):
      prepareView  layer mask and frustum culling; opaque by pipeline and
                   material, nearest first; then transparent, farthest first
-     view pass    clear colour and depth / depth only / nothing,
-                  MeshPass: the visible items through the view camera
-                  with their materials (PBR, all lights of the frame),
-                  times the exposure of the view
+     AtmospherePass  the sky view and aerial perspective tables of the view
+     view pass    clear: sky / colour and depth / depth only / nothing;
+                  MeshPass: the opaque items through the view camera
+                  with their materials (PBR, all lights of the frame, the
+                  sun through the atmosphere, aerial perspective), times
+                  the exposure of the view; drawSky on the far plane for
+                  a Sky camera; MeshPass: the transparent items
    OutputPass     tone mapping of the main camera, then sRGB, from the HDR
                   target into the final target
    ViewPass*      passes of the view owners over the final target: the

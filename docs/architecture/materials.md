@@ -289,7 +289,7 @@ models and the sky agree with each other and nothing is converted later.
   main camera, since all views of a frame share one HDR target. After tone
   mapping comes the sRGB encoding, as now.
 
-## Environment [planned, step 5]
+## Environment [done]
 
 The sky, the ambient light and the atmosphere of a scene are a node of the
 scene, so every scene (a day level, a night level) has its own and edits
@@ -303,25 +303,32 @@ are undone like any other.
   - `sky`: a material with a sky shader (the built-in `Default Sky` by
     default); empty: no sky, a `Sky` camera clears to black;
   - `ambientSource`: `Sky`, `Gradient`, `Color`; `ambientIntensity`, a
-    multiplier (1 is physical);
+    multiplier (1 is physical); they light the scene from phase 5.5c;
   - for `Gradient`: `skyColor`, `equatorColor`, `groundColor` (sRGB) and
     `gradientLuminance` in nits; for `Color`: `ambientColor` and the same
     luminance;
-  - the atmosphere (group "Atmosphere"): `atmosphere` (on), `groundAlbedo`,
-    `planetRadius` and `atmosphereHeight` in km, `rayleighScattering` (per
-    megametre, RGB) and `rayleighHeight` (km), `mieScattering`,
-    `mieAbsorption` (per megametre), `mieHeight` (km), `mieAnisotropy`,
-    `ozoneAbsorption` (per megametre, RGB). The defaults are the Earth.
+  - `atmosphere`, a record (`Atmosphere`, shown as a nested table):
+    `enabled`, `groundAlbedo`, `planetRadius` and `atmosphereHeight` in km,
+    `rayleighScattering` (per megametre, RGB) and `rayleighHeight` (km),
+    `mieScattering`, `mieAbsorption` (per megametre), `mieHeight` (km),
+    `mieAnisotropy`, `ozoneAbsorption` (per megametre, RGB) and
+    `aerialPerspective` (0 no haze, 1 physical, more for a style). The
+    defaults are the Earth; every value can be changed or the whole
+    atmosphere turned off.
 - **The sun** is the directional light with the `sun` flag; when no enabled
   light has the flag, the brightest directional light is the sun. Extract
-  puts it first among directional lights, the frame block gets `hasSun`,
-  `sunDirection`, `sunColor`, so any shader knows where the sun is.
+  puts it first among directional lights (`LightData::sun`), the frame
+  block gets `hasSun`, `sunDirection`, `sunColor`, so any shader knows
+  where the sun is.
+- **Reports once**: a sky material whose shader is not a sky shader gives
+  no sky and one message in the log per scene (`RenderSystem::takeReport`,
+  the same as for too many lights).
 - **The `Sky` camera clear** (`CameraClear::Sky`, the default of a new
   camera): the sky pass draws the sky material after the opaque items and
   before the transparent ones, on the far plane (depth test `<=`, no
   write), so it fills only the pixels where nothing is.
 
-## Sky shaders [planned, step 5]
+## Sky shaders [done]
 
 - **A sky shader** is an ordinary `.yshader` that includes
   `<yqlora/sky.glsl>` and defines one function `vec3 sky(vec3 direction)`:
@@ -330,24 +337,35 @@ are undone like any other.
   plane, the direction of the pixel from the inverse view projection) and
   applies the exposure. Including `sky.glsl` is what makes a shader a sky
   shader (`ShaderData::kind`); a sky material takes only such a shader, and
-  a mesh slot with a sky material draws with `Error`.
+  a mesh slot with a sky material draws with `Error` (`FrameMaterials`
+  checks a material by where it stands). `sky()` is called only in the
+  fragment stage; a sky that uses `dFdx` wraps its definition in
+  `#ifdef YQLORA_FRAGMENT`.
 - **The capture variant**: the engine builds every sky shader a second time
   with `YQLORA_SKY_CAPTURE` defined, for lighting (see "Ambient light and
   reflections"). In it a sky leaves out what lights already give, such as
   the disc of the sun.
 - **Built-in sky shaders** with fixed IDs, like `Standard`:
-  - `Physical`: the sky of the atmosphere of the environment, with the disc
-    of the sun (`sunDisc`, its angular size `sunAngle`, limb darkening).
-    The luminance of the disc is the illuminance of the sun divided by its
-    solid angle, dimmed by the atmosphere: no factors to tune.
-    `Default Sky` is this shader with its defaults;
-  - `Panoramic`: an equirectangular image (8 bit sRGB or HDR `.hdr`), a
-    rotation around the vertical, a tint and `luminance` in nits for the
-    value 1;
-  - `Gradient`: three colours by height and a luminance; the `Gradient` and
-    `Color` ambient sources light the scene through it.
+  - `Physical` (`builtin::kPhysicalSkyShader`): the sky of the atmosphere
+    of the environment, with the disc of the sun: `sunDisc` (on or off),
+    its angular size `sunAngle` (0.53 degrees), `limbDarkening`,
+    `sunDiscIntensity` (1 is physical). The luminance of the disc is the
+    illuminance of the sun divided by its solid angle, dimmed by the
+    atmosphere. `Default Sky` (`builtin::kDefaultSkyMaterial`) is this
+    shader with its defaults;
+  - `Panoramic` (`builtin::kPanoramicSkyShader`): an equirectangular image
+    `panorama` (8 bit sRGB or HDR `.hdr`), `rotation` around the vertical,
+    `tint` and `luminance` in nits for the value 1; mips are picked
+    without a seam where the image wraps;
+  - `Gradient` (`builtin::kGradientSkyShader`): `skyColor`,
+    `equatorColor`, `groundColor`, `luminance` and `falloff` (how wide the
+    horizon band is); the `Gradient` and `Color` ambient sources light the
+    scene through it.
+- **Exposure**: `<yqlora/exposure.glsl>` gives `exposed(luminance)`, used by
+  `shade()` and the sky: the exposure of the view, clamped below the
+  largest half float so a bright sun never becomes infinity.
 
-## Atmosphere [planned, step 5]
+## Atmosphere [done]
 
 The physical sky by the method of Hillaire ("A Scalable and Production
 Ready Sky and Atmosphere Rendering Technique", 2020): single scattering
@@ -364,11 +382,22 @@ shaders, so every backend can do it.
     the sun, every frame per view; the horizon gets more rows;
   - aerial perspective, 32 slices of 32 x 32 side by side (1024 x 32):
     in-scattering and transmittance along the view of the camera up to
-    32 km, every frame per view.
+    32 km, slices denser near the camera (the distance grows as the square
+    of the slice), every frame per view.
+
+  `AtmospherePass` owns the first two between frames and fills them again
+  only when the `Atmosphere` block changes; the other two are transient
+  textures of the graph. Without an atmosphere there are no passes, and
+  shaders get a 1 x 1 table that changes nothing. The mappings of the
+  tables live in `atmosphere.glsl`, the ray marching shared by the passes
+  in `engine/shaders/atmosphere/march.glsl`.
 - **`<yqlora/atmosphere.glsl>`** gives every shader the functions of the
   atmosphere: `atmosphereSky(direction)`, `atmosphereTransmittance(position,
   direction)`, `applyAerialPerspective(color, position)`. The `Atmosphere`
-  block (set 0) holds its parameters in shader units.
+  block (set 0, binding 1) holds its parameters in shader units (km, per
+  km); the transmittance table is set 0, binding 2, the sky view and aerial
+  perspective tables set 1, bindings 1 and 2. `bindEngineResources` gives a
+  shader only the blocks and tables it declares.
 - **The sun through the atmosphere**: `lighting.glsl` dims the light of the
   sun at a point by the transmittance from that point towards the sun, so
   the sun turns yellow and red near the horizon by itself.
@@ -703,7 +732,7 @@ Lights give shadows, their meshes cast and receive them.
   mapping keeps 0 at 0, is monotonic and stays below 1; `None` with factor
   1 keeps the old output.
 
-### 5.5b Environment, sky shaders, atmosphere
+### 5.5b Environment, sky shaders, atmosphere [done]
 
 - **`Environment`** node with its properties, kept by `RenderSystem`; the
   `sun` flag of `DirectionalLight3D` and the choice of the sun in Extract;

@@ -121,9 +121,11 @@ void Renderer::present()
 UiTexture Renderer::uiTexture(ResourceId id, std::uint64_t revision, const TextureData& data)
 {
     rhi::Texture& texture = m_uiTextures->get(id, revision, [&] {
+        const std::vector<std::uint8_t> pixels = displayPixels(data);
+
         return m_device->createTexture(
             {.width = data.width, .height = data.height, .format = kUiTextureFormat, .mipmaps = data.sampling.mipmaps},
-            std::as_bytes(std::span(data.pixels))
+            std::as_bytes(std::span(pixels))
         );
     });
 

@@ -2,6 +2,7 @@
 
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/DirectionalLight3D.hpp"
+#include "yqlora/render/Environment.hpp"
 #include "yqlora/scene/Scene.hpp"
 
 namespace yqlora::editor {
@@ -27,6 +28,10 @@ void buildNewScene(Scene& scene, std::string rootName)
     auto& light = root.addChild<DirectionalLight3D>("Sun");
     light.transform().setPosition(kLightPosition);
     light.transform().setRotationDegrees(kLightRotationDegrees);
+    light.setSun(true);
+
+    // Небо, окружающий свет и атмосфера - со значениями по умолчанию.
+    root.addChild<Environment>("Environment");
 }
 
 } // namespace yqlora::editor

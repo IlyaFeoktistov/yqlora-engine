@@ -14,6 +14,9 @@ std::span<const BuiltinShader> builtinShaders()
     static const BuiltinShader shaders[] = {
         {builtin::kStandardShader, "Standard", "standard.yshader"},
         {builtin::kErrorShader, "Error", "error.yshader"},
+        {builtin::kPhysicalSkyShader, "Physical", "physical_sky.yshader"},
+        {builtin::kPanoramicSkyShader, "Panoramic", "panoramic_sky.yshader"},
+        {builtin::kGradientSkyShader, "Gradient", "gradient_sky.yshader"},
     };
 
     return shaders;

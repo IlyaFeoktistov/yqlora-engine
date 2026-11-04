@@ -16,7 +16,7 @@ namespace yqlora {
 // Текстуры материалов в видеопамяти: копии ресурсов по ID и ревизии (см.
 // GpuResourceCache), текстуры по умолчанию и сэмплеры. Текстура,
 // импортированная как sRGB, становится Rgba8Srgb: чтение в шейдере её
-// декодирует в линейный цвет.
+// декодирует в линейный цвет; HDR - Rgba16Float.
 class YQLORA_API GpuTextureCache {
 public:
     explicit GpuTextureCache(rhi::Device& device);
@@ -41,7 +41,8 @@ private:
     std::map<SamplerKey, std::unique_ptr<rhi::Sampler>> m_samplers;
 };
 
-// Формат текстуры в видеопамяти по её настройкам импорта.
-YQLORA_API rhi::Format gpuTextureFormat(const TextureSampling& sampling);
+// Формат текстуры в видеопамяти: HDR как есть, 8-битная - по цветовому
+// пространству из настроек импорта.
+YQLORA_API rhi::Format gpuTextureFormat(const TextureData& texture);
 
 } // namespace yqlora

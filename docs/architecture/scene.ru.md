@@ -45,7 +45,8 @@
 Node                     без положения: группа, корень, носитель скриптов
 |-- Node3D               встроенный Transform3D (снять нельзя)
 |   |-- Camera3D
-|   `-- DirectionalLight3D, PointLight3D, SpotLight3D      [planned, step 5]
+|   `-- DirectionalLight3D, PointLight3D, SpotLight3D
+|-- Environment          небо, окружающий свет и атмосфера сцены
 |-- Control              встроенный RectTransform, якоря   [planned, step 8]
 |   `-- Label, Button, ...
 `-- Node2D               встроенный Transform2D            [planned, after MVP]
