@@ -170,11 +170,17 @@ void RenderGraph::execute(rhi::CommandList& commands)
             use(read, rhi::ResourceState::ShaderRead);
         }
         rhi::Texture& color = use(pass.color.texture, rhi::ResourceState::ColorTarget);
+        if (pass.generateMipmaps) {
+            commands.generateMipmaps(color);
+            continue;
+        }
         rhi::Texture* depth = pass.depth ? &use(pass.depth->texture, rhi::ResourceState::DepthTarget) : nullptr;
 
         commands.beginRenderPass({
             .color = &color,
             .depth = depth,
+            .colorFace = pass.color.face,
+            .colorMip = pass.color.mip,
             .colorLoad = pass.color.load,
             .depthLoad = pass.depth ? pass.depth->load : rhi::LoadOp::Load,
             .clearColor = pass.clearColor,

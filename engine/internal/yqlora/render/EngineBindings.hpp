@@ -1,9 +1,13 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/render/RenderGraph.hpp"
 #include "yqlora/render/UniformRing.hpp"
 #include "yqlora/rhi/CommandList.hpp"
 #include "yqlora/rhi/Pipeline.hpp"
+
+#include <optional>
+#include <vector>
 
 namespace yqlora {
 
@@ -19,7 +23,30 @@ struct EngineResources {
     const rhi::Texture* aerialPerspective = nullptr;
     // Линейный, по краю: таблицы читаются между текселями и без повтора.
     const rhi::Sampler* lutSampler = nullptr;
+    // Свет неба (EnvironmentLighting) и его сэмплер: линейный, с мипами.
+    const rhi::Texture* ambientHarmonics = nullptr;
+    const rhi::Texture* environmentSpecular = nullptr;
+    const rhi::Texture* environmentBrdf = nullptr;
+    const rhi::Sampler* environmentSampler = nullptr;
 };
+
+// Текстуры движка в графе кадра; nullopt - этой текстуры нет.
+struct EngineTextureIds {
+    std::optional<RenderGraph::TextureId> transmittance{};
+    std::optional<RenderGraph::TextureId> skyView{};
+    std::optional<RenderGraph::TextureId> aerialPerspective{};
+    std::optional<RenderGraph::TextureId> ambientHarmonics{};
+    std::optional<RenderGraph::TextureId> environmentSpecular{};
+    std::optional<RenderGraph::TextureId> environmentBrdf{};
+
+    // Что из них есть: читает проход, который их привязывает.
+    YQLORA_API std::vector<RenderGraph::TextureId> reads() const;
+};
+
+// resources с текстурами ids из графа: только внутри record прохода, когда
+// текстуры графа уже есть.
+YQLORA_API EngineResources
+withTextures(EngineResources resources, const RenderGraph& graph, const EngineTextureIds& ids);
 
 // Задаёт привязанному конвейеру с шейдером shader те ресурсы движка,
 // которые шейдер объявил: шейдеру без атмосферы её таблицы не нужны.

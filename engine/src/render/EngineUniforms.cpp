@@ -60,7 +60,7 @@ AtmosphereUniforms atmosphereUniforms(const Atmosphere& atmosphere)
 
 FrameUniforms frameUniforms(const FrameData& frame)
 {
-    FrameUniforms result;
+    FrameUniforms result{.ambientIntensity = frame.environment.ambientSky ? frame.environment.ambientIntensity : 0.0f};
     for (const LightData& light : frame.lights) {
         if (light.sun) {
             result.hasSun = 1;

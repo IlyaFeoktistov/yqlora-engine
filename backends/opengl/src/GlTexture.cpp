@@ -61,29 +61,43 @@ GlTexture::GlTexture(GlDevice& device, const rhi::TextureDesc& desc, std::span<c
     , m_device(device)
 {
     const GlFormat format = glFormat(desc.format);
+    const GLenum bindTarget = target();
     glGenTextures(1, &m_texture);
-    glBindTexture(GL_TEXTURE_2D, m_texture);
+    glBindTexture(bindTarget, m_texture);
     // Строки в pixels плотные; по умолчанию OpenGL ждёт строки по 4 байта.
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     // Строки идут сверху вниз и попадают в текстуру первой строкой при v = 0:
     // это и есть uv0 = (0, 0) в левом верхнем углу, переворачивать не нужно.
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        format.internalFormat,
-        desc.width,
-        desc.height,
-        0,
-        format.format,
-        format.type,
-        pixels.empty() ? nullptr : pixels.data()
-    );
-    if (desc.mipmaps) {
-        glGenerateMipmap(GL_TEXTURE_2D);
+    // У кубической - каждая грань, пикселей нет: её рисуют.
+    const int faces = desc.cube ? rhi::kCubeFaces : 1;
+    for (int face = 0; face < faces; ++face) {
+        glTexImage2D(
+            desc.cube ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + static_cast<GLenum>(face) : GL_TEXTURE_2D,
+            0,
+            format.internalFormat,
+            desc.width,
+            desc.height,
+            0,
+            format.format,
+            format.type,
+            pixels.empty() || desc.cube ? nullptr : pixels.data()
+        );
     }
-    glBindTexture(GL_TEXTURE_2D, 0);
+    if (desc.mipmaps) {
+        glGenerateMipmap(bindTarget);
+    }
+    // Сэмплер с мипмапами читает мипы, только если они есть (контракт
+    // rhi::SamplerDesc): без этого OpenGL считал бы текстуру без мипов
+    // неполной и читал бы нули.
+    glTexParameteri(bindTarget, GL_TEXTURE_MAX_LEVEL, rhi::mipLevelCount(desc) - 1);
+    glBindTexture(bindTarget, 0);
     // Без мипмапов фильтр по умолчанию (с мипмапами) делает текстуру неполной.
     setOwnSampling({.filter = rhi::Filter::Linear, .wrap = rhi::Wrap::Clamp, .mipmaps = desc.mipmaps});
+}
+
+unsigned int GlTexture::target() const
+{
+    return desc().cube ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D;
 }
 
 GlTexture::GlTexture(GlDevice& device, const rhi::TextureDesc& desc, BackBufferTag)
@@ -107,12 +121,13 @@ GlTexture::~GlTexture()
 
 void GlTexture::setOwnSampling(const rhi::SamplerDesc& sampling)
 {
-    glBindTexture(GL_TEXTURE_2D, m_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode(sampling.wrap));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode(sampling.wrap));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter(sampling));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter(sampling));
-    glBindTexture(GL_TEXTURE_2D, 0);
+    const GLenum bindTarget = target();
+    glBindTexture(bindTarget, m_texture);
+    glTexParameteri(bindTarget, GL_TEXTURE_WRAP_S, wrapMode(sampling.wrap));
+    glTexParameteri(bindTarget, GL_TEXTURE_WRAP_T, wrapMode(sampling.wrap));
+    glTexParameteri(bindTarget, GL_TEXTURE_MIN_FILTER, minFilter(sampling));
+    glTexParameteri(bindTarget, GL_TEXTURE_MAG_FILTER, magFilter(sampling));
+    glBindTexture(bindTarget, 0);
 }
 
 GlSampler::GlSampler(const rhi::SamplerDesc& desc)

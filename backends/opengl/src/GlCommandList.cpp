@@ -57,11 +57,11 @@ void GlCommandList::beginRenderPass(const rhi::RenderPassDesc& desc)
     if (color.isBackBuffer()) {
         requireThat(!depth || depth->isBackBuffer(), "beginRenderPass: the back buffer has its own depth");
     } else {
-        framebuffer = m_device.framebuffer(color, depth);
+        framebuffer = m_device.framebuffer(color, depth, desc.colorFace, desc.colorMip);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glBindVertexArray(m_vertexArray);
-    glViewport(0, 0, color.desc().width, color.desc().height);
+    glViewport(0, 0, rhi::mipSize(color.desc().width, desc.colorMip), rhi::mipSize(color.desc().height, desc.colorMip));
     // Интерфейс оставляет включённым обрезание по прямоугольнику.
     glDisable(GL_SCISSOR_TEST);
 
@@ -166,9 +166,19 @@ void GlCommandList::setTexture(
 )
 {
     const unsigned int unit = slot(set, binding);
+    const auto& glTexture = static_cast<const GlTexture&>(texture);
     glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(GL_TEXTURE_2D, static_cast<const GlTexture&>(texture).id());
+    glBindTexture(glTexture.target(), glTexture.id());
     glBindSampler(unit, static_cast<const GlSampler&>(sampler).id());
+}
+
+void GlCommandList::generateMipmaps(rhi::Texture& texture)
+{
+    requireThat(!m_inPass, "generateMipmaps: inside a render pass");
+    const auto& glTexture = static_cast<const GlTexture&>(texture);
+    glBindTexture(glTexture.target(), glTexture.id());
+    glGenerateMipmap(glTexture.target());
+    glBindTexture(glTexture.target(), 0);
 }
 
 void GlCommandList::draw(std::uint32_t vertexCount, std::uint32_t firstVertex)

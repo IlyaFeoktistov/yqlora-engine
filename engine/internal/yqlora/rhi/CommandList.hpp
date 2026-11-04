@@ -15,6 +15,10 @@ class Pipeline;
 struct RenderPassDesc {
     Texture* color = nullptr;
     Texture* depth = nullptr;
+    // Куда рисовать в цвет: грань кубической текстуры (0..5) и мип. Область
+    // вывода - весь этот мип; глубина тогда не задаётся.
+    int colorFace = 0;
+    int colorMip = 0;
     LoadOp colorLoad = LoadOp::Clear;
     LoadOp depthLoad = LoadOp::Clear;
     Vec4 clearColor{0.0f, 0.0f, 0.0f, 1.0f};
@@ -67,6 +71,10 @@ public:
         const Texture& texture,
         const Sampler& sampler
     ) = 0;
+
+    // Мипы 1..N текстуры с мипмапами из мипа 0 (у кубической - каждой грани).
+    // Вне прохода; состояние текстуры не меняется.
+    virtual void generateMipmaps(Texture& texture) = 0;
 
     // Треугольники.
     virtual void draw(std::uint32_t vertexCount, std::uint32_t firstVertex = 0) = 0;

@@ -28,6 +28,9 @@ inline constexpr ResourceId kDefaultMaterial = 0x201;
 inline constexpr ResourceId kErrorMaterial = 0x202;
 // Небо нового окружения: шейдер Physical со значениями по умолчанию.
 inline constexpr ResourceId kDefaultSkyMaterial = 0x203;
+// Небо из трёх цветов по высоте (шейдер Gradient); через него сцену освещают
+// источники окружающего света Gradient и Color.
+inline constexpr ResourceId kGradientSkyMaterial = 0x204;
 
 inline constexpr ResourceId kFirstProjectId = 1024;
 

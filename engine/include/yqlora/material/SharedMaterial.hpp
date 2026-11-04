@@ -28,6 +28,7 @@ public:
     bool setVector(std::string_view name, const Vec3& value);
     bool setVector(std::string_view name, const Vec4& value);
     // Только для полей с пометкой color; значение в sRGB, как в файле.
+    bool setColor(std::string_view name, const Vec3& value);
     bool setColor(std::string_view name, const Vec4& value);
     bool setTexture(std::string_view name, ResourceRef texture);
 

@@ -200,6 +200,14 @@ Vulkan itself.
   (`fixup_clipspace`), Vulkan will flip y with the viewport. The vertical
   flip of render targets in OpenGL stays inside the backend (`UiTexture`
   corners).
+- **Textures**: 2D or cube (`TextureDesc::cube`, six faces +X, -X, +Y,
+  -Y, +Z, -Z), with or without a full mip chain. A pass draws into one
+  face and one mip of its colour target (`RenderPassDesc::colorFace`,
+  `colorMip`, the viewport is that mip); `generateMipmaps` fills the mips
+  from mip 0 outside a pass (in the graph: a pass with `generateMipmaps`).
+  A sampler with mipmaps reads mips only if the texture has them: a texture
+  without mips is complete for any sampler (OpenGL: `GL_TEXTURE_MAX_LEVEL`).
+  Cube faces are sampled seamlessly across edges, as in every API.
 - **Lost device**: the path that changes the graphics API without a restart
   (see below) also recovers from a lost device in Vulkan and D3D12. OpenGL
   does not lose its device, so nothing is added now.

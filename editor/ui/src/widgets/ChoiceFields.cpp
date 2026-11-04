@@ -28,20 +28,32 @@ void collectNodes(const Node& node, std::vector<const Node*>& out)
 
 // переопределяют фазы кадра. Выбранный виден всегда, даже если его модуль не загружен.
 
+// Подпись значения перечисления на языке редактора; без перевода - его имя.
+std::string enumValueLabel(const std::string& name)
+{
+    const std::string key = enumValueLabelKey(name);
+    const std::string label = tr(key);
+
+    return label == key ? name : label;
+}
+
 } // namespace
 
 bool enumCombo(const Property& property, EnumValue& value)
 {
     const auto& names = property.enumNames();
     const auto current = static_cast<std::size_t>(value.value);
-    const std::string preview = value.value >= 0 && current < names.size() ? names[current]
+    const std::string preview = value.value >= 0 && current < names.size() ? enumValueLabel(names[current])
                                                                            : std::to_string(value.value);
 
     bool changed = false;
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::BeginCombo("##value", preview.c_str())) {
         for (std::size_t i = 0; i < names.size(); ++i) {
-            if (ImGui::Selectable(names[i].c_str(), i == current)) {
+            ImGui::PushID(static_cast<int>(i));
+            const bool selected = ImGui::Selectable(enumValueLabel(names[i]).c_str(), i == current);
+            ImGui::PopID();
+            if (selected) {
                 value.value = static_cast<int>(i);
                 changed = true;
             }

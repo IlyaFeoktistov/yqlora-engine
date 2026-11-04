@@ -100,6 +100,11 @@ std::string Localization::translate(std::string_view key) const
     return std::string(key);
 }
 
+bool Localization::has(std::string_view key) const
+{
+    return m_strings.find(key) != m_strings.end();
+}
+
 std::vector<std::string> Localization::availableLanguages() const
 {
     std::vector<std::string> result;

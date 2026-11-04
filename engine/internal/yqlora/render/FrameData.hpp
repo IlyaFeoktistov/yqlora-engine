@@ -124,11 +124,17 @@ struct LightData {
     bool sun = false;
 };
 
-// Окружение кадра (узел Environment): небо и атмосфера. Без окружения -
-// ни неба, ни атмосферы.
+// Окружение кадра (узел Environment): небо, свет неба и атмосфера. Без
+// окружения - ни неба, ни света неба, ни атмосферы.
 struct EnvironmentData {
     // Материал неба в FrameData::materials; nullopt - неба нет.
     std::optional<std::size_t> sky{};
+    // Чем светит небо: материал неба, который рисуется в куб для освещения
+    // (у источника Sky - сам sky, у Gradient и Color - встроенный градиент),
+    // и его замены в FrameData::overrides. nullopt - света неба нет.
+    std::optional<std::size_t> ambientSky{};
+    std::size_t ambientOverrides = DrawItem::kNoOverrides;
+    float ambientIntensity = 1.0f;
     Atmosphere atmosphere{.enabled = false};
 };
 

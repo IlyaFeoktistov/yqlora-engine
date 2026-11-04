@@ -408,7 +408,7 @@ shaders, so every backend can do it.
 - Clouds and volumetric fog come after the MVP, on top of the same
   tables.
 
-## Ambient light and reflections [planned, step 5]
+## Ambient light and reflections [done]
 
 The sky lights the scene twice: as diffuse ambient light and as
 reflections on metals and glossy surfaces (image-based lighting).
@@ -417,16 +417,34 @@ reflections on metals and glossy surfaces (image-based lighting).
   sun, the atmosphere, the height of the camera by steps of 100 m, the
   ambient source and colours), the sky is drawn into a cube texture, 128 x
   128 per face, with the capture variant of its shader. `Gradient` and
-  `Color` draw the built-in `Gradient` sky into the same cube, so all three
-  sources take one path.
+  `Color` draw the built-in `Gradient Sky` material
+  (`builtin::kGradientSkyMaterial`) with the colours of the environment as
+  overrides into the same cube, so all three sources take one path. Each
+  pixel of a face takes its direction from the cube face table shared by
+  every API (`<yqlora/cube.glsl>`, the `Capture` block at set 3, binding
+  1), not from a camera, so faces never come out flipped on another
+  backend. `EnvironmentLighting` keeps the tables between frames and
+  compares a key of all those inputs field by field.
 - **Diffuse**: 9 coefficients of second order spherical harmonics are
-  projected from the cube into a 9 x 1 texture; `ambientLight(normal)` in
-  `lighting.glsl` reads them.
-- **Specular**: the mips of a second cube are filtered by GGX for growing
-  roughness (filtered importance sampling); a 2D table of the split-sum
-  BRDF (128 x 128) is made once. `lighting.glsl` adds the reflection with
-  the energy compensation for multiple scattering in rough metals; the
-  occlusion of the material dims it too.
+  projected from a small mip of the cube into a 9 x 1 texture (set 0,
+  binding 3); `ambientLight(normal)` in `lighting.glsl` reads them. The
+  basis is one file, `<yqlora/harmonics.glsl>`, for the projection and the
+  lookup.
+- **Specular**: mips 0..5 of a second cube (set 0, binding 4) are
+  filtered by GGX for roughness 0..1 (filtered importance sampling); a 2D
+  table of the split-sum BRDF (128 x 128, set 0, binding 5) is made once.
+  `lighting.glsl` adds the reflection with the energy compensation for
+  multiple scattering in rough metals; the occlusion of the material dims
+  it too. The GGX functions are one file, `<yqlora/brdf.glsl>`, for the
+  lighting and the tables.
+- **Without sky light** (no environment, no sky for the `Sky` source) the
+  tables are cleared to black once.
+- **Multiplier**: `ambientIntensity` of the environment scales both, in the
+  frame block (`ambientIntensity`, with `environmentMaxMip`).
+- **Emission and exposure**: `Surface::emissionExposureWeight` (`Standard`:
+  `emissionExposureWeight`, 0..1). 1 is physical, nits under the exposure of
+  the camera; 0 keeps the emission as bright on screen at any exposure
+  (signs, interface in the world, a cartoon style); values between blend.
 - Everything stays on the GPU, with no read back, so a day and night cycle
   does not stall the frame.
 - Reflection probes (local cubes placed in the scene) come after the MVP
@@ -754,7 +772,7 @@ Lights give shadows, their meshes cast and receive them.
   dimmer and redder at sunset; a far object is closer to the sky colour
   than a near one.
 
-### 5.5c Ambient light and reflections
+### 5.5c Ambient light and reflections [done]
 
 - **RHI**: cube textures (`TextureDesc::cube`), drawing into a face and a
   mip, `generateMipmaps`, `samplerCube` in the profile; the OpenGL backend
@@ -762,6 +780,10 @@ Lights give shadows, their meshes cast and receive them.
 - **Passes**: the capture into the cube, the projection into harmonics, the
   GGX filtering of the mips, the BRDF table; the frame set gets their
   textures; `ambientLight` and the specular term in `lighting.glsl`.
+- **Emission and exposure**: `Standard` gets `emissionExposureWeight`
+  (0..1): 1 is physical (nits under the exposure of the camera), 0 keeps
+  the emission as bright on screen at any exposure (signs, interface in
+  the world, a cartoon style), values between blend.
 - **Tests**: the harmonics of a constant sky give its luminance along any
   normal; `Gradient` lights the top of a cube with the sky colour and the
   bottom with the ground colour; a smooth metal sphere reflects the sky,

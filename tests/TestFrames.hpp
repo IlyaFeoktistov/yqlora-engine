@@ -36,7 +36,7 @@ public:
         material.values.insert(values.begin(), values.end());
         const LoadedData<ShaderData> shader = m_cache.get<ShaderData>(builtin::kStandardShader);
         FrameMaterial frameMaterial{
-            .id = kFirstTestMaterial + m_data.size(),
+            .id = nextId(),
             .revision = 1,
             .data = &material,
             .shaderId = builtin::kStandardShader,
@@ -53,8 +53,14 @@ public:
     }
 
 private:
-    // ID материалов теста: вне встроенных и не пересекаются друг с другом.
-    static constexpr ResourceId kFirstTestMaterial = builtin::kFirstProjectId;
+    // ID материалов тестов: вне встроенных и разные на весь прогон, ведь
+    // рендерер может пережить TestMaterials, а его кэш помнит материал по ID.
+    static ResourceId nextId()
+    {
+        static ResourceId next = builtin::kFirstProjectId;
+
+        return next++;
+    }
 
     ResourceCache m_cache;
     std::deque<MaterialData> m_data;

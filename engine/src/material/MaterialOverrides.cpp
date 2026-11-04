@@ -27,6 +27,11 @@ void MaterialOverrides::setVector(std::string_view name, const Vec4& value)
     set(name, {{value.x, value.y, value.z, value.w}});
 }
 
+void MaterialOverrides::setColor(std::string_view name, const Vec3& value)
+{
+    set(name, {{value.x, value.y, value.z}, true});
+}
+
 void MaterialOverrides::setColor(std::string_view name, const Vec4& value)
 {
     set(name, {{value.x, value.y, value.z, value.w}, true});

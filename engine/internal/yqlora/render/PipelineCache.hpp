@@ -15,10 +15,12 @@
 namespace yqlora {
 
 // Чем рисует материал: подмеш (вершины меша, смешивание и отсечение из
-// материала) или небо (треугольник на весь экран на дальней плоскости).
+// материала), небо (треугольник на весь экран на дальней плоскости) или
+// небо в грань куба для освещения (вариант захвата шейдера неба).
 enum class MaterialPass : std::uint8_t {
     Surface,
     Sky,
+    Capture,
 };
 
 // Конвейеры материалов: по шейдеру и его ревизии, смешиванию, отсечению и
@@ -51,8 +53,14 @@ private:
     };
 
     rhi::Device& m_device;
-    // Шейдер ревизии, который бэкенд не собрал: nullptr-заглушка в кэше.
-    GpuResourceCache<std::unique_ptr<rhi::Shader>> m_shaders;
+    // Шейдер ревизии в видеопамяти с вариантом захвата, если он есть. Вариант,
+    // который бэкенд не собрал, - nullptr.
+    struct Shaders {
+        std::unique_ptr<rhi::Shader> main;
+        std::unique_ptr<rhi::Shader> capture;
+    };
+
+    GpuResourceCache<Shaders> m_shaders;
     std::map<Key, Entry> m_pipelines;
     std::uint64_t m_frame = 0;
 };

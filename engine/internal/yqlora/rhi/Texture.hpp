@@ -13,13 +13,41 @@ enum TextureUsage : unsigned {
     kDepthTarget = 1U << 2U,
 };
 
+// Граней у кубической текстуры: +X, -X, +Y, -Y, +Z, -Z, как во всех API.
+inline constexpr int kCubeFaces = 6;
+
 struct TextureDesc {
     int width = 1;
     int height = 1;
     Format format = Format::Rgba8;
     unsigned usage = kSampled;
+    // Полная цепочка мипов (до 1 x 1).
     bool mipmaps = false;
+    // Кубическая: kCubeFaces квадратных граней width x width.
+    bool cube = false;
 };
+
+// Сколько мипов у текстуры: 1 без мипмапов, иначе до 1 x 1.
+constexpr int mipLevelCount(const TextureDesc& desc)
+{
+    if (!desc.mipmaps) {
+        return 1;
+    }
+    int levels = 1;
+    for (int size = desc.width > desc.height ? desc.width : desc.height; size > 1; size /= 2) {
+        ++levels;
+    }
+
+    return levels;
+}
+
+// Сторона мипа level: не меньше 1.
+constexpr int mipSize(int size, int level)
+{
+    const int scaled = size >> level;
+
+    return scaled > 0 ? scaled : 1;
+}
 
 // Начальное состояние новой текстуры: цель, если она для рисования, иначе
 // чтение в шейдере.

@@ -54,6 +54,11 @@ bool SharedMaterial::setVector(std::string_view name, const Vec4& value)
     return setNumbers(name, {value.x, value.y, value.z, value.w});
 }
 
+bool SharedMaterial::setColor(std::string_view name, const Vec3& value)
+{
+    return setVector(name, value);
+}
+
 bool SharedMaterial::setColor(std::string_view name, const Vec4& value)
 {
     return setVector(name, value);

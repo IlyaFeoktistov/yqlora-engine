@@ -25,6 +25,9 @@ public:
         return m_texture;
     }
 
+    // GL_TEXTURE_2D или GL_TEXTURE_CUBE_MAP.
+    unsigned int target() const;
+
     bool isBackBuffer() const
     {
         return m_texture == 0;

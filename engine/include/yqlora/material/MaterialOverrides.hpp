@@ -32,7 +32,9 @@ public:
     void setVector(std::string_view name, const Vec2& value);
     void setVector(std::string_view name, const Vec3& value);
     void setVector(std::string_view name, const Vec4& value);
-    // Только для полей с пометкой color; значение в sRGB, как в материале.
+    // Только для полей с пометкой color (vec3 и vec4); значение в sRGB, как в
+    // материале, альфа как есть.
+    void setColor(std::string_view name, const Vec3& value);
     void setColor(std::string_view name, const Vec4& value);
     // Пустая ссылка - текстура по умолчанию поля.
     void setTexture(std::string_view name, ResourceRef texture);

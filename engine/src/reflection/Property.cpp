@@ -204,4 +204,21 @@ bool Property::set(SettingsSection& section, const PropertyValue& value) const
     return true;
 }
 
+namespace {
+
+constexpr std::string_view kPropertyLabelPrefix = "property.";
+constexpr std::string_view kEnumValueLabelPrefix = "enum.";
+
+} // namespace
+
+std::string Property::labelKey() const
+{
+    return std::string(kPropertyLabelPrefix) + m_name;
+}
+
+std::string enumValueLabelKey(std::string_view valueName)
+{
+    return std::string(kEnumValueLabelPrefix) + std::string(valueName);
+}
+
 } // namespace yqlora

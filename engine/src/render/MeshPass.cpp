@@ -55,6 +55,7 @@ void MeshPass::draw(
         bindMaterial(
             commands,
             m_context,
+            *pipeline->desc().shader,
             *material,
             overridden ? &frame.overrides[item->overrides] : nullptr,
             [&](std::string_view name) {

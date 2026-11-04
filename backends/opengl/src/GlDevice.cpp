@@ -60,6 +60,10 @@ GlDevice::GlDevice(Window& window)
         reinterpret_cast<const char*>(glGetString(GL_VERSION))
     );
 
+    // Выборка у края грани куба берёт соседнюю грань, а не повтор своей: так
+    // во всех API, кроме OpenGL по умолчанию.
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
     GLint alignment = 0;
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
     m_limits.uniformOffsetAlignment = static_cast<std::size_t>(alignment);
@@ -189,9 +193,9 @@ bool GlDevice::setVsync(bool enabled)
     return true;
 }
 
-unsigned int GlDevice::framebuffer(const GlTexture& color, const GlTexture* depth)
+unsigned int GlDevice::framebuffer(const GlTexture& color, const GlTexture* depth, int face, int mip)
 {
-    const std::pair key(color.id(), depth ? depth->id() : 0U);
+    const FramebufferKey key{color.id(), depth ? depth->id() : 0U, face, mip};
     if (const auto it = m_framebuffers.find(key); it != m_framebuffers.end()) {
         return it->second;
     }
@@ -201,7 +205,9 @@ unsigned int GlDevice::framebuffer(const GlTexture& color, const GlTexture* dept
     GLint previous = 0;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previous);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color.id(), 0);
+    const GLenum colorTarget = color.desc().cube ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + static_cast<GLenum>(face)
+                                                 : GL_TEXTURE_2D;
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, colorTarget, color.id(), mip);
     if (depth) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth->id(), 0);
     }
@@ -220,7 +226,7 @@ unsigned int GlDevice::framebuffer(const GlTexture& color, const GlTexture* dept
 void GlDevice::forgetFramebuffers(unsigned int texture)
 {
     for (auto it = m_framebuffers.begin(); it != m_framebuffers.end();) {
-        if (it->first.first == texture || it->first.second == texture) {
+        if (it->first.color == texture || it->first.depth == texture) {
             glDeleteFramebuffers(1, &it->second);
             it = m_framebuffers.erase(it);
         } else {

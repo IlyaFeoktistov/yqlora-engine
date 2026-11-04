@@ -2,6 +2,7 @@
 
 #include "yqlora/render/AtmospherePass.hpp"
 #include "yqlora/render/EngineUniforms.hpp"
+#include "yqlora/render/EnvironmentLighting.hpp"
 #include "yqlora/render/FrameFormats.hpp"
 #include "yqlora/render/MeshPass.hpp"
 #include "yqlora/render/OutputPass.hpp"
@@ -41,6 +42,7 @@ SceneRenderer::SceneRenderer(const RenderContext& context, TransientTextures& tr
     : m_context(context)
     , m_transients(transients)
     , m_atmosphere(std::make_unique<AtmospherePass>(context))
+    , m_environment(std::make_unique<EnvironmentLighting>(context))
     , m_meshPass(std::make_unique<MeshPass>(context))
     , m_outputPass(std::make_unique<OutputPass>(context))
 {
@@ -79,16 +81,21 @@ void SceneRenderer::draw(
         .usage = rhi::kColorTarget | rhi::kSampled,
     });
     const AtmosphereUniforms atmosphere = atmosphereUniforms(frame.environment.atmosphere);
+    FrameUniforms uniforms = frameUniforms(frame);
+    uniforms.environmentMaxMip = EnvironmentLighting::kMaxSpecularMip;
     const EngineResources frameResources{
-        .frame = m_context.uniforms.push(frameUniforms(frame)),
+        .frame = m_context.uniforms.push(uniforms),
         .atmosphere = m_context.uniforms.push(atmosphere),
         .lutSampler = &m_atmosphere->lutSampler(),
+        .environmentSampler = &m_environment->sampler(),
     };
     const AtmospherePass::FrameLuts frameLuts = m_atmosphere->addFrame(graph, atmosphere, frameResources);
-    // Списки видимого живут до execute: на них ссылаются записанные проходы.
+
+    // Ресурсы каждого вида: его блок View и таблицы атмосферы.
     std::vector<PreparedView> prepared(frame.views.size());
     std::vector<UniformSlice> viewUniforms(frame.views.size());
-    // Виды по очереди: следующая камера рисует поверх предыдущей.
+    std::vector<EngineResources> viewResources(frame.views.size(), frameResources);
+    std::vector<EngineTextureIds> viewTextures(frame.views.size());
     for (std::size_t i = 0; i < frame.views.size(); ++i) {
         const ViewData& view = frame.views[i];
         prepared[i] = prepareView(frame.drawItems, frame.materials, view);
@@ -101,23 +108,36 @@ void SceneRenderer::draw(
                 .exposure = view.exposure.factor,
             }
         );
-        EngineResources viewResources = frameResources;
-        viewResources.view = viewUniforms[i];
-        const AtmospherePass::ViewLuts luts = m_atmosphere->addView(graph, atmosphere, viewResources, frameLuts);
+        viewResources[i].view = viewUniforms[i];
+        const AtmospherePass::ViewLuts luts = m_atmosphere->addView(graph, atmosphere, viewResources[i], frameLuts);
+        viewTextures[i] = {
+            .transmittance = frameLuts.transmittance,
+            .skyView = luts.skyView,
+            .aerialPerspective = luts.aerialPerspective,
+        };
+    }
+    // Небо для освещения - из камеры первого вида, обычно главной.
+    const EnvironmentLighting::Textures
+        environment = m_environment->addTo(graph, frame, viewResources.front(), viewTextures.front());
+
+    // Виды по очереди: следующая камера рисует поверх предыдущей.
+    for (std::size_t i = 0; i < frame.views.size(); ++i) {
+        const ViewData& view = frame.views[i];
+        EngineTextureIds textures = viewTextures[i];
+        textures.ambientHarmonics = environment.harmonics;
+        textures.environmentSpecular = environment.specular;
+        textures.environmentBrdf = environment.brdf;
         graph.addPass({
             .name = "view " + std::to_string(i),
             .color = {hdrId, colorLoad(view.clear)},
             .depth = RenderGraph::Target{depthId, depthLoad(view.clear)},
             .clearColor = view.clear == CameraClear::Sky ? kSkyClearColor : view.background,
-            .reads = {frameLuts.transmittance, luts.skyView, luts.aerialPerspective},
-            .record = [this, &frame, &view, &items = prepared[i], viewResources, frameLuts, luts](
+            .reads = textures.reads(),
+            .record = [this, &frame, &view, &items = prepared[i], base = viewResources[i], textures](
                           rhi::CommandList& commands,
                           const RenderGraph& passes
                       ) {
-                EngineResources resources = viewResources;
-                resources.transmittance = &passes.texture(frameLuts.transmittance);
-                resources.skyView = &passes.texture(luts.skyView);
-                resources.aerialPerspective = &passes.texture(luts.aerialPerspective);
+                const EngineResources resources = withTextures(base, passes, textures);
                 const std::span<const DrawItem* const> all(items.items);
                 m_meshPass->draw(commands, frame, all.first(items.opaqueCount), resources);
                 if (view.clear == CameraClear::Sky) {

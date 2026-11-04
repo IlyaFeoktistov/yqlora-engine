@@ -10,6 +10,7 @@
 namespace yqlora {
 
 class AtmospherePass;
+class EnvironmentLighting;
 class MeshPass;
 class OutputPass;
 class TransientTextures;
@@ -44,6 +45,7 @@ private:
     const RenderContext& m_context;
     TransientTextures& m_transients;
     std::unique_ptr<AtmospherePass> m_atmosphere;
+    std::unique_ptr<EnvironmentLighting> m_environment;
     std::unique_ptr<MeshPass> m_meshPass;
     std::unique_ptr<OutputPass> m_outputPass;
 };

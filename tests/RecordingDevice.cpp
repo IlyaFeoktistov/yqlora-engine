@@ -41,6 +41,16 @@ void RecordingCommandList::beginRenderPass(const rhi::RenderPassDesc& desc)
     requireThat(!m_inPass, "beginRenderPass: the previous pass is not ended");
     requireThat(desc.color != nullptr, "beginRenderPass: no colour target");
     requireThat(desc.color->state() == rhi::ResourceState::ColorTarget, "beginRenderPass: colour is not a target");
+    const rhi::TextureDesc& color = desc.color->desc();
+    requireThat(
+        desc.colorFace >= 0 && desc.colorFace < (color.cube ? rhi::kCubeFaces : 1),
+        "beginRenderPass: no such face"
+    );
+    requireThat(desc.colorMip >= 0 && desc.colorMip < rhi::mipLevelCount(color), "beginRenderPass: no such mip");
+    requireThat(
+        !desc.depth || (desc.colorFace == 0 && desc.colorMip == 0),
+        "beginRenderPass: depth with a face or mip"
+    );
     if (desc.depth) {
         requireThat(desc.depth->state() == rhi::ResourceState::DepthTarget, "beginRenderPass: depth is not a target");
         requireThat(
@@ -117,6 +127,13 @@ void RecordingCommandList::setTexture(
     requireThat(texture.state() == rhi::ResourceState::ShaderRead, "setTexture: the texture is not in ShaderRead");
     m_bound.emplace(set, slot);
     m_device.recorded.push_back({CommandKind::SetTexture});
+}
+
+void RecordingCommandList::generateMipmaps(rhi::Texture& texture)
+{
+    requireThat(!m_inPass, "generateMipmaps: inside a render pass");
+    requireThat(texture.desc().mipmaps, "generateMipmaps: the texture has no mipmaps");
+    m_device.recorded.push_back({CommandKind::GenerateMipmaps});
 }
 
 void RecordingCommandList::draw(std::uint32_t vertexCount, std::uint32_t)

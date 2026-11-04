@@ -62,8 +62,9 @@ public:
         return m_context;
     }
 
-    // Framebuffer для пары вложений; заводится при первом обращении.
-    unsigned int framebuffer(const GlTexture& color, const GlTexture* depth);
+    // Framebuffer для пары вложений (у цвета - грань куба и мип); заводится
+    // при первом обращении.
+    unsigned int framebuffer(const GlTexture& color, const GlTexture* depth, int face = 0, int mip = 0);
 
     // Текстура удаляется: её framebuffer больше не нужны.
     void forgetFramebuffers(unsigned int texture);
@@ -75,8 +76,17 @@ private:
     std::unique_ptr<GlTexture> m_backBuffer;
     std::unique_ptr<GlTexture> m_backBufferDepth;
     std::unique_ptr<GlCommandList> m_commands;
-    // Ключ - имена текстур цвета и глубины (0 - без глубины).
-    std::map<std::pair<unsigned int, unsigned int>, unsigned int> m_framebuffers;
+    struct FramebufferKey {
+        unsigned int color = 0;
+        // 0 - без глубины.
+        unsigned int depth = 0;
+        int face = 0;
+        int mip = 0;
+
+        auto operator<=>(const FramebufferKey&) const = default;
+    };
+
+    std::map<FramebufferKey, unsigned int> m_framebuffers;
 };
 
 } // namespace yqlora::opengl

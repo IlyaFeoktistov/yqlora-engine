@@ -20,7 +20,9 @@ Status marks: see [README](README.md).
 | `editor.*` | texts of the editor: menus, windows, panels, dialogs |
 | `projects.*` | the project manager |
 | `type.<Type>.description` | tooltip of a registered type |
-| `property.<name>` | label of a property in the inspector and the settings window |
+| `property.<name>` | label of a property (and of a field of a record) in the inspector and the settings window, `Property::labelKey` |
+| `enum.<Value>` | label of an enum value in a list, `enumValueLabelKey`; one name means one thing in every enum |
+| `group.<name>` | heading of a group of properties (`group("group.ambientLight")`) |
 | `editor.settings.<Section>` | name of a settings section in the settings window |
 
 - Names of nodes, types and properties in scene files are not translated:
@@ -41,9 +43,14 @@ Status marks: see [README](README.md).
 
 ## Rules [done]
 
-- Every registered engine type has a description in every language; a test
-  checks it, so a new type without `type.<Type>.description` in `en.json` and
-  `ru.json` fails the tests.
+- Every registered engine type has a description in every language, and
+  every shown property of it (fields of records too) and every enum value a
+  label in every language; tests check it, so a new type, property or value
+  without its key in `en.json` and `ru.json` fails the tests. A raw
+  variable name never reaches the inspector.
+- A script names its fields with `displayName("key or text")`, a shader its
+  material fields with `//@ label("key or text")`: a key is translated, a
+  text is shown as it is.
 - Texts are added to all language files in the same change.
 
 ## Planned

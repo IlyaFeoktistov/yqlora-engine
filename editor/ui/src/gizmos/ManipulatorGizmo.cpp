@@ -135,14 +135,17 @@ bool ManipulatorGizmo::drawSnapButtons(const GizmoContext& context)
     SnapSettings& snap = context.settings.snap;
     bool changed = false;
     const auto toggle = [&](const char* icon, bool& value) {
-        if (value) {
+        // Цвет снимается по тому же состоянию, по которому положен: щелчок
+        // меняет value между ними.
+        const bool wasOn = value;
+        if (wasOn) {
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
         }
         if (ImGui::Button(icon)) {
             value = !value;
             changed = true;
         }
-        if (value) {
+        if (wasOn) {
             ImGui::PopStyleColor();
         }
     };

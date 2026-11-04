@@ -7,7 +7,6 @@
 #include "yqlora/shader/ShaderProfile.hpp"
 
 #include <array>
-#include <cstring>
 #include <span>
 #include <string>
 #include <utility>
@@ -22,11 +21,6 @@ constexpr std::uint32_t kFullscreenTriangleVertices = 3;
 // Своя таблица многократного рассеяния у шейдеров вида (march.glsl).
 constexpr rhi::BindingSlot kMultipleScatteringSlot{kMaterialSet, 0};
 constexpr char kAerialSlicesDefine[] = "YQLORA_AERIAL_SLICES";
-
-bool sameAtmosphere(const AtmosphereUniforms& a, const AtmosphereUniforms& b)
-{
-    return std::memcmp(&a, &b, sizeof(AtmosphereUniforms)) == 0;
-}
 
 } // namespace
 
@@ -139,7 +133,7 @@ AtmospherePass::FrameLuts AtmospherePass::addFrame(
         .multipleScattering = graph.import(*m_multipleScattering),
         .empty = graph.import(*m_empty),
     };
-    if (atmosphere.enabled == 0 || (m_filledFor && sameAtmosphere(*m_filledFor, atmosphere))) {
+    if (atmosphere.enabled == 0 || m_filledFor == atmosphere) {
         return luts;
     }
     m_filledFor = atmosphere;

@@ -25,6 +25,10 @@ namespace {
 // Состояние конвейера по проходу и материалу.
 rhi::PipelineDesc pipelineDesc(const FrameMaterial& material, MaterialPass pass)
 {
+    if (pass == MaterialPass::Capture) {
+        // В грань куба целиком, без глубины.
+        return {.depthTest = false, .depthWrite = false, .cull = rhi::CullMode::None};
+    }
     if (pass == MaterialPass::Sky) {
         // Небо на глубине 1: проходит там, где после очистки ничего не нарисовано.
         return {
@@ -45,6 +49,18 @@ rhi::PipelineDesc pipelineDesc(const FrameMaterial& material, MaterialPass pass)
     };
 }
 
+// Шейдер для бэкенда; nullptr - не собрался (сообщение в логе).
+std::unique_ptr<rhi::Shader> createShader(rhi::Device& device, const rhi::ShaderDesc& desc)
+{
+    try {
+        return device.createShader(desc);
+    } catch (const std::runtime_error& error) {
+        log::error("Shader '{}' is not built by the graphics backend: {}", desc.name, error.what());
+
+        return nullptr;
+    }
+}
+
 } // namespace
 
 const rhi::Pipeline* PipelineCache::get(
@@ -54,24 +70,20 @@ const rhi::Pipeline* PipelineCache::get(
     rhi::Format depth
 )
 {
-    std::unique_ptr<rhi::Shader>& shader = m_shaders.get(material.shaderId, material.shaderRevision, [&] {
+    Shaders& shaders = m_shaders.get(material.shaderId, material.shaderRevision, [&] {
         // Прежняя ревизия шейдера сейчас уйдёт: её конвейеры - раньше неё.
         std::erase_if(m_pipelines, [&](const auto& pipeline) {
             return std::get<0>(pipeline.first) == material.shaderId;
         });
-        auto created = std::make_unique<std::unique_ptr<rhi::Shader>>();
-        try {
-            *created = m_device.createShader(material.shader->desc);
-        } catch (const std::runtime_error& error) {
-            log::error(
-                "Shader '{}' is not built by the graphics backend: {}",
-                material.shader->desc.name,
-                error.what()
-            );
+        auto created = std::make_unique<Shaders>();
+        created->main = createShader(m_device, material.shader->desc);
+        if (material.shader->captureDesc) {
+            created->capture = createShader(m_device, *material.shader->captureDesc);
         }
 
         return created;
     });
+    const rhi::Shader* shader = pass == MaterialPass::Capture ? shaders.capture.get() : shaders.main.get();
     if (!shader) {
         return nullptr;
     }
@@ -87,7 +99,7 @@ const rhi::Pipeline* PipelineCache::get(
     Entry& entry = m_pipelines[key];
     if (!entry.pipeline) {
         rhi::PipelineDesc desc = pipelineDesc(material, pass);
-        desc.shader = shader.get();
+        desc.shader = shader;
         desc.colorFormat = color;
         desc.depthFormat = depth;
         entry.pipeline = m_device.createPipeline(std::move(desc));

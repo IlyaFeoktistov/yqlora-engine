@@ -10,6 +10,9 @@ layout(set = 2, binding = 0, std140) uniform Material {
     vec3 emission;           //@ color default(1, 1, 1)
     // Яркость свечения в нитах: экран около 200, лампа под абажуром - тысячи.
     float emissionIntensity; //@ default(0)
+    // 1 - свечение подчиняется экспозиции камеры, как свет; 0 - на экране
+    // всегда той яркости, что задана (вывески, интерфейс в мире, стиль).
+    float emissionExposureWeight; //@ range(0, 1) default(1)
     float metallic;          //@ range(0, 1) default(0)
     float roughness;         //@ range(0, 1) default(0.5)
     float occlusionStrength; //@ range(0, 1) default(1)
@@ -48,6 +51,7 @@ void main()
     surface.roughness = material.roughness * orm.g;
     surface.metallic = material.metallic * orm.b;
     surface.emission = material.emission * material.emissionIntensity * texture(emissionMap, uv).rgb;
+    surface.emissionExposureWeight = material.emissionExposureWeight;
     fragColor = shade(surface);
 }
 #endif

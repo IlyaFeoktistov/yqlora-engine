@@ -31,7 +31,7 @@ void drawSky(
     }
     commands.bindPipeline(*pipeline);
     bindEngineResources(commands, *pipeline->desc().shader, resources);
-    bindMaterial(commands, context, material, nullptr);
+    bindMaterial(commands, context, *pipeline->desc().shader, material, nullptr);
     commands.draw(kFullscreenTriangleVertices);
 }
 

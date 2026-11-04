@@ -44,6 +44,10 @@ struct alignas(16) FrameUniforms {
     Vec3 sunColor{0.0f};
     int directionalCount = 0;
     int punctualCount = 0;
+    // Множитель света и отражений неба (Environment::ambientIntensity).
+    float ambientIntensity = 0.0f;
+    // Последний мип куба отражений, по которому идёт шероховатость.
+    float environmentMaxMip = 0.0f;
     DirectionalLightUniforms directionalLights[kMaxDirectionalLights]{};
     PunctualLightUniforms punctualLights[kMaxPunctualLights]{};
 };
@@ -76,6 +80,15 @@ struct alignas(16) AtmosphereUniforms {
     int enabled = 0;
     // Сила воздушной перспективы: 0 - без дымки, 1 - физически.
     float aerialPerspective = 0.0f;
+
+    // По полям: байты выравнивания в конце структуры не определены.
+    bool operator==(const AtmosphereUniforms&) const = default;
+};
+
+// Грань куба, в которую рисуется небо (вариант захвата, sky.glsl).
+struct alignas(16) CaptureUniforms {
+    int face = 0;
+    float size = 0.0f;
 };
 
 struct alignas(16) ObjectUniforms {
@@ -109,6 +122,8 @@ inline const UniformLayout kFrameBlock{
         YQLORA_UNIFORM_MEMBER(FrameUniforms, sunColor),
         YQLORA_UNIFORM_MEMBER(FrameUniforms, directionalCount),
         YQLORA_UNIFORM_MEMBER(FrameUniforms, punctualCount),
+        YQLORA_UNIFORM_MEMBER(FrameUniforms, ambientIntensity),
+        YQLORA_UNIFORM_MEMBER(FrameUniforms, environmentMaxMip),
         YQLORA_UNIFORM_STRUCT_MEMBER(FrameUniforms, directionalLights, kDirectionalLightMembers),
         YQLORA_UNIFORM_STRUCT_MEMBER(FrameUniforms, punctualLights, kPunctualLightMembers),
     },
@@ -152,6 +167,23 @@ inline constexpr rhi::BindingSlot kTransmittanceLutSlot{kFrameSet, 2};
 inline constexpr rhi::BindingSlot kSkyViewLutSlot{kViewSet, 1};
 inline constexpr rhi::BindingSlot kAerialPerspectiveLutSlot{kViewSet, 2};
 
+inline const UniformLayout kCaptureBlock{
+    "Capture",
+    {kObjectSet, 1},
+    sizeof(CaptureUniforms),
+    {
+        YQLORA_UNIFORM_MEMBER(CaptureUniforms, face),
+        YQLORA_UNIFORM_MEMBER(CaptureUniforms, size),
+    },
+};
+
+// Свет неба (EnvironmentLighting), который читают шейдеры освещения.
+inline constexpr rhi::BindingSlot kAmbientHarmonicsSlot{kFrameSet, 3};
+inline constexpr rhi::BindingSlot kEnvironmentSpecularSlot{kFrameSet, 4};
+inline constexpr rhi::BindingSlot kEnvironmentBrdfSlot{kFrameSet, 5};
+// Коэффициентов гармоник в текстуре kAmbientHarmonicsSlot (harmonics.glsl).
+inline constexpr int kAmbientHarmonicsCount = 9;
+
 inline const UniformLayout kObjectBlock{
     "Object",
     {kObjectSet, 0},
@@ -169,6 +201,12 @@ YQLORA_API FrameUniforms frameUniforms(const FrameData& frame);
 YQLORA_API AtmosphereUniforms atmosphereUniforms(const Atmosphere& atmosphere);
 
 // Все блоки движка: их сверяют все шейдеры.
-inline const UniformLayout* const kEngineBlocks[] = {&kFrameBlock, &kAtmosphereBlock, &kViewBlock, &kObjectBlock};
+inline const UniformLayout* const kEngineBlocks[] = {
+    &kFrameBlock,
+    &kAtmosphereBlock,
+    &kViewBlock,
+    &kObjectBlock,
+    &kCaptureBlock,
+};
 
 } // namespace yqlora

@@ -46,6 +46,12 @@ std::span<const BuiltinResourceEntry> builtinResourceTable()
              "Default Sky",
              material(builtin::kPhysicalSkyShader)}
         );
+        entries.push_back(
+            {builtin::kGradientSkyMaterial,
+             MaterialData::kResourceKind,
+             "Gradient Sky",
+             material(builtin::kGradientSkyShader)}
+        );
 
         return entries;
     }();

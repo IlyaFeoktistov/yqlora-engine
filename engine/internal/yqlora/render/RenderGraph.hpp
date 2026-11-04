@@ -60,6 +60,9 @@ public:
     struct Target {
         TextureId texture = 0;
         rhi::LoadOp load = rhi::LoadOp::Load;
+        // Грань кубической текстуры и мип, куда рисует проход (только цвет).
+        int face = 0;
+        int mip = 0;
     };
 
     struct Pass {
@@ -71,6 +74,9 @@ public:
         std::vector<TextureId> reads{};
         // Пишет команды внутри открытого прохода.
         std::function<void(rhi::CommandList& commands, const RenderGraph& graph)> record{};
+        // Вместо прохода рисования: мипы color.texture из её мипа 0. Для
+        // порядка это запись в текстуру, как у прохода, который в неё рисует.
+        bool generateMipmaps = false;
     };
 
     explicit RenderGraph(TransientTextures& transients)

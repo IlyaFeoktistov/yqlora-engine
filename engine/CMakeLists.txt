@@ -16,7 +16,10 @@ target_compile_definitions(yqlora_engine_code INTERFACE
 # Шейдеры движка лежат файлами в shaders/ и вшиваются в библиотеку при сборке.
 set(YQLORA_ENGINE_SHADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/atmosphere.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/brdf.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/cube.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/exposure.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/harmonics.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/lighting.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/output.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/include/yqlora/sky.glsl
@@ -33,6 +36,9 @@ set(YQLORA_ENGINE_SHADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/atmosphere/multiple_scattering.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/atmosphere/sky_view.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/atmosphere/aerial_perspective.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/environment/harmonics.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/environment/prefilter.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/environment/brdf.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/output.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fullscreen.vert
 )
@@ -135,6 +141,7 @@ add_library(yqlora SHARED
     src/render/PointLight3D.cpp
     src/render/EngineBindings.cpp
     src/render/EngineUniforms.cpp
+    src/render/EnvironmentLighting.cpp
     src/render/SkyPass.cpp
     src/render/SpotLight3D.cpp
     src/render/ExtractDrawItems.cpp

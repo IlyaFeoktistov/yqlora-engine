@@ -179,6 +179,42 @@ TEST_CASE("TypeRegistry: every engine type has a description in every language")
     }
 }
 
+TEST_CASE("TypeRegistry: every engine property and enum value has a label in every language")
+{
+    TypeRegistry registry;
+    registerEngineTypes(registry);
+    Localization en(YQLORA_LOCALES_DIR);
+    REQUIRE(en.load("en"));
+    Localization ru(YQLORA_LOCALES_DIR);
+    REQUIRE(ru.load("ru"));
+
+    const auto check = [&](const std::string& key) {
+        CAPTURE(key);
+        CHECK(en.has(key));
+        CHECK(ru.has(key));
+    };
+    const auto checkProperty = [&](const Property& property) {
+        // Подпись из displayName уже задана самим свойством.
+        if (property.attributes().displayName.empty()) {
+            check(property.labelKey());
+        }
+        for (const std::string& value : property.enumNames()) {
+            check(enumValueLabelKey(value));
+        }
+    };
+    for (const auto& type : registry.types()) {
+        for (const Property& property : type->ownProperties()) {
+            if (!property.attributes().shown) {
+                continue;
+            }
+            checkProperty(property);
+            for (const Property& field : property.fields()) {
+                checkProperty(field);
+            }
+        }
+    }
+}
+
 namespace {
 
 enum class Mood {

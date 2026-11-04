@@ -28,6 +28,9 @@ public:
     // чтобы пропущенный перевод было видно, а не получить пустую строку.
     std::string translate(std::string_view key) const;
 
+    // Есть ли ключ в самом загруженном языке, без запасного английского.
+    bool has(std::string_view key) const;
+
     const std::string& language() const
     {
         return m_language;

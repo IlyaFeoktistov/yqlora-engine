@@ -34,6 +34,10 @@ layout(set = 0, binding = 0, std140) uniform Frame {
     vec3 sunColor;
     int directionalCount;
     int punctualCount;
+    // Множитель света и отражений неба (Environment::ambientIntensity).
+    float ambientIntensity;
+    // Последний мип куба отражений: мип - шероховатость, умноженная на него.
+    float environmentMaxMip;
     DirectionalLight directionalLights[YQLORA_MAX_DIRECTIONAL_LIGHTS];
     PunctualLight punctualLights[YQLORA_MAX_PUNCTUAL_LIGHTS];
 } frame;

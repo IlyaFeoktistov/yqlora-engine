@@ -9,6 +9,7 @@
 #include <yqlora/editor/render/BackgroundPass.hpp>
 #include <yqlora/editor/render/GridPass.hpp>
 #include <yqlora/editor/render/OutlinePass.hpp>
+#include <yqlora/material/MaterialOverrides.hpp>
 #include <yqlora/platform/Platform.hpp>
 #include <yqlora/platform/Window.hpp>
 #include <yqlora/render/EngineUniforms.hpp>
@@ -716,7 +717,9 @@ struct SkyFrame {
             .exposure = {.factor = exposure},
         });
         FrameMaterials frameMaterials(cache, frame);
-        frame.environment = {.sky = frameMaterials.sky(builtin::kDefaultSkyMaterial), .atmosphere = Atmosphere{}};
+        const std::optional<std::size_t> skyMaterial = frameMaterials.sky(builtin::kDefaultSkyMaterial);
+        // Свет неба - из того же неба, как у источника Sky окружения.
+        frame.environment = {.sky = skyMaterial, .ambientSky = skyMaterial, .atmosphere = Atmosphere{}};
         frame.lights = {sunTowards(toSun)};
     }
 
@@ -886,4 +889,126 @@ TEST_CASE("OpenGL: the editor background is the exact theme colour behind the sc
     const Pixel center = pixelAt(pixels, kSize / 2, kSize / 2, kSize);
     CHECK(int(center[0]) > int(center[2]) + 50);
     CHECK(int(center[0]) > 150);
+}
+
+namespace {
+
+// Кадр, где сцену освещает только небо Gradient с заданными цветами (sRGB) и
+// яркостью: ни источников, ни атмосферы. Камера смотрит на куб в начале
+// координат с eye; экспозиция - половина от 1 / яркость, так что белая
+// поверхность под белым небом выходит 0.5 и не упирается в предел цели.
+struct AmbientFrame {
+    ResourceCache cache;
+    test::TestMaterials materials;
+    FrameData frame;
+
+    AmbientFrame(const Vec3& sky, const Vec3& equator, const Vec3& ground, float luminance, const Vec3& eye)
+    {
+        const Vec3 up = std::abs(glm::normalize(eye).y) > 0.99f ? Vec3(0.0f, 0.0f, -1.0f) : Vec3(0.0f, 1.0f, 0.0f);
+        frame.views.push_back({
+            .camera =
+                {
+                    .view = glm::lookAt(eye, Vec3(0.0f), up),
+                    .projection = math::perspective(glm::radians(60.0f), 1.0f, 0.1f, 100.0f),
+                    .position = eye,
+                },
+            .exposure = {.factor = 0.5f / luminance},
+        });
+        FrameMaterials frameMaterials(cache, frame);
+        frame.environment.ambientSky = frameMaterials.sky(builtin::kGradientSkyMaterial);
+        MaterialOverrides colors;
+        colors.setColor("skyColor", sky);
+        colors.setColor("equatorColor", equator);
+        colors.setColor("groundColor", ground);
+        colors.setFloat("luminance", luminance);
+        frame.environment.ambientOverrides = frameMaterials.addOverrides(*frame.environment.ambientSky, colors);
+    }
+
+    void addCube(std::size_t material)
+    {
+        static const MeshData cube = makeCube();
+        frame.drawItems.push_back({
+            .mesh = &cube,
+            .meshId = 1,
+            .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
+            .bounds = cube.bounds,
+            .material = material,
+        });
+    }
+
+    Vec3 center(Renderer& renderer)
+    {
+        auto target = renderer.createRenderTarget(kSize, kSize);
+        renderer.render(frame, *target);
+
+        return linearPixel(renderer.device().readPixels(target->color()), kSize / 2, kSize / 2);
+    }
+};
+
+const Vec3 kWhite(1.0f);
+
+} // namespace
+
+TEST_CASE("OpenGL: a constant sky gives a white surface its luminance from any side")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    constexpr float kLuminance = 2000.0f;
+    for (const Vec3& eye : {Vec3(0.0f, 0.0f, 3.0f), Vec3(0.0f, 3.0f, 0.01f), Vec3(0.0f, -3.0f, 0.01f)}) {
+        CAPTURE(eye.y);
+        AmbientFrame ambient(kWhite, kWhite, kWhite, kLuminance, eye);
+        ambient.addCube(ambient.materials.add(ambient.frame, Vec4(1.0f), MaterialBlend::Opaque, kRough));
+        const Vec3 color = ambient.center(*gl->renderer);
+        CHECK(color.r == doctest::Approx(0.5f).epsilon(0.06));
+        CHECK(color.g == doctest::Approx(color.r).epsilon(0.02));
+    }
+}
+
+TEST_CASE("OpenGL: a gradient lights the top with the sky colour and the bottom with the ground colour")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    const Vec3 red(1.0f, 0.0f, 0.0f);
+    const Vec3 gray(0.5f);
+    const Vec3 green(0.0f, 1.0f, 0.0f);
+    const auto lit = [&](const Vec3& eye) {
+        AmbientFrame ambient(red, gray, green, 2000.0f, eye);
+        ambient.addCube(ambient.materials.add(ambient.frame, Vec4(1.0f), MaterialBlend::Opaque, kRough));
+
+        return ambient.center(*gl->renderer);
+    };
+    const Vec3 top = lit(Vec3(0.0f, 3.0f, 0.01f));
+    const Vec3 bottom = lit(Vec3(0.0f, -3.0f, 0.01f));
+    CHECK(top.r > top.g * 2.0f);
+    CHECK(bottom.g > bottom.r * 2.0f);
+}
+
+TEST_CASE("OpenGL: a smooth metal reflects the sky in front of it, a rough one its average")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    // Вверху красное, у горизонта зелёное, внизу синее; передняя грань
+    // гладкого металла отражает горизонт за камерой.
+    const Vec3 red(1.0f, 0.0f, 0.0f);
+    const Vec3 green(0.0f, 1.0f, 0.0f);
+    const Vec3 blue(0.0f, 0.0f, 1.0f);
+    const auto greenShare = [&](float roughness) {
+        AmbientFrame ambient(red, green, blue, 2000.0f, Vec3(0.0f, 0.0f, 3.0f));
+        const std::map<std::string, std::vector<float>> metal{{"metallic", {1.0f}}, {"roughness", {roughness}}};
+        ambient.addCube(ambient.materials.add(ambient.frame, Vec4(1.0f), MaterialBlend::Opaque, metal));
+        const Vec3 color = ambient.center(*gl->renderer);
+        REQUIRE(color.r + color.g + color.b > 0.0f);
+
+        return color.g / (color.r + color.g + color.b);
+    };
+    const float smooth = greenShare(0.05f);
+    const float rough = greenShare(1.0f);
+    CHECK(smooth > 0.8f);
+    CHECK(rough < smooth * 0.8f);
 }

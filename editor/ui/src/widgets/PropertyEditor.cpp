@@ -394,6 +394,38 @@ void rowMenu(
     ImGui::EndPopup();
 }
 
+// Запись одним свойством (не элемент списка): раскрываемый узел в колонке
+// подписей, а её поля - строками той же таблицы с отступом, на всю ширину
+// значений, как обычные свойства.
+void recordRows(
+    const Property& property,
+    RecordValue& record,
+    const PropertyEditorContext& context,
+    PropertyResult& result
+)
+{
+    const auto& fields = property.fields();
+    const bool
+        open = ImGui::TreeNodeEx("##record", ImGuiTreeNodeFlags_SpanAllColumns, "%s", propertyLabel(property).c_str());
+    if (!open || fields.size() != record.fields.size()) {
+        if (open) {
+            ImGui::TreePop();
+        }
+
+        return;
+    }
+    for (std::size_t i = 0; i < fields.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        rowLabel(fields[i], record.fields[i], result);
+        ImGui::TableNextColumn();
+        valueField(fields[i], fields[i].type(), record.fields[i], context, result);
+        ImGui::PopID();
+    }
+    ImGui::TreePop();
+}
+
 template <typename Object>
 PropertyResult drawPropertyRow(const Property& property, Object& object, const PropertyEditorContext& context)
 {
@@ -404,6 +436,16 @@ PropertyResult drawPropertyRow(const Property& property, Object& object, const P
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
     const float rowTop = ImGui::GetCursorScreenPos().y;
+    if (property.type() == PropertyType::Record) {
+        recordRows(property, std::get<RecordValue>(value), context, result);
+        rowMenu(property, value, rowTop, ImGui::GetItemRectMax().y, result, [&] {
+            return defaultValue(context.registry, object, property);
+        });
+        ImGui::PopID();
+        result.value = std::move(value);
+
+        return result;
+    }
     rowLabel(property, value, result);
     ImGui::TableNextColumn();
     std::vector<std::string> labels;
@@ -455,7 +497,7 @@ std::string propertyLabel(const Property& property)
         return property.attributes().displayName;
     }
     const std::string& name = property.name();
-    const std::string key = "property." + name;
+    const std::string key = property.labelKey();
     std::string label = tr(key);
     if (label == key) {
         label = name;

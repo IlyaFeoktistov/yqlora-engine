@@ -23,6 +23,7 @@ enum class CommandKind {
     SetIndexBuffer,
     SetUniformBuffer,
     SetTexture,
+    GenerateMipmaps,
     Draw,
     DrawIndexed,
     Present,
@@ -83,6 +84,7 @@ public:
         const rhi::Texture& texture,
         const rhi::Sampler& sampler
     ) override;
+    void generateMipmaps(rhi::Texture& texture) override;
     void draw(std::uint32_t vertexCount, std::uint32_t firstVertex) override;
     void drawIndexed(std::uint32_t indexCount, std::uint32_t firstIndex) override;
 

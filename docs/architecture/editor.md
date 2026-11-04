@@ -72,6 +72,11 @@ Status marks: see [README](README.md).
   - Reset and paste are ordinary edits and are undone with Ctrl+Z.
 - The label column of a property table fits the longest label, up to half
   the width; a clipped label shows its full text as a tooltip.
+- **A record property** (the atmosphere of an environment) is a node that
+  opens: its fields are rows of the same table, indented under it, with the
+  whole width for values, and the label column fits them too. A property
+  without a group after a group stands under a line, so it does not read as
+  part of the group.
 - **Fields are a file per widget**: `NumberFields` (dragged labels, numbers,
   vectors), `LayerFields`, `ChoiceFields` (enum, node, component type),
   `InputControlField`, `ResourceField`. `PropertyEditor` picks the field by
@@ -96,6 +101,14 @@ Status marks: see [README](README.md).
 - Build output goes to the same buffer with the source "build"; every line
   gets its level from `CompilerDiagnostics` (GCC, Clang, MSVC, the linker,
   CMake), so compiler errors count as errors.
+- **Log file**: every start rewrites `yqlora.log` in the user data folder
+  of the application (`SDL_GetPrefPath`: on Windows
+  `%APPDATA%\Yqlora\Editor\`, on Linux `~/.local/share/Yqlora/Editor/`;
+  the game has its own folder). By default only warnings and errors go
+  there; `--debug` writes everything and opens a console. An error that
+  stops the program is written as `Fatal: ...`, so after a crash the file
+  tells why. Crash dumps are not the engine's: on Windows they come from
+  Windows Error Reporting.
 - A window added by a new version of the editor docks where the default
   layout would put it, unless `imgui.ini` already knows it
   (`dockNewWindows`).

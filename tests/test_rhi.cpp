@@ -6,14 +6,20 @@
 
 #include <doctest/doctest.h>
 
+#include <yqlora/material/MaterialOverrides.hpp>
 #include <yqlora/render/EngineUniforms.hpp>
+#include <yqlora/render/EnvironmentLighting.hpp>
 #include <yqlora/render/FrameData.hpp>
+#include <yqlora/render/FrameMaterials.hpp>
 #include <yqlora/render/GpuMesh.hpp>
 #include <yqlora/render/MeshData.hpp>
 #include <yqlora/render/Prepare.hpp>
 #include <yqlora/render/PrimitiveMeshes.hpp>
+#include <yqlora/render/RenderGraph.hpp>
 #include <yqlora/render/Renderer.hpp>
 #include <yqlora/render/UniformRing.hpp>
+#include <yqlora/resource/BuiltinResources.hpp>
+#include <yqlora/resource/ResourceCache.hpp>
 
 #include <algorithm>
 #include <array>
@@ -307,8 +313,9 @@ TEST_CASE("Renderer: a frame with the editor passes goes through the RHI contrac
     const std::vector<CommandKind> kinds = device.kinds();
     // Меш и маска контура, в цель и в окно.
     CHECK(std::ranges::count(kinds, CommandKind::DrawIndexed) == 4);
-    // Проход вывода, сетка и полноэкранный контур, в цель и в окно.
-    CHECK(std::ranges::count(kinds, CommandKind::Draw) == 6);
+    // Проход вывода, сетка и полноэкранный контур, в цель и в окно; и один
+    // раз за всё время - таблица BRDF света неба.
+    CHECK(std::ranges::count(kinds, CommandKind::Draw) == 7);
     CHECK(std::ranges::count(kinds, CommandKind::Present) == 1);
     // Без связки с интерфейсом текстуры для него нет.
     CHECK_THROWS_AS(target->uiTexture(), std::logic_error);
@@ -337,6 +344,9 @@ TEST_CASE("Renderer: what a view does not see is not drawn")
         .material = materials.add(frame),
         .node = 7,
     });
+    // Первый кадр ещё строит таблицы света неба: считаем второй.
+    renderer.render(frame);
+    device.recorded.clear();
     renderer.render(frame);
 
     const std::vector<CommandKind> kinds = device.kinds();
@@ -344,4 +354,49 @@ TEST_CASE("Renderer: what a view does not see is not drawn")
     // Остаются только сцена вида (пустая) и проход вывода.
     CHECK(std::ranges::count(kinds, CommandKind::Draw) == 1);
     CHECK(std::ranges::count(kinds, CommandKind::BeginPass) == 2);
+}
+
+TEST_CASE("EnvironmentLighting: the sky is captured again only when it changes")
+{
+    auto owned = std::make_unique<RecordingDevice>();
+    RecordingDevice& device = *owned;
+    Renderer renderer(GraphicsApi::OpenGL, std::move(owned), nullptr);
+    EnvironmentLighting lighting(renderer.context());
+    TransientTextures transients(device);
+
+    ResourceCache cache;
+    FrameData frame;
+    frame.views.push_back({.camera = kTestCamera});
+    FrameMaterials materials(cache, frame);
+    frame.environment.ambientSky = materials.sky(builtin::kGradientSkyMaterial);
+    const auto build = [&] {
+        RenderGraph graph(transients);
+        lighting.addTo(graph, frame, {}, {});
+        graph.execute(device.commands());
+        transients.endFrame();
+    };
+
+    build();
+    CHECK(lighting.captures() == 1);
+    build();
+    CHECK(lighting.captures() == 1);
+
+    // Другие цвета неба - новый захват.
+    MaterialOverrides colors;
+    colors.setColor("skyColor", Vec3(1.0f, 0.0f, 0.0f));
+    frame.environment.ambientOverrides = materials.addOverrides(*frame.environment.ambientSky, colors);
+    build();
+    CHECK(lighting.captures() == 2);
+    // Камера поднялась меньше чем на шаг - небо то же.
+    frame.views.front().camera.position.y += EnvironmentLighting::kHeightStep * 0.5f;
+    build();
+    CHECK(lighting.captures() == 2);
+    frame.views.front().camera.position.y += EnvironmentLighting::kHeightStep;
+    build();
+    CHECK(lighting.captures() == 3);
+
+    // Без света неба таблицы стираются, а не захватываются.
+    frame.environment.ambientSky.reset();
+    build();
+    CHECK(lighting.captures() == 3);
 }

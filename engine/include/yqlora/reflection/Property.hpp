@@ -405,6 +405,10 @@ public:
         return m_name;
     }
 
+    // Ключ перевода подписи в редакторе: property.<имя>. Подпись из
+    // displayName, если она задана, важнее.
+    std::string labelKey() const;
+
     PropertyType type() const
     {
         return m_type;
@@ -503,5 +507,10 @@ private:
     SettingsGetter m_settingsGet;
     SettingsSetter m_settingsSet;
 };
+
+// Ключ перевода подписи значения перечисления в редакторе: enum.<имя
+// значения>. Одно имя в разных перечислениях (Sky у очистки камеры и у
+// источника света неба) значит одно и то же и переводится один раз.
+YQLORA_API std::string enumValueLabelKey(std::string_view valueName);
 
 } // namespace yqlora
