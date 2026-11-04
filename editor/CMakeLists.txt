@@ -3,6 +3,8 @@
 # Шейдеры редактора (сетка, контур выделения) вшиваются в его библиотеку,
 # как шейдеры движка в свою.
 set(YQLORA_EDITOR_SHADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/background.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/background.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.glsl
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/grid.frag
@@ -63,6 +65,7 @@ add_library(yqlora_editor STATIC
     src/ScriptBuild.cpp
     src/ModuleCopies.cpp
     src/render/EditorShaders.cpp
+    src/render/BackgroundPass.cpp
     src/render/GridPass.cpp
     src/render/OutlinePass.cpp
 )

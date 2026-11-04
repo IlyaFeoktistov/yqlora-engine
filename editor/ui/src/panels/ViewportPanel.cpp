@@ -144,9 +144,14 @@ void ViewportPanel::renderScene(EditorContext& context, float aspect, const Gizm
     const RenderSystem* render = scene.system<RenderSystem>();
     frame.views = {{
         .camera = m_camera.cameraData(aspect),
-        .background = context.theme.colors().viewportBackground,
         .exposure = viewExposure(render ? render->mainCamera() : nullptr),
     }};
+    // Фон - первым из проходов поверх кадра, под сеткой и контуром.
+    if (!m_background) {
+        m_background = std::make_unique<BackgroundPass>(host.renderer().context());
+    }
+    m_background->setColor(context.theme.colors().viewportBackground);
+    frame.views.front().passes.push_back(m_background.get());
     m_gizmos.prepareView(frame.views.front(), host.renderer().context(), gizmoContext);
     m_view.render(host.renderer(), frame);
 }

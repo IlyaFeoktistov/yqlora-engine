@@ -5,8 +5,11 @@
 #include "yqlora/editor/ui/widgets/RenderView.hpp"
 
 #include "yqlora/editor/EditorCamera.hpp"
+#include "yqlora/editor/render/BackgroundPass.hpp"
 
 #include <imgui.h>
+
+#include <memory>
 
 namespace yqlora {
 
@@ -43,6 +46,7 @@ public:
     {
         m_view.release();
         m_preview.release();
+        m_background.reset();
         m_gizmos.onRendererLost();
     }
 
@@ -79,6 +83,8 @@ private:
     bool m_bringForward = true;
     RenderView m_view;
     RenderView m_preview;
+    // Создаётся на рендерере окна при первом кадре, уходит вместе с ним.
+    std::unique_ptr<BackgroundPass> m_background;
 };
 
 } // namespace yqlora::editor

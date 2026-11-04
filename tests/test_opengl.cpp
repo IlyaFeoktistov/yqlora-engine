@@ -6,6 +6,7 @@
 
 #include <doctest/doctest.h>
 
+#include <yqlora/editor/render/BackgroundPass.hpp>
 #include <yqlora/editor/render/GridPass.hpp>
 #include <yqlora/editor/render/OutlinePass.hpp>
 #include <yqlora/platform/Platform.hpp>
@@ -843,4 +844,46 @@ TEST_CASE("OpenGL: a far object is closer to the sky colour than a near one")
     sky.frame.environment.atmosphere.aerialPerspective = 0.0f;
     const std::vector<std::byte> clear = sky.render(*gl->renderer);
     CHECK(glm::distance(hue(linearPixel(clear, kFarX, kSize / 2)), hue(linearPixel(clear, kNearX, kSize / 2))) < 0.05f);
+}
+
+TEST_CASE("OpenGL: the editor background is the exact theme colour behind the scene, also with AgX")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    Renderer& renderer = *gl->renderer;
+    editor::BackgroundPass background(renderer.context());
+    const Vec4 theme(0.08f, 0.09f, 0.12f, 1.0f);
+    background.setColor(theme);
+
+    const MeshData cube = makeCube();
+    test::TestMaterials materials;
+    FrameData frame;
+    frame.views.push_back({
+        .camera = cameraAtZ(3.0f),
+        .exposure = {.factor = 1.0f, .toneMapping = ToneMapping::AgX},
+        .passes = {&background},
+    });
+    frame.drawItems.push_back({
+        .mesh = &cube,
+        .meshId = 1,
+        .indexCount = static_cast<std::uint32_t>(cube.indices.size()),
+        .bounds = cube.bounds,
+        .material = materials.add(frame, Vec4(1.0f, 0.0f, 0.0f, 1.0f)),
+    });
+    frame.lights.push_back(kFrontLight);
+    auto target = renderer.createRenderTarget(kSize, kSize);
+    renderer.render(frame, *target);
+    const std::vector<std::byte> pixels = renderer.device().readPixels(target->color());
+
+    const Pixel corner = pixelAt(pixels, 0, 0, kSize);
+    CHECK(std::abs(int(corner[0]) - int(toByte(theme.r))) <= 1);
+    CHECK(std::abs(int(corner[1]) - int(toByte(theme.g))) <= 1);
+    CHECK(std::abs(int(corner[2]) - int(toByte(theme.b))) <= 1);
+    // Посередине куб, а не фон: AgX снимает насыщенность яркого красного,
+    // но красный остаётся сильнее.
+    const Pixel center = pixelAt(pixels, kSize / 2, kSize / 2, kSize);
+    CHECK(int(center[0]) > int(center[2]) + 50);
+    CHECK(int(center[0]) > 150);
 }

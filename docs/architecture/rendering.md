@@ -60,7 +60,9 @@ snapshot made by Extract, never the scene.
    OutputPass     tone mapping of the main camera, then sRGB, from the HDR
                   target into the final target
    ViewPass*      passes of the view owners over the final target: the
-                  Viewport adds GridPass and OutlinePass (editor/render)
+                  Viewport adds BackgroundPass (the theme colour where
+                  the scene drew nothing, exact, past tone mapping),
+                  GridPass and OutlinePass (editor/render)
    graph.execute  orders the passes, makes the transient textures,
                   changes texture states, records RHI commands
         |
