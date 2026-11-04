@@ -297,8 +297,14 @@ void valueField(
         result.changed = nodeCombo(context.scene, std::get<NodeRef>(value)) || result.changed;
         break;
     case PropertyType::Resource:
-        if (const std::string& kind = property.attributes().resourceKind; !kind.empty()) {
-            result.changed = resourceField(kind, std::get<ResourceRef>(value), context) || result.changed;
+        if (const PropertyAttributes& attributes = property.attributes(); !attributes.resourceKind.empty()) {
+            result.changed = resourceField(
+                                 attributes.resourceKind,
+                                 attributes.resourceUse,
+                                 std::get<ResourceRef>(value),
+                                 context
+                             )
+                             || result.changed;
         } else {
             ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted(resourceLabel(std::get<ResourceRef>(value), context.resources).c_str());

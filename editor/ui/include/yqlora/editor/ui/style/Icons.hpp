@@ -30,6 +30,7 @@ inline constexpr const char* kCamera3D = "\uE1A5";           // video
 inline constexpr const char* kDirectionalLight3D = "\uE178"; // sun
 inline constexpr const char* kPointLight3D = "\uE1C2";       // lightbulb
 inline constexpr const char* kSpotLight3D = "\uE0D3";        // flashlight
+inline constexpr const char* kEnvironment = "\uE216";        // cloud-sun
 
 // Файлы и действия.
 inline constexpr const char* kFolder = "\uE0D7";       // folder
@@ -41,6 +42,7 @@ inline constexpr const char* kCodeFile = "\uE0C3";     // file-code
 inline constexpr const char* kModelFile = "\uE310";    // file-box
 inline constexpr const char* kImageFile = "\uE31C";    // file-image
 inline constexpr const char* kShaderFile = "\uE59C";   // blend
+inline constexpr const char* kSkyShader = "\uE179";    // sunrise
 inline constexpr const char* kMaterialFile = "\uE1DD"; // palette
 inline constexpr const char* kMesh = "\uE524";         // cuboid
 inline constexpr const char* kBuild = "\uE0EC";        // hammer

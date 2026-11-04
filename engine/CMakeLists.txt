@@ -142,6 +142,7 @@ add_library(yqlora SHARED
     src/render/EngineBindings.cpp
     src/render/EngineUniforms.cpp
     src/render/EnvironmentLighting.cpp
+    src/render/ResourceUses.cpp
     src/render/SkyPass.cpp
     src/render/SpotLight3D.cpp
     src/render/ExtractDrawItems.cpp

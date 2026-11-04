@@ -26,6 +26,11 @@ struct RenderContext;
 // атмосфера, высота камеры шагами), так что смена дня и ночи стоит один
 // захват на изменение, а без изменений - ничего. Без света неба таблицы
 // чёрные.
+//
+// Наборов таблиц несколько (kSets), каждый для своего неба: кадры с разными
+// небами (сцена, превью материала, окно игры с другой высоты камеры) идут
+// вперемешку и не захватывают небо заново друг за другом. Новому небу
+// отдаётся набор, который дольше всех не нужен.
 class YQLORA_API EnvironmentLighting {
 public:
     static constexpr int kCaptureSize = 128;
@@ -35,6 +40,8 @@ public:
     static constexpr int kBrdfSize = 128;
     // Камера поднимается выше этого шага - небо захватывается заново.
     static constexpr float kHeightStep = 100.0f;
+    // Сколько разных небес держится без нового захвата.
+    static constexpr std::size_t kSets = 4;
 
     struct Textures {
         RenderGraph::TextureId harmonics = 0;
@@ -64,6 +71,7 @@ public:
     }
 
     // Сколько раз небо захватывалось: для проверки, что без изменений захвата нет.
+    // Стирание набора в чёрный - не захват.
     std::size_t captures() const
     {
         return m_captures;
@@ -95,6 +103,16 @@ private:
         bool operator==(const Key&) const = default;
     };
 
+    // Таблицы одного неба.
+    struct Set {
+        std::unique_ptr<rhi::Texture> specular;
+        std::unique_ptr<rhi::Texture> harmonics;
+        // Для какого неба построены; nullopt - без света неба (чёрные).
+        std::optional<Key> key{};
+        // Когда набор нужен был последний раз: номер вызова addTo.
+        std::uint64_t lastUsed = 0;
+    };
+
     // nullopt - света неба нет.
     static std::optional<Key> keyOf(const FrameData& frame);
     void addCapture(
@@ -106,20 +124,20 @@ private:
         RenderGraph::TextureId capture
     );
     void addClear(RenderGraph& graph, const Textures& textures);
+    // Набор для неба key: уже построенный или свободный, иначе тот, что дольше всех не нужен.
+    Set& setFor(const std::optional<Key>& key, bool& built);
 
     const RenderContext& m_context;
     std::unique_ptr<rhi::Sampler> m_sampler;
     Pass m_harmonicsPass;
     Pass m_prefilterPass;
     Pass m_brdfPass;
+    // Куб захвата нужен только внутри построения набора, он общий.
     std::unique_ptr<rhi::Texture> m_capture;
-    std::unique_ptr<rhi::Texture> m_specular;
-    std::unique_ptr<rhi::Texture> m_harmonics;
     std::unique_ptr<rhi::Texture> m_brdf;
     bool m_brdfReady = false;
-    // Для чего построены таблицы: внешний nullopt - ещё не построены,
-    // внутренний - построены без света неба.
-    std::optional<std::optional<Key>> m_builtFor;
+    std::vector<Set> m_sets;
+    std::uint64_t m_uses = 0;
     std::size_t m_captures = 0;
 };
 

@@ -9,6 +9,7 @@
 #include "yqlora/shader/ShaderBuild.hpp"
 #include "yqlora/shader/ShaderProfile.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <span>
 #include <string>
@@ -67,13 +68,6 @@ EnvironmentLighting::EnvironmentLighting(const RenderContext& context)
     , m_prefilterPass(makePass("environment/prefilter.frag"))
     , m_brdfPass(makePass("environment/brdf.frag"))
     , m_capture(context.device.createTexture(cubeDesc()))
-    , m_specular(context.device.createTexture(cubeDesc()))
-    , m_harmonics(context.device.createTexture({
-          .width = kAmbientHarmonicsCount,
-          .height = 1,
-          .format = kFormat,
-          .usage = rhi::kColorTarget | rhi::kSampled,
-      }))
     , m_brdf(context.device.createTexture({
           .width = kBrdfSize,
           .height = kBrdfSize,
@@ -238,11 +232,7 @@ EnvironmentLighting::Textures EnvironmentLighting::addTo(
     const EngineTextureIds& atmosphere
 )
 {
-    const Textures textures{
-        .harmonics = graph.import(*m_harmonics),
-        .specular = graph.import(*m_specular),
-        .brdf = graph.import(*m_brdf),
-    };
+    Textures textures{.brdf = graph.import(*m_brdf)};
     if (!m_brdfReady) {
         m_brdfReady = true;
         graph.addPass({
@@ -256,7 +246,11 @@ EnvironmentLighting::Textures EnvironmentLighting::addTo(
     }
 
     std::optional<Key> key = keyOf(frame);
-    if (m_builtFor && *m_builtFor == key) {
+    bool built = false;
+    Set& set = setFor(key, built);
+    textures.harmonics = graph.import(*set.harmonics);
+    textures.specular = graph.import(*set.specular);
+    if (built) {
         return textures;
     }
     if (!key) {
@@ -265,9 +259,40 @@ EnvironmentLighting::Textures EnvironmentLighting::addTo(
         ++m_captures;
         addCapture(graph, frame, resources, atmosphere, textures, graph.import(*m_capture));
     }
-    m_builtFor = std::move(key);
+    set.key = std::move(key);
 
     return textures;
+}
+
+EnvironmentLighting::Set& EnvironmentLighting::setFor(const std::optional<Key>& key, bool& built)
+{
+    const std::uint64_t now = ++m_uses;
+    const auto found = std::ranges::find(m_sets, key, &Set::key);
+    if (found != m_sets.end()) {
+        found->lastUsed = now;
+        built = true;
+
+        return *found;
+    }
+    built = false;
+    if (m_sets.size() < kSets) {
+        m_sets.push_back({
+            .specular = m_context.device.createTexture(cubeDesc()),
+            .harmonics = m_context.device.createTexture({
+                .width = kAmbientHarmonicsCount,
+                .height = 1,
+                .format = kFormat,
+                .usage = rhi::kColorTarget | rhi::kSampled,
+            }),
+            .lastUsed = now,
+        });
+
+        return m_sets.back();
+    }
+    Set& oldest = *std::ranges::min_element(m_sets, {}, &Set::lastUsed);
+    oldest.lastUsed = now;
+
+    return oldest;
 }
 
 } // namespace yqlora

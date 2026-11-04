@@ -400,3 +400,48 @@ TEST_CASE("EnvironmentLighting: the sky is captured again only when it changes")
     build();
     CHECK(lighting.captures() == 3);
 }
+
+TEST_CASE("EnvironmentLighting: frames with different skies in turn keep their own tables")
+{
+    auto owned = std::make_unique<RecordingDevice>();
+    RecordingDevice& device = *owned;
+    Renderer renderer(GraphicsApi::OpenGL, std::move(owned), nullptr);
+    EnvironmentLighting lighting(renderer.context());
+    TransientTextures transients(device);
+
+    ResourceCache cache;
+    const auto frameAt = [&](float height) {
+        FrameData frame;
+        frame.views.push_back({.camera = kTestCamera});
+        frame.views.front().camera.position.y = height;
+        FrameMaterials materials(cache, frame);
+        frame.environment.ambientSky = materials.sky(builtin::kGradientSkyMaterial);
+
+        return frame;
+    };
+    const auto build = [&](const FrameData& frame) {
+        RenderGraph graph(transients);
+        const EnvironmentLighting::Textures textures = lighting.addTo(graph, frame, {}, {});
+        graph.execute(device.commands());
+        transients.endFrame();
+
+        return textures;
+    };
+
+    // Сцена и превью по очереди: каждое небо захватывается один раз.
+    const FrameData scene = frameAt(0.0f);
+    const FrameData preview = frameAt(EnvironmentLighting::kHeightStep * 3.0f);
+    for (int i = 0; i < 3; ++i) {
+        build(scene);
+        build(preview);
+    }
+    CHECK(lighting.captures() == 2);
+
+    // Небес больше, чем наборов: уходит то, что дольше всех не нужно.
+    for (std::size_t i = 0; i < EnvironmentLighting::kSets; ++i) {
+        build(frameAt(EnvironmentLighting::kHeightStep * static_cast<float>(10 + i)));
+    }
+    CHECK(lighting.captures() == 2 + EnvironmentLighting::kSets);
+    build(scene);
+    CHECK(lighting.captures() == 3 + EnvironmentLighting::kSets);
+}

@@ -313,7 +313,7 @@ TEST_CASE("Labels of nested resources and placement in the viewport")
 TEST_CASE_FIXTURE(Fixture, "resourceChoices: built-in resources first, then nested ones by file; files of a kind")
 {
     const auto& resources = session.project()->resources();
-    const auto meshes = resourceChoices(MeshData::kResourceKind, &resources, session.resources());
+    const auto meshes = resourceChoices(MeshData::kResourceKind, {}, &resources, session.resources());
     REQUIRE(meshes.size() == builtinMeshes().size() + 2);
     CHECK(meshes[0].builtin);
     CHECK(meshes[0].label == "cube");
@@ -324,31 +324,69 @@ TEST_CASE_FIXTURE(Fixture, "resourceChoices: built-in resources first, then nest
     CHECK(door.id == mesh("mesh:Door"));
 
     // Сцены - файлы верхнего уровня, без групп; текстур в проекте нет.
-    const auto scenes = resourceChoices(SceneSerializer::kResourceKind, &resources, session.resources());
+    const auto scenes = resourceChoices(SceneSerializer::kResourceKind, {}, &resources, session.resources());
     REQUIRE(scenes.size() == 1);
     CHECK(scenes[0].group.empty());
-    CHECK(resourceChoices(TextureData::kResourceKind, &resources, session.resources()).empty());
+    CHECK(resourceChoices(TextureData::kResourceKind, {}, &resources, session.resources()).empty());
     // Встроенные ресурсы любого вида - из одной таблицы.
-    const auto shaders = resourceChoices(ShaderData::kResourceKind, nullptr, session.resources());
+    const auto shaders = resourceChoices(ShaderData::kResourceKind, {}, nullptr, session.resources());
     REQUIRE(shaders.size() == builtinShaders().size());
     CHECK(shaders[0].label == "Standard");
     // Без проекта - только встроенные.
-    CHECK(resourceChoices(MeshData::kResourceKind, nullptr, session.resources()).size() == builtinMeshes().size());
+    CHECK(resourceChoices(MeshData::kResourceKind, {}, nullptr, session.resources()).size() == builtinMeshes().size());
 }
 
 TEST_CASE_FIXTURE(Fixture, "resourceForField: a model on a mesh field gives its first mesh, a wrong kind is refused")
 {
     const auto& resources = session.project()->resources();
     ResourceCache& cache = session.resources();
-    CHECK(resourceForField(MeshData::kResourceKind, model, &resources, cache) == mesh("mesh:Door"));
-    CHECK(resourceForField(MeshData::kResourceKind, mesh("mesh:Frame"), &resources, cache) == mesh("mesh:Frame"));
-    CHECK(resourceForField(MeshData::kResourceKind, builtin::kCubeMesh, &resources, cache) == builtin::kCubeMesh);
+    CHECK(resourceForField(MeshData::kResourceKind, {}, model, &resources, cache) == mesh("mesh:Door"));
+    CHECK(resourceForField(MeshData::kResourceKind, {}, mesh("mesh:Frame"), &resources, cache) == mesh("mesh:Frame"));
+    CHECK(resourceForField(MeshData::kResourceKind, {}, builtin::kCubeMesh, &resources, cache) == builtin::kCubeMesh);
     const ResourceId scene = session.project()->settings().get<GeneralSettings>().startupScene.id;
-    CHECK(resourceForField(SceneSerializer::kResourceKind, scene, &resources, cache) == scene);
-    CHECK_FALSE(resourceForField(MeshData::kResourceKind, scene, &resources, cache));
-    CHECK_FALSE(resourceForField(TextureData::kResourceKind, model, &resources, cache));
-    CHECK_FALSE(resourceForField(TextureData::kResourceKind, mesh("mesh:Door"), &resources, cache));
-    CHECK_FALSE(resourceForField(TextureData::kResourceKind, builtin::kCubeMesh, &resources, cache));
+    CHECK(resourceForField(SceneSerializer::kResourceKind, {}, scene, &resources, cache) == scene);
+    CHECK_FALSE(resourceForField(MeshData::kResourceKind, {}, scene, &resources, cache));
+    CHECK_FALSE(resourceForField(TextureData::kResourceKind, {}, model, &resources, cache));
+    CHECK_FALSE(resourceForField(TextureData::kResourceKind, {}, mesh("mesh:Door"), &resources, cache));
+    CHECK_FALSE(resourceForField(TextureData::kResourceKind, {}, builtin::kCubeMesh, &resources, cache));
+}
+
+TEST_CASE_FIXTURE(Fixture, "The sky field offers only sky materials, a mesh slot only surface ones")
+{
+    ResourceCache& cache = session.resources();
+    ProjectFiles files(*session.project());
+    const NewResourceContext context{serializer, YQLORA_ASSETS_DIR};
+    const auto skyShader = findNewResourceType(editor::kSkyShaderKind)->create(files, {}, "Clouds", context);
+    REQUIRE(skyShader);
+    REQUIRE(writeMaterialFile(
+        session.project()->directory() / "Clouds.ymat",
+        {.shader = session.project()->resources().id(*skyShader)}
+    ));
+    const ResourceId clouds = session.project()->resources().add("Clouds.ymat");
+    REQUIRE(writeMaterialFile(session.project()->directory() / "Wood.ymat", MaterialData{}));
+    const ResourceId wood = session.project()->resources().add("Wood.ymat");
+    const ResourceDatabase& resources = session.project()->resources();
+
+    const auto ids = [&](std::string_view use) {
+        std::vector<ResourceId> result;
+        for (const ResourceChoice& choice : resourceChoices(MaterialData::kResourceKind, use, &resources, cache)) {
+            result.push_back(choice.id);
+        }
+
+        return result;
+    };
+    const auto sky = ids(uses::kSkyMaterial);
+    CHECK(std::ranges::find(sky, builtin::kDefaultSkyMaterial) != sky.end());
+    CHECK(std::ranges::find(sky, clouds) != sky.end());
+    CHECK(std::ranges::find(sky, builtin::kDefaultMaterial) == sky.end());
+    CHECK(std::ranges::find(sky, wood) == sky.end());
+    const auto surface = ids(uses::kSurfaceMaterial);
+    CHECK(std::ranges::find(surface, wood) != surface.end());
+    CHECK(std::ranges::find(surface, clouds) == surface.end());
+    CHECK(ids({}).size() == sky.size() + surface.size());
+
+    CHECK(resourceForField(MaterialData::kResourceKind, uses::kSkyMaterial, clouds, &resources, cache) == clouds);
+    CHECK_FALSE(resourceForField(MaterialData::kResourceKind, uses::kSkyMaterial, wood, &resources, cache));
 }
 
 TEST_CASE_FIXTURE(Fixture, "resourceChoices: nested resources follow the file order, a removed one is not offered")
@@ -368,10 +406,10 @@ TEST_CASE_FIXTURE(Fixture, "resourceChoices: nested resources follow the file or
     // Door остался в .meta, но в файле его больше нет.
     const auto& resources = session.project()->resources();
     CHECK(resources.subresources(model).contains("mesh:Door"));
-    const auto meshes = resourceChoices(MeshData::kResourceKind, &resources, session.resources());
+    const auto meshes = resourceChoices(MeshData::kResourceKind, {}, &resources, session.resources());
     REQUIRE(meshes.size() == builtinMeshes().size() + 1);
     CHECK(meshes.back().id == frame);
-    CHECK(resourceForField(MeshData::kResourceKind, model, &resources, session.resources()) == frame);
+    CHECK(resourceForField(MeshData::kResourceKind, {}, model, &resources, session.resources()) == frame);
 }
 
 TEST_CASE_FIXTURE(
@@ -418,18 +456,28 @@ TEST_CASE_FIXTURE(
 
 TEST_CASE_FIXTURE(
     Fixture,
-    "MaterialPreview: a sphere with the material, its own camera and light, nothing from the scene"
+    "MaterialPreview: a sphere with the material, its own camera, sun and sky, nothing from the scene"
 )
 {
     const std::size_t sceneNodes = session.scene().root()->children().size();
     MaterialPreview preview(services);
     const FrameData frame = preview.frame(builtin::kErrorMaterial, 1.0f);
     CHECK(frame.views.size() == 1);
-    CHECK(frame.lights.size() == 1);
+    REQUIRE(frame.lights.size() == 1);
+    CHECK(frame.lights[0].sun);
     REQUIRE(frame.drawItems.size() == 1);
     CHECK(frame.drawItems[0].meshId == builtin::kSphereMesh);
     CHECK(frame.materials[frame.drawItems[0].material].id == builtin::kErrorMaterial);
+    REQUIRE(frame.environment.sky);
+    CHECK(frame.materials[*frame.environment.sky].id == builtin::kDefaultSkyMaterial);
     CHECK(session.scene().root()->children().size() == sceneNodes);
+
+    // Материал неба - небо превью, сфера белая.
+    const FrameData sky = preview.frame(builtin::kGradientSkyMaterial, 1.0f);
+    REQUIRE(sky.environment.sky);
+    CHECK(sky.materials[*sky.environment.sky].id == builtin::kGradientSkyMaterial);
+    REQUIRE(sky.drawItems.size() == 1);
+    CHECK(sky.materials[sky.drawItems[0].material].id == builtin::kDefaultMaterial);
 }
 
 TEST_CASE_FIXTURE(
@@ -451,6 +499,9 @@ TEST_CASE_FIXTURE(
     CHECK_FALSE(session.editing().dropMaterial(ray, {builtin::kErrorMaterial}));
     // Мимо объектов - ничего.
     CHECK_FALSE(session.editing().dropMaterial({Vec3(-100.0f), Vec3(0.0f, -1.0f, 0.0f)}, {builtin::kDefaultMaterial}));
+    // Материал неба слоту меша не подходит.
+    CHECK_FALSE(session.editing().dropMaterial(ray, {builtin::kDefaultSkyMaterial}));
+    CHECK(renderer->materials() == std::vector<ResourceRef>{{builtin::kErrorMaterial}});
 
     const NodeId cubeId = cube->id();
     REQUIRE(session.undo());

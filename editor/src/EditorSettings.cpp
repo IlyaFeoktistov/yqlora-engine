@@ -12,6 +12,7 @@ namespace yqlora::editor {
 namespace {
 
 constexpr const char* kCameraPreviewKey = "cameraPreview";
+constexpr const char* kViewportSkyKey = "viewportSky";
 constexpr const char* kReparentKeepWorldKey = "reparentKeepWorld";
 constexpr const char* kSnapKey = "snap";
 constexpr const char* kSnapGridKey = "grid";
@@ -62,6 +63,9 @@ void EditorSettings::load()
     if (const auto it = json->find(kCameraPreviewKey); it != json->end() && it->is_boolean()) {
         cameraPreview = it->get<bool>();
     }
+    if (const auto it = json->find(kViewportSkyKey); it != json->end() && it->is_boolean()) {
+        viewportSky = it->get<bool>();
+    }
     if (const auto it = json->find(kReparentKeepWorldKey); it != json->end() && it->is_boolean()) {
         reparentKeepWorld = it->get<bool>() ? KeepWorld::Yes : KeepWorld::No;
     }
@@ -104,7 +108,12 @@ bool EditorSettings::save() const
     forEachSnapField(snap, [&](const char* key, const auto& field) {
         snapJson[key] = field;
     });
-    nlohmann::json json{{kCameraPreviewKey, cameraPreview}, {kSnapKey, snapJson}, {kToolchainKey, overrides}};
+    nlohmann::json json{
+        {kCameraPreviewKey, cameraPreview},
+        {kViewportSkyKey, viewportSky},
+        {kSnapKey, snapJson},
+        {kToolchainKey, overrides},
+    };
     if (reparentKeepWorld) {
         json[kReparentKeepWorldKey] = *reparentKeepWorld == KeepWorld::Yes;
     }

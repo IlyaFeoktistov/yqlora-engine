@@ -50,7 +50,13 @@ void textureImage(ResourceId id, const PropertyEditorContext& context, float lin
 }
 
 // Окно выбора; true, если выбрали.
-bool drawPicker(std::string_view kind, ResourceRef& value, const PropertyEditorContext& context, std::string& search)
+bool drawPicker(
+    std::string_view kind,
+    std::string_view use,
+    ResourceRef& value,
+    const PropertyEditorContext& context,
+    std::string& search
+)
 {
     if (ImGui::IsWindowAppearing()) {
         search.clear();
@@ -73,7 +79,7 @@ bool drawPicker(std::string_view kind, ResourceRef& value, const PropertyEditorC
         bool builtinHeader = false;
         bool assetsHeader = false;
         std::string group;
-        for (const ResourceChoice& choice : resourceChoices(kind, context.resources, context.cache)) {
+        for (const ResourceChoice& choice : resourceChoices(kind, use, context.resources, context.cache)) {
             if (!containsIgnoringCase(choice.label + " " + choice.group, search)) {
                 continue;
             }
@@ -112,7 +118,12 @@ bool drawPicker(std::string_view kind, ResourceRef& value, const PropertyEditorC
 
 } // namespace
 
-bool resourceField(std::string_view kind, ResourceRef& value, const PropertyEditorContext& context)
+bool resourceField(
+    std::string_view kind,
+    std::string_view use,
+    ResourceRef& value,
+    const PropertyEditorContext& context
+)
 {
     static std::string search;
     const std::string kindName = tr("editor.resourceKind." + std::string(kind));
@@ -145,7 +156,7 @@ bool resourceField(std::string_view kind, ResourceRef& value, const PropertyEdit
 
     // Вся группа - цель для перетаскивания из "Файлов".
     if (const auto dropped = acceptResourceDrop()) {
-        if (const auto taken = resourceForField(kind, *dropped, context.resources, context.cache)) {
+        if (const auto taken = resourceForField(kind, use, *dropped, context.resources, context.cache)) {
             value.id = *taken;
             changed = true;
         }
@@ -154,7 +165,7 @@ bool resourceField(std::string_view kind, ResourceRef& value, const PropertyEdit
     ImGui::SetNextWindowSize(ImVec2(ImGui::GetFrameHeight() * kPickerWidthLines, 0.0f));
     if (ImGui::BeginPopup(kPickerPopup)) {
         ImGui::TextDisabled("%s: %s", tr("editor.resourceField.choose").c_str(), kindName.c_str());
-        changed = drawPicker(kind, value, context, search) || changed;
+        changed = drawPicker(kind, use, value, context, search) || changed;
         ImGui::EndPopup();
     }
 

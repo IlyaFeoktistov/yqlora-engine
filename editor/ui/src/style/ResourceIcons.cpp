@@ -25,6 +25,7 @@ constexpr std::pair<std::string_view, const char*> kIcons[] = {
     {MeshData::kResourceKind, icons::kMesh},
     {TextureData::kResourceKind, icons::kImageFile},
     {ShaderData::kResourceKind, icons::kShaderFile},
+    {kSkyShaderKind, icons::kSkyShader},
     {MaterialData::kResourceKind, icons::kMaterialFile},
 };
 

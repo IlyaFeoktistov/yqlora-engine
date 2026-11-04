@@ -16,3 +16,14 @@ inline constexpr std::string_view kMaterial = "material";
 inline constexpr std::string_view kScene = "scene";
 
 } // namespace yqlora::kinds
+
+// Назначения: какие ресурсы одного вида годятся полю
+// (PropertyAttributes::resourceUse). Пусто - любой ресурс вида.
+namespace yqlora::uses {
+
+// Материал с шейдером неба: небо окружения.
+inline constexpr std::string_view kSkyMaterial = "skyMaterial";
+// Материал с шейдером поверхности: слоты меша.
+inline constexpr std::string_view kSurfaceMaterial = "surfaceMaterial";
+
+} // namespace yqlora::uses

@@ -364,6 +364,15 @@ are undone like any other.
 - **Exposure**: `<yqlora/exposure.glsl>` gives `exposed(luminance)`, used by
   `shade()` and the sky: the exposure of the view, clamped below the
   largest half float so a bright sun never becomes infinity.
+- **Clouds** [planned, after MVP] are part of the built-in `Physical`,
+  with their own switch and parameters; your own clouds are still written
+  in your own sky shader. First a layer at a height: coverage, density,
+  height, wind (an offset over time), shape from noises
+  ([noise](noise.md)), lighting by the sun and the sky, forward scattering
+  near the sun. Then volumetric clouds: a ray march through the layer with
+  the same light, cloud shadows on the ground (through the sun shadows) and
+  their part in the sky light. Clouds change the sky capture, so with wind
+  it repeats at a limited rate rather than every frame.
 
 ## Atmosphere [done]
 
@@ -424,7 +433,11 @@ reflections on metals and glossy surfaces (image-based lighting).
   every API (`<yqlora/cube.glsl>`, the `Capture` block at set 3, binding
   1), not from a camera, so faces never come out flipped on another
   backend. `EnvironmentLighting` keeps the tables between frames and
-  compares a key of all those inputs field by field.
+  compares a key of all those inputs field by field. There are four sets of
+  tables (`EnvironmentLighting::kSets`), each with its own key: frames with
+  different skies (the scene, the material preview, the game view from
+  another camera height) come in turn without new captures; a new sky gets
+  the set unused for the longest time.
 - **Diffuse**: 9 coefficients of second order spherical harmonics are
   projected from a small mip of the cube into a 9 x 1 texture (set 0,
   binding 3); `ambientLight(normal)` in `lighting.glsl` reads them. The
@@ -471,8 +484,17 @@ Lights give shadows, their meshes cast and receive them.
   faces; both are tiles in a shared shadow atlas, up to 16 tiles per frame
   (a point light takes six). More shadowed lights: the nearest to the
   camera get shadows and the log says so once.
-- **Softness**: `Hard` is one depth compared sample, `Soft` a PCF filter
-  over a Poisson disc rotated per pixel, with no banding.
+- **Light size**: `DirectionalLight3D` has the angular diameter
+  `angularDiameter` (0.53 degrees, as the sun), point and spot lights the
+  radius `sourceRadius` in metres (0.05). The sun disc in the sky takes the
+  same angle from the frame block, a sky material has no angle of its own.
+- **Softness**: `Hard` is one depth compared sample. `Soft` is a penumbra
+  by light size (PCSS): a blocker search over an area of the map, the
+  penumbra width from the light size and the distance from the blocker to
+  the surface (sharp where the object touches it, blurrier further away),
+  then a PCF filter of that width over a Poisson disc rotated per pixel,
+  with no banding. `shadowSoftness` scales the width (1 is physical, 0 is
+  sharp, more for style); `maxPenumbra` in the settings limits it.
 - **Passes**: shadows are drawn before the opaque pass, once per cascade
   and tile, depth only, with the depth shader of the mesh (a material with
   `alphaCutoff` gets its own after phase 5.3, otherwise a shared one). The
@@ -481,10 +503,15 @@ Lights give shadows, their meshes cast and receive them.
   not dim the ambient light.
 - **RHI**: a depth format the shader reads (`Depth32Float`) and a
   comparison sampler (`sampler2DShadow` in the shader profile).
-- **Settings** (Graphics section, quality): shadow distance (100 m by default), the
-  cascade count, the size of a cascade map and of the atlas (quality).
-- **After the MVP**: contact shadows, softness by light size (PCSS),
-  shadows from transparent surfaces, ray tracing.
+- **Settings** (Graphics section): `shadows` turns shadows on at all (off
+  means no maps and no passes); shadow distance (100 m by default), the
+  cascade count, the size of a cascade map and of the atlas, the blocker
+  search and filter sample counts, `maxPenumbra` (the penumbra width limit
+  in map texels). Quality levels for the player settings menu come with
+  the player interface and the standalone runtime (steps 8 and 9) and
+  change these same values.
+- **After the MVP**: contact shadows, shadows from transparent surfaces,
+  ray tracing.
 
 ## Editor [done]
 
@@ -499,9 +526,27 @@ Lights give shadows, their meshes cast and receive them.
   revision, every object and the preview update while a slider moves); the
   file is written when the edit ends (the widget is released) and at most
   twice a second during a long drag, atomically.
-- **The preview** has its own render target, camera, sphere and fixed
-  light; nothing of it enters the scene, and its light does not light the
-  scene.
+- "Create resource" also gets **Sky shader** (from the template
+  `assets/templates/sky`: a colour from the horizon to the zenith and a
+  glow around the sun).
+- **The preview** has its own render target, camera, sphere, sun and a
+  default environment (the sky, its light and reflections); nothing of it
+  enters the scene, and its light does not light the scene. A sky material
+  becomes the sky of the preview and the sphere turns white: both the sky
+  and how it lights are visible.
+- **Resource use**: a field may take not every resource of its kind
+  (`.resource(kinds::kMaterial, uses::kSkyMaterial)`,
+  `PropertyAttributes::resourceUse`). The `sky` field of an environment
+  offers and takes only sky materials, `MeshRenderer` slots only surface
+  materials (a sky material is not dropped onto an object in the
+  viewport). There is one check, `fitsResourceUse`: the use of a material
+  is the kind of its shader; a material with a broken shader fits both,
+  otherwise it could not be picked until the shader is fixed.
+- **The viewport** shows the scene sky behind objects; a button at the top
+  right (`EditorSettings::viewportSky`, saved) turns it into the theme
+  colour. Without a sky in the scene it is the theme colour. The sky lights
+  the scene either way.
+- **`Environment`** is in the "Add node" menu, with its own icon.
 - **The shader inspector**: the result of the last compile (fine, or the
   errors), the material block and the textures it declares; "Open" opens the
   file in the system editor. Editing shaders inside the editor comes with
@@ -790,14 +835,17 @@ Lights give shadows, their meshes cast and receive them.
   a rough one its average; the capture is not repeated while nothing
   changes.
 
-### 5.5d Editor
+### 5.5d Editor [done]
 
 - The sky toggle of the viewport; the sky and the ambient light of the
   default environment in the material preview; "Create resource > Sky
   shader" from `assets/templates/sky`; `Environment` in the "Add node"
   menu with its icon; the `sky` field offers only sky materials.
 - **Tests**: a new scene has a camera with `Sky`, the sun and an
-  `Environment`; the sky template compiles.
+  `Environment`; the sky template compiles; the sky field offers only sky
+  materials, a mesh slot only surface ones; the preview shows a sky
+  material as the sky; the scene and the preview in turn do not capture
+  the sky again; the viewport sky flag is saved.
 
 ### 5.6 Shadows
 
@@ -807,9 +855,12 @@ Lights give shadows, their meshes cast and receive them.
   `RenderPassDesc`, `RenderGraph::Pass` and the test device); depth bias in
   the pipeline; a viewport over part of the target (2 x 2 cascades, atlas
   tiles); the OpenGL backend.
-- **Properties**: `shadows`, `shadowStrength`, `shadowBias`,
-  `shadowNormalBias` on `Light3D`; `castShadows`, `receiveShadows` on
-  `MeshRenderer`; distance, cascades and map sizes in `GraphicsSettings`.
+- **Properties**: `shadows`, `shadowStrength`, `shadowSoftness`,
+  `shadowBias`, `shadowNormalBias` on `Light3D`; `angularDiameter` on
+  `DirectionalLight3D` (the sun disc angle moves from `Physical` to the
+  frame block), `sourceRadius` on point and spot lights; `castShadows`,
+  `receiveShadows` on `MeshRenderer`; the switch, distance, cascades, map
+  sizes, sample counts and `maxPenumbra` in `GraphicsSettings`.
 - **Extract**: which lights get shadows, the cascades of the directional
   light (splits, texel-snapped matrices), atlas tiles of spot lights and
   point light faces; per map lists of shadow casters culled by its
@@ -818,8 +869,8 @@ Lights give shadows, their meshes cast and receive them.
   cascade and tile, before the opaque pass in the graph; the frame block
   gets the matrices and the splits.
 - **`lighting.glsl`**: cascade selection with blending, `Hard` and `Soft`
-  (PCF over a rotated Poisson disc), biases; `receiveShadows` through the
-  object block.
+  (PCSS: blocker search, penumbra width, PCF over a rotated Poisson disc),
+  biases; `receiveShadows` through the object block.
 - **A new scene**: the sun with `Soft`; the editor shows the cascades in a
   debug view of the viewport.
 - **Tests**: cascade splits grow and cover the distance; texel snapping
@@ -827,7 +878,10 @@ Lights give shadows, their meshes cast and receive them.
   limits and the nearest kept; on OpenGL: a cube above a plane darkens the
   plane below it, without `castShadows` it does not, `receiveShadows` off
   on the plane removes the shadow from it; a point light casts shadows in
-  every direction; the ambient light stays in the shadow.
+  every direction; the ambient light stays in the shadow; with `Soft` the
+  penumbra is narrower where the object touches the plane than away from
+  it, and wider for a larger light; the settings switch removes shadows
+  and their passes.
 
 ### 5.7 glTF materials
 

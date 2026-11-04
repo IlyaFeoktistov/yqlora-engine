@@ -342,9 +342,27 @@ TEST_CASE_FIXTURE(ProjectFixture, "ProjectFiles: a new shader is the template un
 {
     editor::ProjectFiles files(*project);
     REQUIRE(files.createFolder({}, "shaders"));
-    const auto created = files.createShader("shaders", "Water", editor::shaderTemplateFile(YQLORA_ASSETS_DIR));
+    const auto created = files.createShader(
+        "shaders",
+        "Water",
+        editor::shaderTemplateFile(YQLORA_ASSETS_DIR, ShaderKind::Surface)
+    );
     REQUIRE(created);
     CHECK(*created == fs::path("shaders") / "Water.yshader");
     CHECK(cache.find<ShaderData>(project->resources().id(*created)));
-    CHECK_FALSE(files.createShader("shaders", "Water", editor::shaderTemplateFile(YQLORA_ASSETS_DIR)));
+    CHECK_FALSE(
+        files.createShader("shaders", "Water", editor::shaderTemplateFile(YQLORA_ASSETS_DIR, ShaderKind::Surface))
+    );
+}
+
+TEST_CASE_FIXTURE(ProjectFixture, "ProjectFiles: the sky shader template compiles into a sky shader")
+{
+    editor::ProjectFiles files(*project);
+    const auto created = files.createShader({}, "Dusk", editor::shaderTemplateFile(YQLORA_ASSETS_DIR, ShaderKind::Sky));
+    REQUIRE(created);
+    const ShaderData* shader = cache.find<ShaderData>(project->resources().id(*created));
+    REQUIRE(shader);
+    CHECK(shader->kind == ShaderKind::Sky);
+    CHECK(shader->captureDesc);
+    CHECK(shader->findField("sunGlow"));
 }

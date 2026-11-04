@@ -1,0 +1,32 @@
+#version 450
+
+// Шейдер неба: функция sky() даёт яркость неба в нитах в направлении взгляда.
+// Здесь - цвет от горизонта к зениту и ореол вокруг солнца сцены. Материал
+// с этим шейдером ставится в поле sky узла Environment; поля блока Material
+// видны в инспекторе материала (см. docs/architecture/materials.md).
+#include <yqlora/sky.glsl>
+
+layout(set = 2, binding = 0, std140) uniform Material {
+    vec3 zenithColor;     //@ color default(0.25, 0.45, 0.85)
+    vec3 horizonColor;    //@ color default(0.75, 0.8, 0.9)
+    // Яркость белого в нитах.
+    float luminance;      //@ default(8000)
+    // Яркость ореола в его середине - доля яркости белой поверхности под солнцем.
+    float sunGlow;        //@ range(0, 1) default(0.2)
+    // Чем больше, тем ореол уже.
+    float sunGlowFalloff; //@ range(1, 256) default(16)
+} material;
+
+const float kPi = 3.14159265358979;
+
+vec3 sky(vec3 direction)
+{
+    float height = sqrt(max(direction.y, 0.0));
+    vec3 color = mix(material.horizonColor, material.zenithColor, height) * material.luminance;
+    if (frame.hasSun != 0) {
+        float toSun = max(dot(direction, -frame.sunDirection), 0.0);
+        color += frame.sunColor / kPi * material.sunGlow * pow(toSun, material.sunGlowFalloff);
+    }
+
+    return color;
+}

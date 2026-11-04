@@ -279,6 +279,9 @@ struct PropertyAttributes {
     // T::kResourceKind. По нему инспектор предлагает ресурсы. Пусто - ссылка
     // только показывается.
     std::string resourceKind;
+    // Назначение ресурса (uses::kSkyMaterial): из ресурсов вида поле
+    // предлагает только подходящие. Пусто - любой ресурс вида.
+    std::string resourceUse;
 };
 
 // Атрибуты в цепочке описания свойства: .range(0, 100).tooltip("..."). Одни
@@ -337,10 +340,13 @@ public:
         return self();
     }
 
-    // .resource(MeshData::kResourceKind), см. PropertyAttributes::resourceKind.
-    Self& resource(std::string_view kind)
+    // .resource(MeshData::kResourceKind) или
+    // .resource(kinds::kMaterial, uses::kSkyMaterial), см.
+    // PropertyAttributes::resourceKind и resourceUse.
+    Self& resource(std::string_view kind, std::string_view use = {})
     {
         edit().resourceKind = std::string(kind);
+        edit().resourceUse = std::string(use);
 
         return self();
     }

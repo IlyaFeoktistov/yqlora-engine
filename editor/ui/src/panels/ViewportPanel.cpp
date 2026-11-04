@@ -42,8 +42,41 @@ const Vec3 kStartCameraTarget(0.0f, 0.5f, 0.0f);
 constexpr float kPreviewShare = 0.3f;
 constexpr float kPreviewMargin = 12.0f;
 constexpr float kPreviewBorder = 1.0f;
-// Кнопка превью: тот же отступ от угла, что у панели инструментов слева.
+// Кнопки справа: тот же отступ от угла, что у панели инструментов слева.
 constexpr float kToggleMargin = 8.0f;
+
+// Кнопка-переключатель с правым краем right; right сдвигается левее неё.
+// Возвращает true, если курсор над ней.
+bool drawToggle(
+    EditorContext& context,
+    const char* icon,
+    bool& enabled,
+    const char* tooltipKey,
+    float& right,
+    float top
+)
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float width = ImGui::CalcTextSize(icon).x + style.FramePadding.x * 2.0f;
+    right -= width;
+    ImGui::SetCursorScreenPos(ImVec2(right, top));
+    right -= style.ItemSpacing.x;
+
+    const bool wasEnabled = enabled;
+    if (wasEnabled) {
+        ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_ButtonActive]);
+    }
+    if (ImGui::Button(icon)) {
+        enabled = !enabled;
+        context.settings.save();
+    }
+    if (wasEnabled) {
+        ImGui::PopStyleColor();
+    }
+    ImGui::SetItemTooltip("%s", tr(tooltipKey).c_str());
+
+    return ImGui::IsItemHovered();
+}
 
 } // namespace
 
@@ -102,7 +135,7 @@ void ViewportPanel::draw(EditorContext& context)
     }
 
     // Превью и его кнопка лежат поверх сцены: клики по ним до сцены не доходят.
-    const bool overToggle = drawPreviewToggle(context, origin, size);
+    const bool overToggle = drawToggles(context, origin, size);
     const Camera3D* previewed = previewedCamera(context);
     const Rect preview = previewRect(origin, size);
     const bool overPreview = previewed && preview.hovered();
@@ -146,12 +179,17 @@ void ViewportPanel::renderScene(EditorContext& context, float aspect, const Gizm
         .camera = m_camera.cameraData(aspect),
         .exposure = viewExposure(render ? render->mainCamera() : nullptr),
     }};
-    // Фон - первым из проходов поверх кадра, под сеткой и контуром.
-    if (!m_background) {
-        m_background = std::make_unique<BackgroundPass>(host.renderer().context());
+    // Небо сцены за объектами, а без него (выключено или в сцене нет) -
+    // фон темы, первым из проходов поверх кадра, под сеткой и контуром.
+    if (context.settings.viewportSky && frame.environment.sky) {
+        frame.views.front().clear = CameraClear::Sky;
+    } else {
+        if (!m_background) {
+            m_background = std::make_unique<BackgroundPass>(host.renderer().context());
+        }
+        m_background->setColor(context.theme.colors().viewportBackground);
+        frame.views.front().passes.push_back(m_background.get());
     }
-    m_background->setColor(context.theme.colors().viewportBackground);
-    frame.views.front().passes.push_back(m_background.get());
     m_gizmos.prepareView(frame.views.front(), host.renderer().context(), gizmoContext);
     m_view.render(host.renderer(), frame);
 }
@@ -183,28 +221,24 @@ ViewportPanel::Rect ViewportPanel::previewRect(const ImVec2& origin, const ImVec
     };
 }
 
-bool ViewportPanel::drawPreviewToggle(EditorContext& context, const ImVec2& origin, const ImVec2& size)
+bool ViewportPanel::drawToggles(EditorContext& context, const ImVec2& origin, const ImVec2& size)
 {
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const float width = ImGui::CalcTextSize(icons::kCamera3D).x + style.FramePadding.x * 2.0f;
-    ImGui::SetCursorScreenPos(ImVec2(origin.x + size.x - width - kToggleMargin, origin.y + kToggleMargin));
+    float right = origin.x + size.x - kToggleMargin;
+    const float top = origin.y + kToggleMargin;
+    EditorSettings& settings = context.settings;
+    // Не через ||: обе кнопки рисуются в каждом кадре.
+    const bool overPreview = drawToggle(
+        context,
+        icons::kCamera3D,
+        settings.cameraPreview,
+        "editor.viewport.cameraPreview",
+        right,
+        top
+    );
+    const bool
+        overSky = drawToggle(context, icons::kEnvironment, settings.viewportSky, "editor.viewport.sky", right, top);
 
-    bool& enabled = context.settings.cameraPreview;
-    const bool wasEnabled = enabled;
-    if (wasEnabled) {
-        ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_ButtonActive]);
-    }
-    if (ImGui::Button(icons::kCamera3D)) {
-        enabled = !enabled;
-        context.settings.save();
-    }
-    if (wasEnabled) {
-        ImGui::PopStyleColor();
-    }
-    const bool hovered = ImGui::IsItemHovered();
-    ImGui::SetItemTooltip("%s", tr("editor.viewport.cameraPreview").c_str());
-
-    return hovered;
+    return overPreview || overSky;
 }
 
 void ViewportPanel::drawCameraPreview(EditorContext& context, const Camera3D& camera, const Rect& rect)

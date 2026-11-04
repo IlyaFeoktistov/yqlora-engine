@@ -35,22 +35,26 @@ std::string_view fileKind(const std::filesystem::path& path, const ResourceCache
 // ресурсы (ResourceCache::nestedKindsOf).
 std::vector<ResourceId> nestedResources(ResourceId file, const std::filesystem::path& path, ResourceCache& cache);
 
-// Всё, что подходит полю ссылки на ресурсы вида kind (T::kResourceKind):
-// встроенные ресурсы, затем ресурсы проекта по путям, вложенные - под своим
-// файлом. Файлы с вложенными ресурсами этого вида загружаются: так видно,
-// какие из них ещё есть в файле. resources - nullptr без проекта.
+// Всё, что подходит полю ссылки на ресурсы вида kind (T::kResourceKind) с
+// назначением use (uses::kSkyMaterial, пусто - любое): встроенные ресурсы,
+// затем ресурсы проекта по путям, вложенные - под своим файлом. Файлы с
+// вложенными ресурсами этого вида загружаются: так видно, какие из них ещё
+// есть в файле; при назначении загружается и каждый ресурс вида, чтобы
+// проверить его (fitsResourceUse). resources - nullptr без проекта.
 std::vector<ResourceChoice> resourceChoices(
     std::string_view kind,
+    std::string_view use,
     const ResourceDatabase* resources,
     ResourceCache& cache
 );
 
-// Что положить в поле вида kind, если на него отпустили ресурс id: сам
-// ресурс, если он подходит, а файл с вложенными ресурсами этого вида -
-// первый из них (модель на поле меша - её первый меш). nullopt -
-// ресурс не подходит.
+// Что положить в поле вида kind с назначением use, если на него отпустили
+// ресурс id: сам ресурс, если он подходит, а файл с вложенными ресурсами
+// этого вида - первый подходящий из них (модель на поле меша - её первый
+// меш). nullopt - ресурс не подходит.
 std::optional<ResourceId> resourceForField(
     std::string_view kind,
+    std::string_view use,
     ResourceId id,
     const ResourceDatabase* resources,
     ResourceCache& cache

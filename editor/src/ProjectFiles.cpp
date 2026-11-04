@@ -28,6 +28,7 @@ namespace fs = std::filesystem;
 constexpr const char* kTemplatesFolder = "templates";
 constexpr const char* kCppScriptTemplate = "cpp-script";
 constexpr const char* kShaderTemplate = "shader/Shader.yshader";
+constexpr const char* kSkyShaderTemplate = "sky/Sky.yshader";
 // Файлы шаблона и метка имени класса в них; так же их читает tests/sdk/BuildTemplate.cmake.
 constexpr const char* kTemplateFileName = "Script";
 constexpr std::array<std::string_view, 2> kScriptExtensions{".hpp", ".cpp"};
@@ -74,7 +75,15 @@ const NewResourceType kNewResourceTypes[] = {
      kShaderFileExtension,
      false,
      [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext& context) {
-         return files.createShader(folder, name, shaderTemplateFile(context.assets));
+         return files.createShader(folder, name, shaderTemplateFile(context.assets, ShaderKind::Surface));
+     }},
+    {kSkyShaderKind,
+     "editor.files.newSkyShader",
+     "New Sky",
+     kShaderFileExtension,
+     false,
+     [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext& context) {
+         return files.createShader(folder, name, shaderTemplateFile(context.assets, ShaderKind::Sky));
      }},
     {MaterialData::kResourceKind,
      "editor.files.newMaterial",
@@ -133,9 +142,9 @@ fs::path cppScriptTemplateDirectory(const fs::path& assets)
     return assets / kTemplatesFolder / kCppScriptTemplate;
 }
 
-fs::path shaderTemplateFile(const fs::path& assets)
+fs::path shaderTemplateFile(const fs::path& assets, ShaderKind kind)
 {
-    return assets / kTemplatesFolder / kShaderTemplate;
+    return assets / kTemplatesFolder / (kind == ShaderKind::Sky ? kSkyShaderTemplate : kShaderTemplate);
 }
 
 bool isValidScriptName(std::string_view name)

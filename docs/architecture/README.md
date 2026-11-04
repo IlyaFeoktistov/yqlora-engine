@@ -21,6 +21,7 @@ documents keep only how the engine works.
 | [Animation](animation.md) | the animation resource, `AnimationPlayer`, the Animation panel with keys |
 | [Particles](particles.md) | particle effects: the effect resource, `ParticleEmitter`, instanced drawing |
 | [Physics](physics.md) | rigid bodies, colliders, queries, joints (step 6) |
+| [Navigation and player control](navigation.md) | navigation map, path finding, agents, `PlayerController` (after the MVP) |
 | [Scripts](scripting.md) | C++, Luau, visual scripts, hot reload |
 | [Editor](editor.md) | parts of the editor: session, document, Play, panels |
 | [Code editor](code-editor.md) | the Scripts tab: Luau with highlighting and hints, later shaders |

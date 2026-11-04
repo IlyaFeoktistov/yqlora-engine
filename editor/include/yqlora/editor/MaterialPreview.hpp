@@ -6,13 +6,17 @@
 
 namespace yqlora {
 class EngineServices;
+class Environment;
 class MeshRenderer;
+class ResourceCache;
 } // namespace yqlora
 
 namespace yqlora::editor {
 
-// Превью материала: своя сцена со сферой, камерой и постоянным направленным
-// светом. Ни одна её часть не в документе, и её свет сцену не освещает.
+// Превью материала: своя сцена со сферой, камерой, солнцем и окружением по
+// умолчанию (небо, его свет и отражения). Материал неба становится небом
+// превью, а сфера - белой: видно и небо, и как оно освещает. Ни одна часть
+// превью не в документе, и его свет сцену не освещает.
 class MaterialPreview {
 public:
     explicit MaterialPreview(const EngineServices& services);
@@ -22,7 +26,9 @@ public:
 
 private:
     Scene m_scene;
+    ResourceCache& m_cache;
     MeshRenderer* m_sphere = nullptr;
+    Environment* m_environment = nullptr;
 };
 
 } // namespace yqlora::editor

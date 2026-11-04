@@ -151,7 +151,8 @@
             "element": "Element"
         },
         "viewport": {
-            "cameraPreview": "Preview of the selected camera"
+            "cameraPreview": "Preview of the selected camera",
+            "sky": "Scene sky behind objects"
         },
         "layers": {
             "everything": "Everything",
@@ -207,6 +208,7 @@
             "newResource": "Create resource",
             "newCppScript": "C++ script",
             "newShader": "Shader",
+            "newSkyShader": "Sky Shader",
             "newMaterial": "Material",
             "scriptName": "Class name (Latin letters, digits and _):",
             "name": "Name:",

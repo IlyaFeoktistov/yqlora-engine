@@ -133,7 +133,7 @@ TEST_CASE_FIXTURE(Fixture, "nearestVertex: the vertex closest on the screen, onl
     }));
 }
 
-TEST_CASE("EditorSettings: snapping survives a restart, a broken step stays default")
+TEST_CASE("EditorSettings: snapping and the viewport sky survive a restart, a broken step stays default")
 {
     const auto file = std::filesystem::temp_directory_path() / "yqlora_tests" / "snap_editor.json";
     std::filesystem::create_directories(file.parent_path());
@@ -144,11 +144,14 @@ TEST_CASE("EditorSettings: snapping survives a restart, a broken step stays defa
     settings.snap.grid = true;
     settings.snap.moveStep = 0.5f;
     settings.snap.alignToSurface = true;
+    CHECK(settings.viewportSky);
+    settings.viewportSky = false;
     REQUIRE(settings.save());
 
     EditorSettings reloaded(file);
     reloaded.load();
     CHECK(reloaded.snap == settings.snap);
+    CHECK_FALSE(reloaded.viewportSky);
 
     std::ofstream(file, std::ios::trunc) << R"({"snap": {"moveStep": 0, "rotateStepDegrees": "x"}})";
     EditorSettings broken(file);

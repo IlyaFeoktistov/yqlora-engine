@@ -128,7 +128,7 @@ void MaterialInspector::drawState(EditorContext& context, ResourceId id, const M
     const PropertyEditorContext fields = propertyEditorContext(context);
     ResourceRef shader{material.shader};
     ImGui::TextUnformatted(tr("editor.material.shader").c_str());
-    if (resourceField(kinds::kShader, shader, fields)) {
+    if (resourceField(kinds::kShader, {}, shader, fields)) {
         editing.change(id, [&](MaterialData& edited) {
             edited.shader = shader.id;
         });
@@ -197,7 +197,7 @@ void MaterialInspector::drawTextures(
         ImGui::PushID(texture.name.c_str());
         ImGui::TextUnformatted((texture.label.empty() ? texture.name : tr(texture.label)).c_str());
         ResourceRef value{materialTexture(material, texture)};
-        if (resourceField(kinds::kTexture, value, fields)) {
+        if (resourceField(kinds::kTexture, {}, value, fields)) {
             editing.change(id, [&](MaterialData& edited) {
                 if (value.id == 0) {
                     edited.textures.erase(texture.name);

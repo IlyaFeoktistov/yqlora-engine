@@ -49,7 +49,7 @@ void registerRenderTypes(TypeRegistry& registry)
 
     registry.registerNode<Environment>()
         .property("sky", &Environment::sky)
-        .resource(MaterialData::kResourceKind)
+        .resource(MaterialData::kResourceKind, uses::kSkyMaterial)
         .property("ambientSource", &Environment::ambientSource)
         .group("group.ambientLight")
         .property("ambientIntensity", &Environment::ambientIntensity, &Environment::setAmbientIntensity)
@@ -71,7 +71,7 @@ void registerRenderTypes(TypeRegistry& registry)
         .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh)
         .resource(MeshData::kResourceKind)
         .property(kMaterialsProperty, &MeshRenderer::materials, &MeshRenderer::setMaterials)
-        .resource(MaterialData::kResourceKind)
+        .resource(MaterialData::kResourceKind, uses::kSurfaceMaterial)
         .elementLabels([](const Component& component) {
             return static_cast<const MeshRenderer&>(component).slotNames();
         });

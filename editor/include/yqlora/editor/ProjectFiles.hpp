@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <span>
@@ -11,6 +12,7 @@ namespace yqlora {
 
 class Project;
 class SceneSerializer;
+enum class ShaderKind : std::uint8_t;
 
 } // namespace yqlora
 
@@ -19,6 +21,8 @@ namespace yqlora::editor {
 // Виды того, что создаётся в Файлах, но не ресурс движка.
 inline constexpr std::string_view kFolderKind = "folder";
 inline constexpr std::string_view kCppScriptKind = "cppScript";
+// Шейдер неба: файл - обычный шейдер, другой только шаблон.
+inline constexpr std::string_view kSkyShaderKind = "skyShader";
 
 class ProjectFiles;
 
@@ -33,7 +37,8 @@ struct NewResourceContext {
 // newResourceTypes(). Новый вид (материал, скрипт Luau) - новая строка, меню
 // и окно создания берут всё отсюда, значок - по kind.
 struct NewResourceType {
-    // Вид результата: T::kResourceKind, kFolderKind или kCppScriptKind.
+    // Вид результата: T::kResourceKind, kFolderKind, kCppScriptKind или
+    // kSkyShaderKind.
     std::string_view kind;
     // Ключ перевода подписи.
     const char* labelKey;
@@ -61,8 +66,8 @@ const NewResourceType* findNewResourceType(std::string_view kind);
 // Шаблон C++-скрипта среди ресурсов редактора (assets).
 std::filesystem::path cppScriptTemplateDirectory(const std::filesystem::path& assets);
 
-// Шаблон нового шейдера среди ресурсов редактора (assets).
-std::filesystem::path shaderTemplateFile(const std::filesystem::path& assets);
+// Шаблон нового шейдера вида kind среди ресурсов редактора (assets).
+std::filesystem::path shaderTemplateFile(const std::filesystem::path& assets, ShaderKind kind);
 
 // Годится как имя класса C++-скрипта: латиница, цифры и "_", не с цифры.
 bool isValidScriptName(std::string_view name);

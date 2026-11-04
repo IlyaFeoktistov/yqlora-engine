@@ -4,6 +4,7 @@
 
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/DirectionalLight3D.hpp"
+#include "yqlora/render/Environment.hpp"
 #include "yqlora/render/PointLight3D.hpp"
 #include "yqlora/render/SpotLight3D.hpp"
 #include "yqlora/scene/Node3D.hpp"
@@ -22,6 +23,7 @@ const std::pair<std::string_view, const char*> kIcons[] = {
     {DirectionalLight3D::staticTypeName(), icons::kDirectionalLight3D},
     {PointLight3D::staticTypeName(), icons::kPointLight3D},
     {SpotLight3D::staticTypeName(), icons::kSpotLight3D},
+    {Environment::staticTypeName(), icons::kEnvironment},
 };
 
 } // namespace

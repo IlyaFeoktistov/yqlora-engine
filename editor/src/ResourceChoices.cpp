@@ -3,6 +3,7 @@
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/editor/ProjectFiles.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
+#include "yqlora/render/ResourceUses.hpp"
 #include "yqlora/resource/BuiltinResourceTable.hpp"
 #include "yqlora/resource/BuiltinResources.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
@@ -18,6 +19,7 @@ namespace {
 
 std::vector<ResourceId> nestedOfKind(
     std::string_view kind,
+    std::string_view use,
     ResourceId file,
     const std::filesystem::path& path,
     ResourceCache& cache
@@ -29,7 +31,7 @@ std::vector<ResourceId> nestedOfKind(
         return nested;
     }
     for (const ResourceId id : nestedResources(file, path, cache)) {
-        if (cache.loadedKind(id) == kind) {
+        if (cache.loadedKind(id) == kind && fitsResourceUse(use, id, cache)) {
             nested.push_back(id);
         }
     }
@@ -61,13 +63,14 @@ std::vector<ResourceId> nestedResources(ResourceId file, const std::filesystem::
 
 std::vector<ResourceChoice> resourceChoices(
     std::string_view kind,
+    std::string_view use,
     const ResourceDatabase* resources,
     ResourceCache& cache
 )
 {
     std::vector<ResourceChoice> choices;
     for (const BuiltinResourceEntry& entry : builtinResourceTable()) {
-        if (entry.kind == kind) {
+        if (entry.kind == kind && fitsResourceUse(use, entry.id, cache)) {
             choices.push_back({entry.id, std::string(entry.name), {}, true});
         }
     }
@@ -75,10 +78,10 @@ std::vector<ResourceChoice> resourceChoices(
         return choices;
     }
     for (const auto& [file, path] : resources->paths()) {
-        if (fileKind(path, cache) == kind) {
+        if (fileKind(path, cache) == kind && fitsResourceUse(use, file, cache)) {
             choices.push_back({file, toGenericUtf8(path), {}, false});
         }
-        for (const ResourceId id : nestedOfKind(kind, file, path, cache)) {
+        for (const ResourceId id : nestedOfKind(kind, use, file, path, cache)) {
             choices.push_back({id, std::string(subresourceLocalKey(resources->key(id))), toGenericUtf8(path), false});
         }
     }
@@ -88,6 +91,7 @@ std::vector<ResourceChoice> resourceChoices(
 
 std::optional<ResourceId> resourceForField(
     std::string_view kind,
+    std::string_view use,
     ResourceId id,
     const ResourceDatabase* resources,
     ResourceCache& cache
@@ -96,19 +100,19 @@ std::optional<ResourceId> resourceForField(
     if (builtin::isBuiltin(id)) {
         const BuiltinResourceEntry* entry = findBuiltinResource(id);
 
-        return entry && entry->kind == kind ? std::optional(id) : std::nullopt;
+        return entry && entry->kind == kind && fitsResourceUse(use, id, cache) ? std::optional(id) : std::nullopt;
     }
     const auto path = resources ? resources->path(id) : std::nullopt;
     if (!path) {
         return std::nullopt;
     }
     if (!resources->key(id).empty()) {
-        return cache.loadedKind(id) == kind ? std::optional(id) : std::nullopt;
+        return cache.loadedKind(id) == kind && fitsResourceUse(use, id, cache) ? std::optional(id) : std::nullopt;
     }
     if (fileKind(*path, cache) == kind) {
-        return id;
+        return fitsResourceUse(use, id, cache) ? std::optional(id) : std::nullopt;
     }
-    const auto nested = nestedOfKind(kind, id, *path, cache);
+    const auto nested = nestedOfKind(kind, use, id, *path, cache);
 
     return nested.empty() ? std::nullopt : std::optional(nested.front());
 }

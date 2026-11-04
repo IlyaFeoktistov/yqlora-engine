@@ -70,8 +70,9 @@ private:
     static const Camera3D* previewedCamera(EditorContext& context);
     // Угол окна сцены, где стоит превью: справа снизу, с соотношением сторон окна.
     static Rect previewRect(const ImVec2& origin, const ImVec2& size);
-    // Кнопка превью справа сверху. Возвращает true, если курсор над ней.
-    static bool drawPreviewToggle(EditorContext& context, const ImVec2& origin, const ImVec2& size);
+    // Кнопки справа сверху: небо и превью камеры. Возвращает true, если
+    // курсор над одной из них.
+    static bool drawToggles(EditorContext& context, const ImVec2& origin, const ImVec2& size);
     // Картинка через камеру в своей текстуре, с рамкой и именем камеры.
     void drawCameraPreview(EditorContext& context, const Camera3D& camera, const Rect& rect);
 

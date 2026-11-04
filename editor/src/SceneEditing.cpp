@@ -9,6 +9,8 @@
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/MeshRenderer.hpp"
 #include "yqlora/render/RenderSystem.hpp"
+#include "yqlora/render/ResourceUses.hpp"
+#include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/NodeTree.hpp"
 #include "yqlora/scene/Scene.hpp"
@@ -161,7 +163,9 @@ bool SceneEditing::setMaterialSlot(MeshRenderer& renderer, std::size_t slot, Res
     }
     const auto properties = m_session.registry().properties(*type);
     const auto found = std::ranges::find(properties, kMaterialsProperty, &Property::name);
-    if (found == properties.end()) {
+    if (found == properties.end()
+        || (material.id != 0
+            && !fitsResourceUse((*found)->attributes().resourceUse, material.id, m_session.resources()))) {
         return false;
     }
     std::vector<ResourceRef> materials = renderer.materials();

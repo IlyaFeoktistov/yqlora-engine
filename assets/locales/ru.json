@@ -151,7 +151,8 @@
             "element": "Элемент"
         },
         "viewport": {
-            "cameraPreview": "Превью выбранной камеры"
+            "cameraPreview": "Превью выбранной камеры",
+            "sky": "Небо сцены за объектами"
         },
         "layers": {
             "everything": "Все",
@@ -207,6 +208,7 @@
             "newResource": "Создать ресурс",
             "newCppScript": "C++ скрипт",
             "newShader": "Шейдер",
+            "newSkyShader": "Шейдер неба",
             "newMaterial": "Материал",
             "scriptName": "Имя класса (латиница, цифры и _):",
             "name": "Имя:",
