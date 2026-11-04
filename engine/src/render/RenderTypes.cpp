@@ -143,7 +143,7 @@ void registerRenderTypes(TypeRegistry& registry)
         .range(1.0f, static_cast<float>(kMaxShadowSamples))
         .group("group.shadows")
         .property("shadowMaxPenumbra", &GraphicsSettings::shadowMaxPenumbra)
-        .range(1.0f, kMaxShadowPenumbra)
+        .range(kMinShadowPenumbra, kMaxShadowPenumbra)
         .group("group.shadows");
 }
 

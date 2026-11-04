@@ -128,7 +128,7 @@ struct alignas(16) ShadowUniforms {
     float sunSourceTangent = 0.0f;
     int blockerSamples = 1;
     int filterSamples = 1;
-    // Предел полутени в текселях.
+    // Предел ширины полутени в метрах.
     float maxPenumbra = 1.0f;
     // Сторона одного каскада и одной плитки атласа в текселях.
     float cascadeSize = 1.0f;

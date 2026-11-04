@@ -429,7 +429,7 @@
         "shadowCascades": "Каскады",
         "shadowDistance": "Дальность теней, м",
         "shadowFilterSamples": "Отсчёты фильтра",
-        "shadowMaxPenumbra": "Предел полутени, тексели",
+        "shadowMaxPenumbra": "Предел полутени, м",
         "shadowNormalBias": "Смещение по нормали, тексели",
         "shadowSoftness": "Мягкость",
         "shadowStrength": "Сила",

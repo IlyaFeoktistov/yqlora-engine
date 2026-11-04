@@ -429,7 +429,7 @@
         "shadowCascades": "Cascades",
         "shadowDistance": "Shadow distance, m",
         "shadowFilterSamples": "Filter samples",
-        "shadowMaxPenumbra": "Max penumbra, texels",
+        "shadowMaxPenumbra": "Max penumbra, m",
         "shadowNormalBias": "Normal bias, texels",
         "shadowSoftness": "Softness",
         "shadowStrength": "Strength",

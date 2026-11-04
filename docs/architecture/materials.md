@@ -523,7 +523,10 @@ Lights give shadows, their meshes cast and receive them.
   means no shadows and nothing drawn into maps); `shadowDistance` (100 m),
   `shadowCascades` (4), `shadowCascadeSize` (2048) and `shadowAtlasSize`
   (4096), `shadowBlockerSamples` (16) and `shadowFilterSamples` (32),
-  `shadowMaxPenumbra` (the penumbra width limit in texels, 32). Quality
+  `shadowMaxPenumbra` (the limit of the penumbra width and of the blocker
+  search, 3 m). The limit is in metres, not texels: the penumbra width is
+  the same in every cascade and with any map size, quality changes only
+  how clean it is, and the sample counts set the cost. Quality
   levels for the player settings menu come with the player interface and
   the standalone runtime (steps 8 and 9) and change these same values.
 - **Editor**: a viewport button tints lit surfaces by the colour of their

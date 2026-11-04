@@ -55,7 +55,7 @@ ShadowSettings shadowSettings(const GraphicsSettings& settings)
         .atlasSize = std::clamp(settings.shadowAtlasSize, kMinMapSize, kMaxMapSize),
         .blockerSamples = std::clamp(settings.shadowBlockerSamples, 1, kMaxShadowSamples),
         .filterSamples = std::clamp(settings.shadowFilterSamples, 1, kMaxShadowSamples),
-        .maxPenumbra = std::clamp(settings.shadowMaxPenumbra, 1.0f, kMaxShadowPenumbra),
+        .maxPenumbra = std::clamp(settings.shadowMaxPenumbra, kMinShadowPenumbra, kMaxShadowPenumbra),
     };
 }
 

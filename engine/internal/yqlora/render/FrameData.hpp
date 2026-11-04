@@ -153,9 +153,10 @@ inline constexpr int kMaxShadowTiles = kShadowAtlasColumns * kShadowAtlasColumns
 inline constexpr int kPointShadowFaces = 6;
 // Ближняя плоскость карт теней точечных и прожекторов, в метрах.
 inline constexpr float kShadowNearPlane = 0.05f;
-// Пределы настроек теней: отсчётов фильтра и ширины полутени в текселях.
+// Пределы настроек теней: отсчётов фильтра и ширины полутени в метрах.
 inline constexpr int kMaxShadowSamples = 64;
-inline constexpr float kMaxShadowPenumbra = 128.0f;
+inline constexpr float kMinShadowPenumbra = 0.01f;
+inline constexpr float kMaxShadowPenumbra = 50.0f;
 
 // Настройки теней кадра (GraphicsSettings), уже в своих пределах.
 struct ShadowSettings {
@@ -166,7 +167,8 @@ struct ShadowSettings {
     int atlasSize = 4096;
     int blockerSamples = 16;
     int filterSamples = 32;
-    float maxPenumbra = 32.0f;
+    // Метры.
+    float maxPenumbra = 3.0f;
 };
 
 // Плитка атласа теней: карта прожектора или грань куба точечного.

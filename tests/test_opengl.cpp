@@ -1314,8 +1314,6 @@ TEST_CASE("OpenGL: a soft shadow is sharper near its caster and softer for a lar
         return;
     }
     ShadowScene scene;
-    // Полутень больше предела по умолчанию: предел её бы срезал.
-    scene.frame.shadows.maxPenumbra = kMaxShadowPenumbra;
     // Коробки 1 x 1 м: низкая - на 0.3 м над плоскостью, высокая - на 4 м.
     scene.add(Vec3(-2.0f, 0.8f, 0.0f), Vec3(1.0f));
     scene.add(Vec3(2.0f, 4.5f, 0.0f), Vec3(1.0f));
@@ -1332,4 +1330,30 @@ TEST_CASE("OpenGL: a soft shadow is sharper near its caster and softer for a lar
     CHECK(highLarge > lowLarge * 3.0f);
     CHECK(highLarge == doctest::Approx(2.0f * std::tan(glm::radians(kLargeSun * 0.5f)) * 4.0f).epsilon(0.5));
     CHECK(highLarge > highSmall * 2.0f);
+}
+
+TEST_CASE("OpenGL: a soft shadow keeps its width with any cascade map size, the limit is in metres")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    ShadowScene scene;
+    scene.add(Vec3(2.0f, 4.5f, 0.0f), Vec3(1.0f));
+    scene.frame.lights = {shadowSun(Vec3(0.0f, -1.0f, 0.0f), ShadowMode::Soft, 10.0f)};
+    const auto widthWith = [&](int cascadeSize, float maxPenumbra) {
+        scene.frame.shadows.cascadeSize = cascadeSize;
+        scene.frame.shadows.maxPenumbra = maxPenumbra;
+        const auto pixels = scene.render(*gl->renderer);
+
+        return scene.penumbra(pixels, 2.0f, 3.0f);
+    };
+    // Полутень около 0.7 м - меньше предела по умолчанию.
+    const float small = widthWith(1024, ShadowSettings{}.maxPenumbra);
+    const float large = widthWith(4096, ShadowSettings{}.maxPenumbra);
+    CHECK(small > 0.4f);
+    CHECK(large == doctest::Approx(small).epsilon(0.25));
+    // Предел в 0.2 м её срезает при любом размере карты.
+    CHECK(widthWith(1024, 0.2f) < small * 0.5f);
+    CHECK(widthWith(4096, 0.2f) < small * 0.5f);
 }

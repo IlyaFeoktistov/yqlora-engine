@@ -121,6 +121,13 @@ float filterShadow(sampler2DShadow map, ShadowRect rect, vec2 uv, float depth, f
     return lit / float(shadows.filterSamples);
 }
 
+// Предел радиуса полутени в долях карты, где на метр приходится perMeter
+// карты: половина maxPenumbra (метры), не больше половины карты.
+float shadowMaxRadius(float perMeter)
+{
+    return min(shadows.maxPenumbra * 0.5 * perMeter, 0.5);
+}
+
 // Каскад cascade: его место в карте каскадов (2 x 2, один каскад - вся карта).
 ShadowRect cascadeRect(int cascade)
 {
@@ -152,9 +159,10 @@ float sunCascadeShadow(int cascade, vec3 position, vec3 normal, vec3 toLight)
         return texture(shadowCascades, vec3(shadowUv(rect, uv), coord.z));
     }
 
-    // Доля карты на метр и предел полутени в долях карты.
+    // Доля карты на метр и предел полутени (в метрах) в долях карты: так
+    // он один и тот же в любом каскаде и при любом размере карты.
     float perMeter = 1.0 / width;
-    float maxRadius = shadows.maxPenumbra * 0.5 / shadows.cascadeSize;
+    float maxRadius = shadowMaxRadius(perMeter);
     float rotation = shadowRotation();
     float blocker = findBlockers(shadowCascadesDepth, rect, uv, coord.z, maxRadius, rotation);
     if (blocker < 0.0) {
@@ -268,18 +276,18 @@ float punctualShadow(int light, vec3 position, vec3 normal, vec3 lightPosition)
     if (info.y != YQLORA_SHADOW_SOFT) {
         lit = texture(shadowAtlas, vec3(shadowUv(rect, uv), coord.z));
     } else {
-        float maxRadius = shadows.maxPenumbra * 0.5 / shadows.tileSize;
+        float receiverDistance = shadowLinearDepth(coord.z, sizes.z);
+        // Доля плитки на метр на расстоянии точки.
+        float perMeter = sizes.y / (2.0 * receiverDistance);
+        float maxRadius = shadowMaxRadius(perMeter);
         float rotation = shadowRotation();
         float blocker = findBlockers(shadowAtlasDepth, rect, uv, coord.z, maxRadius, rotation);
         if (blocker < 0.0) {
             return 1.0;
         }
-        float receiverDistance = shadowLinearDepth(coord.z, sizes.z);
         float blockerDistance = shadowLinearDepth(blocker, sizes.z);
         // Полутень растёт с расстоянием от заслоняющего и с размером источника.
         float penumbraMeters = 2.0 * sizes.x * (receiverDistance - blockerDistance) / blockerDistance * params.y;
-        // Доля плитки на метр на расстоянии точки.
-        float perMeter = sizes.y / (2.0 * receiverDistance);
         float radius = clamp(penumbraMeters * perMeter * 0.5, 0.5 / shadows.tileSize, maxRadius);
         lit = filterShadow(shadowAtlas, rect, uv, coord.z, radius, rotation);
     }
