@@ -479,6 +479,75 @@ TEST_CASE("OpenGL: overrides change one of two objects with the same material")
     CHECK(cubeCenter(renderer, frame, white) == plain);
 }
 
+TEST_CASE("OpenGL: alphaCutoff discards fragments with alpha below it")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    Renderer& renderer = *gl->renderer;
+    // Непрозрачный материал с альфой 0.3: без порога альфа не значит ничего.
+    const Vec4 faint(1.0f, 1.0f, 1.0f, 0.3f);
+    test::TestMaterials materials;
+    FrameData frame;
+    const std::size_t plain = materials.add(frame, faint);
+    const std::size_t below = materials.add(frame, faint, MaterialBlend::Opaque, {{"alphaCutoff", {0.5f}}});
+    const std::size_t above = materials.add(frame, faint, MaterialBlend::Opaque, {{"alphaCutoff", {0.2f}}});
+
+    const Pixel drawn = cubeCenter(renderer, frame, plain);
+    CHECK(int(drawn[1]) > 200);
+    // Отброшенный фрагмент оставляет заливку вида (чёрный).
+    CHECK(int(cubeCenter(renderer, frame, below)[1]) < 10);
+    CHECK(cubeCenter(renderer, frame, above) == drawn);
+}
+
+namespace {
+
+// Квадрат 1 x 1 в начале координат, повёрнутый лицом к -Z (от камеры
+// cameraAtZ(3)) или к +Z; цвет пикселя посередине при свете спереди.
+Pixel quadCenter(Renderer& renderer, bool facingCamera, MaterialCull cull)
+{
+    static const MeshData plane = makePlane();
+    const float angle = glm::radians(facingCamera ? 90.0f : -90.0f);
+    test::TestMaterials materials;
+    FrameData frame;
+    const std::size_t material = materials.add(frame, Vec4(1.0f), MaterialBlend::Opaque, {}, cull);
+    frame.views = {{.camera = cameraAtZ(3.0f)}};
+    frame.lights = {kFrontLight};
+    frame.drawItems = {{
+        .mesh = &plane,
+        .meshId = 2,
+        .indexCount = static_cast<std::uint32_t>(plane.indices.size()),
+        .world = glm::rotate(Mat4(1.0f), angle, Vec3(1.0f, 0.0f, 0.0f)),
+        .bounds = {Vec3(-1.0f), Vec3(1.0f)},
+        .material = material,
+    }};
+    auto target = renderer.createRenderTarget(kSize, kSize);
+    renderer.render(frame, *target);
+
+    return pixelAt(renderer.device().readPixels(target->color()), kSize / 2, kSize / 2, kSize);
+}
+
+} // namespace
+
+TEST_CASE("OpenGL: a back face of a material without culling is lit from its own side")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    Renderer& renderer = *gl->renderer;
+    const Pixel front = quadCenter(renderer, true, MaterialCull::Back);
+    CHECK(int(front[1]) > 200);
+    // С отсечением задней грани не видно.
+    CHECK(int(quadCenter(renderer, false, MaterialCull::Back)[1]) < 10);
+    // Без отсечения она освещена, как лицевая: нормаль развёрнута к камере.
+    const Pixel back = quadCenter(renderer, false, MaterialCull::None);
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+        CHECK(std::abs(int(back[channel]) - int(front[channel])) <= 2);
+    }
+}
+
 namespace {
 
 // Линейная яркость канала по байту sRGB итоговой цели.

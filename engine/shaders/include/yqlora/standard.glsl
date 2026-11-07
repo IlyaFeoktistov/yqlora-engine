@@ -43,10 +43,23 @@ layout(location = 3) in vec4 vTangent;
 
 layout(location = 0) out vec4 fragColor;
 
+// 1 у лицевой грани, -1 у задней: её видно только у материала без отсечения
+// (cull none), и освещается она со своей стороны.
+float faceSign()
+{
+    return gl_FrontFacing ? 1.0 : -1.0;
+}
+
+// Нормаль меша в точке фрагмента, к видимой стороне грани.
+vec3 surfaceNormal()
+{
+    return normalize(vNormal) * faceSign();
+}
+
 // Поверхность в точке фрагмента; остальное - как в defaultSurface(position, normal).
 Surface defaultSurface()
 {
-    return defaultSurface(vWorldPosition, normalize(vNormal));
+    return defaultSurface(vWorldPosition, surfaceNormal());
 }
 
 // Короче этого касательная считается вырожденной (меш без касательных).
@@ -56,13 +69,16 @@ const float YQLORA_MIN_TANGENT_LENGTH = 0.0001;
 // бинормаль, нормаль. У меша без касательных - любой базис вокруг нормали.
 mat3 tangentFrame()
 {
-    vec3 normal = normalize(vNormal);
+    vec3 normal = surfaceNormal();
     vec3 tangent = vTangent.xyz - normal * dot(normal, vTangent.xyz);
     if (dot(tangent, tangent) < YQLORA_MIN_TANGENT_LENGTH) {
         tangent = abs(normal.x) < 0.9 ? cross(normal, vec3(1.0, 0.0, 0.0)) : cross(normal, vec3(0.0, 1.0, 0.0));
     }
     tangent = normalize(tangent);
-    float handedness = vTangent.w < 0.0 ? -1.0 : 1.0;
+    // У задней грани нормаль развёрнута, а касательная и бинормаль в мире
+    // те же: знак меняется, чтобы cross(normal, tangent) не перевернул
+    // бинормаль.
+    float handedness = (vTangent.w < 0.0 ? -1.0 : 1.0) * faceSign();
 
     return mat3(tangent, cross(normal, tangent) * handedness, normal);
 }

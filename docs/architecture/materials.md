@@ -532,9 +532,9 @@ Lights give shadows, their meshes cast and receive them.
 - **Editor**: a viewport button tints lit surfaces by the colour of their
   sun cascade (`ViewData::showShadowCascades`): it shows where each
   cascade ends and where shadows stop.
-- **After the MVP**: contact shadows, shadows from transparent surfaces and
-  from materials with `alphaCutoff` (a depth shader of the material), ray
-  tracing.
+- **After the MVP**: contact shadows, shadows from transparent surfaces, ray
+  tracing. Shadows of alpha-tested materials come with
+  [glTF materials](#gltf-materials-planned-step-5).
 
 ## Baked lighting [planned, after MVP]
 
@@ -607,16 +607,60 @@ that shadow maps do not give.
 
 - Materials and images of a model become nested resources of the file
   (`material:Name`, `texture:Name`), with IDs in `.meta` as meshes have.
-  Images inside a GLB are read from its buffer.
-- A material of a model is read-only: its values come from the file. To
-  change it, the inspector offers "Make a copy", which writes a `.ymat`
-  next to the model.
+  Images are read from a file next to the model (a dependency of the
+  model: it changes, the model is read again), from a buffer of the GLB or
+  from a data URI.
+- **References inside a file**: a nested material refers to nested
+  textures of the same file. The loader does not know their IDs (`.meta`
+  gives them after the load), so a loaded resource lists its references
+  by key, and the cache writes the IDs into the data before it is
+  published. Without an ID in `.meta` (a read-only project) the reference
+  stays empty and the texture by default is used.
+- **Colour space by use**: base colour and emission sRGB, the rest
+  linear. An image used both ways gives two nested textures. Filter and
+  wrap come from the glTF sampler.
+- **Values**: `baseColorFactor` is linear in glTF and is written as sRGB
+  (colour fields of materials are sRGB). glTF emission has no units: the
+  colour is the factor divided by its largest component (in sRGB),
+  `emissionIntensity` is that component times
+  `KHR_materials_emissive_strength`, and `emissionExposureWeight` is 0, so
+  1 is white on screen at any exposure, as the file means it.
+- **`ormMap`**: when occlusion and metallic-roughness are one image, it is
+  used as is; otherwise they are packed into a new
+  `texture:Material ORM` (R occlusion, G roughness, B metallic; the
+  smaller image is resampled bilinearly to the larger size). Without an occlusion texture
+  `occlusionStrength` is 0: the R of a metallic-roughness image may hold
+  anything.
+- **`alphaMode`**: `BLEND` is transparent; `MASK` is opaque with
+  `alphaCutoff` of `Standard`, which discards fragments below it (a real
+  alpha test, not a silent substitution). **`doubleSided`**: cull none,
+  back faces are lit with the flipped normal and tangent frame
+  (`gl_FrontFacing` in `standard.glsl`, for every shader).
+- **Alpha-tested shadows**: a material shader is also built with
+  `YQLORA_DEPTH`, a depth-only variant (`standard.glsl` gives it: the alpha
+  test and nothing else); `ShadowPass` draws casters with `alphaCutoff`
+  above 0 with the depth variant of their material, the rest with the
+  shared depth shader. A leaf with `MASK` casts the shadow of the leaf, not
+  of its quad.
+- **Tangents** come from `TANGENT` of the file with their `w`; when a
+  material of a submesh has a normal map and the file has none, they are
+  computed with MikkTSpace (the library, as glTF requires): per triangle
+  corner, and a vertex whose corners disagree (a UV seam, a mirrored half)
+  is split.
+- `ModelData::materials` holds the material keys by the material index of
+  the file; a submesh finds its material through `SubMesh::sourceMaterial`.
+- **Not supported, said in the log, nothing substituted silently**:
+  `texCoord` 1 (`uv0` is used, with a warning); `KHR_texture_transform`,
+  KTX2/basisu, WebP and other `KHR_materials_*` (one line per file with the
+  list); `extensionsRequired` that are not supported (Draco) fail the load.
+- A material of a model is read-only: its values come from the file, and
+  `MaterialEditing` refuses nested resources (their path is the model
+  file). To change it, the inspector offers "Make a copy", which writes a
+  `.ymat` next to the model through the create window; the copy refers to
+  the nested textures of the model.
 - Dropping a model into the scene fills the slots of every `MeshRenderer`
-  with the materials of the file.
-- Tangents come from `TANGENT` of the file with their `w`; when a material
-  of the mesh has a normal map and the file has none, they are computed per
-  vertex from positions, `uv0` and the indices (MikkTSpace-like: summed per
-  triangle, orthogonal to the normal, `w` from the UV orientation).
+  with the materials of the file; so does dropping one nested mesh. Files
+  shows the materials and textures of a model under it, like its meshes.
 - Nested materials and textures keep their IDs in `.meta` like meshes: a
   re-export keeps the references of the scenes.
 
@@ -933,31 +977,36 @@ that shadow maps do not give.
 
 ### 5.7 glTF materials
 
-- **Images of a model** become nested textures (`texture:Name`), from a
-  file next to the model or from a buffer of the GLB, with the colour space
-  taken from their use (base colour and emission sRGB, the rest linear).
-- **Materials of a model** become nested materials (`material:Name`) of the
-  `Standard` shader: base colour factor and texture, metallic and roughness
-  factors and texture (into `ormMap`), occlusion texture and strength (the
-  R of the same `ormMap` when it is one image, as is usual in glTF;
-  otherwise the images are packed into one on import), normal texture and
-  scale, emission with `KHR_materials_emissive_strength`, `alphaMode`
-  (`BLEND`: transparent; `MASK`: opaque with the `alphaCutoff` field of
-  `Standard`, which discards fragments below it, a real alpha test, not a
-  silent substitution), `doubleSided` (cull none, back faces lit with the
-  flipped normal).
-- **Tangents** are computed per vertex when the material of a submesh has a
-  normal texture and the file has none (summed per triangle along `uv0`,
-  made orthogonal to the normal, the sign in `w`).
-- **Dropping a model** fills the slots of every created `MeshRenderer` with
-  the materials of the file, by the source material of each submesh.
-- **"Make a copy"** in the inspector of a model material writes a `.ymat`
-  next to the model with the same values and textures.
-- **Tests**: a GLB with an embedded image and a material gives the nested
-  texture and material; `TANGENT` keeps its `w`; computed tangents of a
-  quad with a mirrored UV half have opposite `w`; `doubleSided` gives cull
-  none; `MASK` gives `alphaCutoff`, not plain opaque; a re-export keeps the
-  nested IDs; dropping fills the slots; the copy holds the same values.
+Four parts, a commit per part; the contract is in
+[glTF materials](#gltf-materials-planned-step-5).
+
+- **5.7a Base**: `alphaCutoff` in `Standard` (0..1, default 0: fragments
+  below it are discarded); back faces flip the
+  normal and tangent frame in `standard.glsl`; `decodeImage(bytes,
+  sampling)` taken out of `ImageLoader` for buffers of a model; MikkTSpace
+  as a dependency and `computeTangents` with the split of vertices.
+  Tests: a quad with a mirrored UV half gets opposite `w`; `alphaCutoff`
+  discards on OpenGL; a back face of a double-sided material is lit with
+  the flipped normal.
+- **5.7b Loader**: references by key in `LoadedResource` resolved by the
+  cache; nested textures (file next to the model, GLB buffer, data URI,
+  sampler, colour space by use); nested materials (values, `ormMap`
+  packing, emission, `alphaMode`, `doubleSided`); `ModelData::materials`;
+  computed tangents; the log of what is not supported. Tests: a GLB with
+  an embedded image gives the nested texture and material; `TANGENT` keeps
+  its `w`; `MASK` gives `alphaCutoff`, `doubleSided` cull none; packed
+  `ormMap` and `occlusionStrength` 0 without an occlusion texture;
+  a re-export keeps the IDs and the material to texture references; read
+  only without IDs leaves the reference empty.
+- **5.7c Alpha-tested shadows**: the `YQLORA_DEPTH` variant of material
+  shaders, `ShadowPass` choosing it by `alphaCutoff`. Tests on OpenGL: a
+  quad with a cut-out texture casts the cut-out shadow; with `alphaCutoff`
+  0 it casts the whole quad.
+- **5.7d Editor**: dropping fills the slots (a model and one nested mesh);
+  material and texture of a model read-only in the inspector and in
+  `MaterialEditing`; "Make a copy"; Files shows nested materials and
+  textures. Tests: dropping fills the slots; the copy holds the same
+  values; editing a model material does not write the model file.
 
 ### 5.8 Documents
 

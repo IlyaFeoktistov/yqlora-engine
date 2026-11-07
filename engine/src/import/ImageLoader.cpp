@@ -72,6 +72,28 @@ bool loadHdr(const stbi_uc* bytes, int size, TextureData& texture)
 
 } // namespace
 
+std::optional<TextureData> decodeImage(std::string_view bytes, const TextureSampling& sampling, std::string& error)
+{
+    if (bytes.empty() || bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        error = "the image is empty, too large or not readable";
+
+        return std::nullopt;
+    }
+    const auto* data = reinterpret_cast<const stbi_uc*>(bytes.data());
+    const auto size = static_cast<int>(bytes.size());
+    TextureData texture;
+    texture.sampling = sampling;
+    const bool loaded = stbi_is_hdr_from_memory(data, size) != 0 ? loadHdr(data, size, texture)
+                                                                 : loadLdr(data, size, texture);
+    if (!loaded) {
+        error = stbi_failure_reason();
+
+        return std::nullopt;
+    }
+
+    return texture;
+}
+
 std::span<const std::string_view> ImageLoader::extensions() const
 {
     return kExtensions;
@@ -85,20 +107,13 @@ std::string_view ImageLoader::kind() const
 LoadResult ImageLoader::load(const LoadRequest& request) const
 {
     const std::string bytes = platform::readFile(request.file).value_or(std::string());
-    if (bytes.empty() || bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-        return loadError("the file is empty, too large or not readable");
-    }
-    const auto* data = reinterpret_cast<const stbi_uc*>(bytes.data());
-    const auto size = static_cast<int>(bytes.size());
-    TextureData texture;
-    texture.sampling = textureSamplingFromJson(request.import);
-    const bool loaded = stbi_is_hdr_from_memory(data, size) != 0 ? loadHdr(data, size, texture)
-                                                                 : loadLdr(data, size, texture);
-    if (!loaded) {
-        return loadError(stbi_failure_reason());
+    std::string error;
+    auto texture = decodeImage(bytes, textureSamplingFromJson(request.import), error);
+    if (!texture) {
+        return loadError(std::move(error));
     }
     LoadResult result;
-    result.resources.push_back(makeLoadedResource(std::string(), std::move(texture)));
+    result.resources.push_back(makeLoadedResource(std::string(), std::move(*texture)));
 
     return result;
 }

@@ -24,12 +24,14 @@ public:
         FrameData& frame,
         const Vec4& color = Vec4(1.0f),
         MaterialBlend blend = MaterialBlend::Opaque,
-        const std::map<std::string, std::vector<float>>& values = {}
+        const std::map<std::string, std::vector<float>>& values = {},
+        MaterialCull cull = MaterialCull::Back
     )
     {
         MaterialData& material = m_data.emplace_back(
             MaterialData{
                 .blend = blend,
+                .cull = cull,
                 .values = {{"baseColor", {color.r, color.g, color.b, color.a}}},
             }
         );

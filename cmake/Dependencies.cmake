@@ -67,6 +67,15 @@ FetchContent_Declare(stb
     SOURCE_SUBDIR do-not-build
 )
 
+# MikkTSpace: касательные для карт нормалей, как их ждёт glTF и программы,
+# в которых пекут карты. Тегов нет, закреплён коммит; один файл на C
+# собирается отдельной библиотекой ниже.
+FetchContent_Declare(mikktspace
+    GIT_REPOSITORY https://github.com/mmikk/MikkTSpace.git
+    GIT_TAG 3e895b49d05ea07e4c2133156cfa94369e19e409
+    SOURCE_SUBDIR do-not-build
+)
+
 # glslang: шейдеры GLSL 450 в SPIR-V. Только компилятор: без оптимизатора
 # (ему нужен SPIRV-Tools), HLSL, программ и тестов. SYSTEM: наши строгие
 # предупреждения не распространяются на чужие заголовки.
@@ -109,13 +118,17 @@ FetchContent_Declare(spirv_cross
     SYSTEM
 )
 
-FetchContent_MakeAvailable(SDL3 glm nlohmann_json imgui imguizmo cgltf stb glslang spirv_cross)
+FetchContent_MakeAvailable(SDL3 glm nlohmann_json imgui imguizmo cgltf stb mikktspace glslang spirv_cross)
 
 # SYSTEM: наши строгие предупреждения не распространяются на чужой код.
 add_library(cgltf_headers INTERFACE)
 target_include_directories(cgltf_headers SYSTEM INTERFACE ${cgltf_SOURCE_DIR})
 add_library(stb_headers INTERFACE)
 target_include_directories(stb_headers SYSTEM INTERFACE ${stb_SOURCE_DIR})
+# Код входит в разделяемую библиотеку движка, поэтому позиционно-независимый.
+add_library(mikktspace STATIC ${mikktspace_SOURCE_DIR}/mikktspace.c)
+target_include_directories(mikktspace SYSTEM PUBLIC ${mikktspace_SOURCE_DIR})
+set_target_properties(mikktspace PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # ImGui и ImGuizmo входят в библиотеку движка, чтобы у всех модулей был один
 # контекст ImGui. Внутри неё функции ImGui экспортируются, снаружи импортируются.

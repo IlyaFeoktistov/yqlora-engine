@@ -180,6 +180,7 @@ add_library(yqlora SHARED
     src/material/SharedMaterial.cpp
     src/render/MeshRenderer.cpp
     src/render/MeshData.cpp
+    src/render/MeshTangents.cpp
     src/render/PrimitiveMeshes.cpp
     src/render/RenderSystem.cpp
     src/render/RenderTypes.cpp
@@ -216,7 +217,7 @@ target_include_directories(yqlora PUBLIC include PRIVATE src ${CMAKE_CURRENT_BIN
 target_link_libraries(yqlora
     PUBLIC glm::glm imgui_headers
     PRIVATE
-        yqlora_engine_code imgui SDL3::SDL3-static nlohmann_json::nlohmann_json cgltf_headers stb_headers
+        yqlora_engine_code imgui SDL3::SDL3-static nlohmann_json::nlohmann_json cgltf_headers stb_headers mikktspace
         glslang glslang-default-resource-limits spirv-cross-core
 )
 target_compile_definitions(yqlora PRIVATE YQLORA_ENGINE_VERSION="${PROJECT_VERSION}")

@@ -18,6 +18,9 @@ layout(set = 2, binding = 0, std140) uniform Material {
     float occlusionStrength; //@ range(0, 1) default(1)
     float normalScale;       //@ range(0, 2) default(1)
     float heightScale;       //@ range(0, 0.1) default(0)
+    // Альфа-тест: фрагменты с альфой ниже порога не рисуются (листва,
+    // решётки). 0 - выключен.
+    float alphaCutoff;       //@ range(0, 1) default(0)
 } material;
 
 // sRGB, альфа - прозрачность.
@@ -41,6 +44,9 @@ void main()
 {
     vec2 uv = parallaxUv(heightMap, vUv0, material.heightScale);
     vec4 base = material.baseColor * texture(baseColorMap, uv);
+    if (base.a < material.alphaCutoff) {
+        discard;
+    }
     vec3 orm = texture(ormMap, uv).rgb;
 
     Surface surface = defaultSurface();

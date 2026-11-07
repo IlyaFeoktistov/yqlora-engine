@@ -12,6 +12,8 @@
 #include <yqlora/render/FrameBuilder.hpp>
 #include <yqlora/render/MeshData.hpp>
 #include <yqlora/render/MeshRenderer.hpp>
+#include <yqlora/render/MeshTangents.hpp>
+#include <yqlora/render/PrimitiveMeshes.hpp>
 #include <yqlora/resource/BuiltinResources.hpp>
 #include <yqlora/resource/ResourceCache.hpp>
 #include <yqlora/scene/Scene.hpp>
@@ -184,4 +186,59 @@ TEST_CASE("MeshRenderer: a slot per submesh of its mesh, the materials property 
     REQUIRE(materials != properties.end());
     REQUIRE((*materials)->elementLabels());
     CHECK((*materials)->elementLabels()(renderer).size() == 1);
+}
+
+TEST_CASE("computeTangents: the built-in plane gets the tangents it is built with")
+{
+    const MeshData built = makePlane();
+    std::vector<Vertex> vertices = built.vertices;
+    std::vector<std::uint32_t> indices = built.indices;
+    for (Vertex& vertex : vertices) {
+        vertex.tangent = Vec4(0.0f);
+    }
+    REQUIRE(computeTangents(vertices, indices));
+    // Одна развёртка без швов: вершины не делятся.
+    CHECK(vertices.size() == built.vertices.size());
+    CHECK(indices == built.indices);
+    for (std::size_t i = 0; i < vertices.size(); ++i) {
+        CHECK(glm::all(glm::epsilonEqual(vertices[i].tangent, built.vertices[i].tangent, 1e-4f)));
+    }
+}
+
+TEST_CASE("computeTangents: a quad with a mirrored UV half gets opposite w and splits the shared edge")
+{
+    // Два квадрата рядом в плоскости XY лицом к +Z; правый с отражённым u,
+    // как у симметричной модели с одной половиной развёртки. Общий край
+    // (x = 0) у обоих при u = 1.
+    const Vec3 normal(0.0f, 0.0f, 1.0f);
+    std::vector<Vertex> vertices{
+        {{-1.0f, -0.5f, 0.0f}, normal, {0.0f, 1.0f}},
+        {{0.0f, -0.5f, 0.0f}, normal, {1.0f, 1.0f}},
+        {{0.0f, 0.5f, 0.0f}, normal, {1.0f, 0.0f}},
+        {{-1.0f, 0.5f, 0.0f}, normal, {0.0f, 0.0f}},
+        {{1.0f, -0.5f, 0.0f}, normal, {0.0f, 1.0f}},
+        {{1.0f, 0.5f, 0.0f}, normal, {0.0f, 0.0f}},
+    };
+    std::vector<std::uint32_t> indices{0, 1, 2, 0, 2, 3, 1, 4, 5, 1, 5, 2};
+    REQUIRE(computeTangents(vertices, indices));
+
+    // Вершины 1 и 2 общие у половин с разным знаком: у каждой копия.
+    CHECK(vertices.size() == 8);
+    const auto cornerTangent = [&](std::size_t corner) {
+        return vertices[indices[corner]].tangent;
+    };
+    for (std::size_t corner = 0; corner < 6; ++corner) {
+        CHECK(cornerTangent(corner).x == doctest::Approx(1.0f).epsilon(1e-4));
+        CHECK(cornerTangent(corner).w == doctest::Approx(1.0f));
+    }
+    for (std::size_t corner = 6; corner < 12; ++corner) {
+        CHECK(cornerTangent(corner).x == doctest::Approx(-1.0f).epsilon(1e-4));
+        CHECK(cornerTangent(corner).w == doctest::Approx(-1.0f));
+    }
+    // Бинормаль обеих половин смотрит вверх по картинке (v растёт вниз).
+    for (const std::size_t corner : {std::size_t{0}, std::size_t{6}}) {
+        const Vec4 tangent = cornerTangent(corner);
+        const Vec3 bitangent = glm::cross(normal, Vec3(tangent)) * tangent.w;
+        CHECK(bitangent.y == doctest::Approx(1.0f).epsilon(1e-4));
+    }
 }
