@@ -18,6 +18,9 @@ inline constexpr char kVertexStageDefine[] = "YQLORA_VERTEX";
 inline constexpr char kFragmentStageDefine[] = "YQLORA_FRAGMENT";
 // Вариант шейдера неба для захвата неба в освещение (см. sky.glsl).
 inline constexpr char kSkyCaptureDefine[] = "YQLORA_SKY_CAPTURE";
+// Вариант поверхностного шейдера только для глубины (карты теней материалов
+// с альфа-тестом): shade() в нём ничего не считает (см. lighting.glsl).
+inline constexpr char kDepthDefine[] = "YQLORA_DEPTH";
 
 struct ShaderBuildRequest {
     std::string name{};

@@ -1,7 +1,10 @@
 #include "yqlora/render/ShadowPass.hpp"
 
+#include "yqlora/material/MaterialData.hpp"
 #include "yqlora/render/EngineUniforms.hpp"
 #include "yqlora/render/GpuMesh.hpp"
+#include "yqlora/render/MaterialBinding.hpp"
+#include "yqlora/render/PipelineCache.hpp"
 #include "yqlora/render/Prepare.hpp"
 #include "yqlora/render/UniformRing.hpp"
 #include "yqlora/render/ViewPass.hpp"
@@ -12,11 +15,6 @@ namespace yqlora {
 
 namespace {
 
-constexpr rhi::Format kShadowFormat = rhi::Format::Depth32Float;
-// Сдвиг глубины по наклону треугольника: на скользящих поверхностях
-// постоянного смещения шейдера не хватает. Остальное - Light3D::shadowBias.
-constexpr rhi::DepthBias kDepthBias{.constant = 1.0f, .slope = 1.5f};
-
 rhi::Viewport cellOf(int index, int columns, int cellSize)
 {
     return {
@@ -25,6 +23,26 @@ rhi::Viewport cellOf(int index, int columns, int cellSize)
         .width = cellSize,
         .height = cellSize,
     };
+}
+
+// Материал меша с альфа-тестом: порог (из замены, если она есть) больше 0 и
+// у шейдера есть вариант глубины.
+bool alphaTested(const FrameMaterial& material, const FrameOverrides* overrides)
+{
+    const MaterialField* field = material.shader ? material.shader->findField(kAlphaCutoffField) : nullptr;
+    if (!field || !material.shader->depthDesc || !material.data) {
+        return false;
+    }
+    if (overrides) {
+        const auto& values = overrides->values.values();
+        if (const auto found = values.find(kAlphaCutoffField);
+            found != values.end() && !found->second.numbers.empty()) {
+            return found->second.numbers.front() > 0.0f;
+        }
+    }
+    const std::span<const float> value = materialValue(*material.data, *field);
+
+    return !value.empty() && value.front() > 0.0f;
 }
 
 } // namespace
@@ -47,7 +65,7 @@ ShadowPass::ShadowPass(const RenderContext& context)
           // Тень отбрасывают и тонкие поверхности, видимые с одной стороны.
           .cull = rhi::CullMode::None,
           .colorFormat = rhi::Format::None,
-          .depthFormat = kShadowFormat,
+          .depthFormat = kFormat,
       }))
     , m_compareSampler(context.device.createSampler(
           {.filter = rhi::Filter::Linear, .wrap = rhi::Wrap::Clamp, .mipmaps = false, .compare = true}
@@ -111,19 +129,31 @@ RenderGraph::TextureId ShadowPass::addMap(
     const RenderGraph::TextureId map = graph.create({
         .width = side,
         .height = side,
-        .format = kShadowFormat,
+        .format = kFormat,
         .usage = rhi::kDepthTarget | rhi::kSampled,
     });
     // Кто в какую карту попадает - сейчас, в record остаётся только рисовать.
-    std::vector<std::vector<const DrawItem*>> casters(regions.size());
+    // Сначала сплошные (один конвейер на всех), за ними с альфа-тестом.
+    std::vector<std::vector<Caster>> casters(regions.size());
     for (std::size_t i = 0; i < regions.size(); ++i) {
         const Frustum frustum = frustumFromMatrix(regions[i].viewProjection);
+        std::vector<Caster> tested;
         for (const DrawItem& item : frame.drawItems) {
-            const bool opaque = frame.materials[item.material].data->blend != MaterialBlend::Transparent;
-            if (item.castShadows && opaque && intersects(frustum, item.bounds)) {
-                casters[i].push_back(&item);
+            const FrameMaterial& material = frame.materials[item.material];
+            const bool opaque = material.data->blend != MaterialBlend::Transparent;
+            if (!item.castShadows || !opaque || !intersects(frustum, item.bounds)) {
+                continue;
+            }
+            const FrameOverrides* overrides = item.overrides != DrawItem::kNoOverrides
+                                                  ? &frame.overrides[item.overrides]
+                                                  : nullptr;
+            if (alphaTested(material, overrides)) {
+                tested.push_back({&item, &material, overrides});
+            } else {
+                casters[i].push_back({&item});
             }
         }
+        casters[i].insert(casters[i].end(), tested.begin(), tested.end());
     }
     graph.addPass({
         .name = name,
@@ -136,21 +166,44 @@ RenderGraph::TextureId ShadowPass::addMap(
                     continue;
                 }
                 commands.setViewport(regions[i].viewport);
-                commands.bindPipeline(*m_pipeline);
-                setUniforms(
-                    commands,
-                    kViewBlock,
-                    m_context.uniforms.push(ViewUniforms{.viewProjection = regions[i].viewProjection})
+                const UniformSlice view = m_context.uniforms.push(
+                    ViewUniforms{.viewProjection = regions[i].viewProjection}
                 );
-                for (const DrawItem* item : casters[i]) {
-                    setUniforms(commands, kObjectBlock, m_context.uniforms.push(ObjectUniforms{.model = item->world}));
-                    drawMesh(commands, m_context.meshes.get(*item), item->firstIndex, item->indexCount);
+                m_bound = nullptr;
+                for (const Caster& caster : casters[i]) {
+                    drawCaster(commands, caster, view);
                 }
             }
         },
     });
 
     return map;
+}
+
+void ShadowPass::drawCaster(rhi::CommandList& commands, const Caster& caster, const UniformSlice& view)
+{
+    const rhi::Pipeline* pipeline = caster.material ? m_context.pipelines.get(
+                                                          *caster.material,
+                                                          MaterialPass::ShadowDepth,
+                                                          rhi::Format::None,
+                                                          kFormat
+                                                      )
+                                                    : nullptr;
+    // Вариант глубины бэкенд не собрал - тень сплошная, как у остальных.
+    if (!pipeline) {
+        pipeline = m_pipeline.get();
+    }
+    if (pipeline != m_bound) {
+        commands.bindPipeline(*pipeline);
+        setUniforms(commands, kViewBlock, view);
+        m_bound = pipeline;
+    }
+    if (pipeline != m_pipeline.get()) {
+        bindMaterial(commands, m_context, *pipeline->desc().shader, *caster.material, caster.overrides);
+    }
+    const DrawItem& item = *caster.item;
+    setUniforms(commands, kObjectBlock, m_context.uniforms.push(ObjectUniforms{.model = item.world}));
+    drawMesh(commands, m_context.meshes.get(item), item.firstIndex, item.indexCount);
 }
 
 } // namespace yqlora

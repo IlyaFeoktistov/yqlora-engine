@@ -636,12 +636,15 @@ that shadow maps do not give.
   alpha test, not a silent substitution). **`doubleSided`**: cull none,
   back faces are lit with the flipped normal and tangent frame
   (`gl_FrontFacing` in `standard.glsl`, for every shader).
-- **Alpha-tested shadows**: a material shader is also built with
-  `YQLORA_DEPTH`, a depth-only variant (`standard.glsl` gives it: the alpha
-  test and nothing else); `ShadowPass` draws casters with `alphaCutoff`
-  above 0 with the depth variant of their material, the rest with the
-  shared depth shader. A leaf with `MASK` casts the shadow of the leaf, not
-  of its quad.
+- **Alpha-tested shadows**: a surface shader is also built with
+  `YQLORA_DEPTH`, a depth-only variant (`ShaderData::depthDesc`): in it
+  `shade()` of `lighting.glsl` computes nothing, so the compiler drops the
+  colour work and only what the fragment discards before `shade()` is left,
+  the alpha test. `ShadowPass` draws a caster whose material has an
+  `alphaCutoff` field (any shader, by name) above 0, also from overrides,
+  with the depth variant of its material and the material bound; the rest
+  with the shared depth shader, solid. A leaf with `MASK` casts the shadow
+  of the leaf, not of its quad.
 - **Tangents** come from `TANGENT` of the file with their `w`; when a
   material of a submesh has a normal map and the file has none, they are
   computed with MikkTSpace (the library, as glTF requires): per triangle

@@ -82,6 +82,19 @@ ShaderDataResult buildShaderData(
         );
         result.errors.insert(result.errors.end(), capture.errors.begin(), capture.errors.end());
         data.captureDesc = std::move(capture.desc);
+    } else {
+        ShaderBuildResult depth = buildShader(
+            compiler,
+            {
+                .name = built.desc->name,
+                .vertexPath = path,
+                .fragmentPath = path,
+                .defines = {{.name = kDepthDefine}},
+                .layouts = layouts,
+            }
+        );
+        result.errors.insert(result.errors.end(), depth.errors.begin(), depth.errors.end());
+        data.depthDesc = std::move(depth.desc);
     }
     std::vector<std::string> materialErrors;
     collectMaterial(built.desc->reflection, data, materialErrors);

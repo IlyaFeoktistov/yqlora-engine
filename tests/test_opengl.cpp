@@ -1426,3 +1426,65 @@ TEST_CASE("OpenGL: a soft shadow keeps its width with any cascade map size, the 
     CHECK(widthWith(1024, 0.2f) < small * 0.5f);
     CHECK(widthWith(4096, 0.2f) < small * 0.5f);
 }
+
+TEST_CASE("OpenGL: a material with alphaCutoff casts the shadow of its cut-out, without it the whole quad")
+{
+    const auto gl = openGl();
+    if (!gl) {
+        return;
+    }
+    // Квадрат 4 x 4 м на высоте 2 м: левая половина картинки прозрачная (u
+    // растёт вдоль x), правая - нет. Солнце почти сверху сдвигает тень на
+    // -0.4 м по x: тень правой половины - около x = 1, левой - около x = -1.4,
+    // а x = 3 вне тени.
+    constexpr float kHeight = 2.0f;
+    constexpr float kSide = 4.0f;
+    const MeshData plane = makePlane();
+    TextureData cutOut{
+        .width = 2,
+        .height = 1,
+        .pixels = {255, 255, 255, 0, 255, 255, 255, 255},
+        .sampling = {.filter = TextureFilter::Nearest, .wrap = TextureWrap::Clamp, .mipmaps = false},
+    };
+    ShadowScene scene;
+    scene.frame.lights = {shadowSun(Vec3(-0.2f, -1.0f, 0.0f), ShadowMode::Hard)};
+    const auto addQuad = [&](float alphaCutoff) {
+        const std::size_t material = scene.materials.add(
+            scene.frame,
+            Vec4(1.0f),
+            MaterialBlend::Opaque,
+            {{"alphaCutoff", {alphaCutoff}}},
+            MaterialCull::None
+        );
+        FrameMaterial& frameMaterial = scene.frame.materials[material];
+        const std::uint32_t baseBinding = frameMaterial.shader->findTexture("baseColorMap")->slot.binding;
+        for (FrameTexture& texture : frameMaterial.textures) {
+            if (texture.slot.binding == baseBinding) {
+                texture = {.slot = texture.slot, .id = 901, .revision = 1, .data = &cutOut};
+            }
+        }
+        const Mat4 world = glm::scale(glm::translate(Mat4(1.0f), Vec3(0.0f, kHeight, 0.0f)), Vec3(kSide));
+        scene.frame.drawItems.push_back({
+            .mesh = &plane,
+            .meshId = 2,
+            .indexCount = static_cast<std::uint32_t>(plane.indices.size()),
+            .world = world,
+            .bounds = transformBounds(plane.bounds, world),
+            .material = material,
+            .layer = ShadowScene::kHiddenLayer,
+        });
+    };
+
+    addQuad(0.5f);
+    auto pixels = scene.render(*gl->renderer);
+    const float lit = scene.at(pixels, 3.0f, 0.0f);
+    CHECK(lit > 0.2f);
+    CHECK(scene.at(pixels, 1.0f, 0.0f) < lit * 0.1f);
+    CHECK(scene.at(pixels, -1.4f, 0.0f) == doctest::Approx(lit).epsilon(0.05));
+
+    scene.frame.drawItems.pop_back();
+    addQuad(0.0f);
+    pixels = scene.render(*gl->renderer);
+    CHECK(scene.at(pixels, 1.0f, 0.0f) < lit * 0.1f);
+    CHECK(scene.at(pixels, -1.4f, 0.0f) < lit * 0.1f);
+}

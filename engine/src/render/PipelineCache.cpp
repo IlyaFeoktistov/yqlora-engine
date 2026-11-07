@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Log.hpp"
 #include "yqlora/render/GpuMesh.hpp"
+#include "yqlora/render/ShadowPass.hpp"
 
 #include <iterator>
 #include <map>
@@ -28,6 +29,17 @@ rhi::PipelineDesc pipelineDesc(const FrameMaterial& material, MaterialPass pass)
     if (pass == MaterialPass::Capture) {
         // В грань куба целиком, без глубины.
         return {.depthTest = false, .depthWrite = false, .cull = rhi::CullMode::None};
+    }
+    if (pass == MaterialPass::ShadowDepth) {
+        // Как общий шейдер глубины ShadowPass: тень отбрасывают и тонкие
+        // поверхности, видимые с одной стороны.
+        return {
+            .vertexLayout = meshVertexLayout(),
+            .depthTest = true,
+            .depthWrite = true,
+            .depthBias = ShadowPass::kDepthBias,
+            .cull = rhi::CullMode::None,
+        };
     }
     if (pass == MaterialPass::Sky) {
         // Небо на глубине 1: проходит там, где после очистки ничего не нарисовано.
@@ -80,10 +92,19 @@ const rhi::Pipeline* PipelineCache::get(
         if (material.shader->captureDesc) {
             created->capture = createShader(m_device, *material.shader->captureDesc);
         }
+        if (material.shader->depthDesc) {
+            created->depth = createShader(m_device, *material.shader->depthDesc);
+        }
 
         return created;
     });
-    const rhi::Shader* shader = pass == MaterialPass::Capture ? shaders.capture.get() : shaders.main.get();
+    const rhi::Shader* shader = nullptr;
+    switch (pass) {
+    case MaterialPass::Surface:
+    case MaterialPass::Sky: shader = shaders.main.get(); break;
+    case MaterialPass::Capture: shader = shaders.capture.get(); break;
+    case MaterialPass::ShadowDepth: shader = shaders.depth.get(); break;
+    }
     if (!shader) {
         return nullptr;
     }

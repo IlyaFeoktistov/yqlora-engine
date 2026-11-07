@@ -142,6 +142,12 @@ vec3 environmentContribution(Surface surface, vec3 toView)
 // готовый для HDR-цели. Альфа - из поверхности.
 vec4 shade(Surface surface)
 {
+#ifdef YQLORA_DEPTH
+    // Вариант глубины (карты теней): света и цвета нет, поэтому всё, что шло
+    // только в цвет, компилятор выбрасывает. Остаётся то, что фрагмент
+    // отбросил до shade() (альфа-тест).
+    return vec4(0.0, 0.0, 0.0, surface.alpha);
+#else
     vec3 toView = normalize(view.cameraPosition - surface.position);
     vec3 color = environmentContribution(surface, toView);
     for (int i = 0; i < frame.directionalCount; ++i) {
@@ -173,6 +179,7 @@ vec4 shade(Surface surface)
     color *= shadowCascadeTint(surface.position);
 
     return vec4(exposed(color), surface.alpha);
+#endif
 }
 
 #endif

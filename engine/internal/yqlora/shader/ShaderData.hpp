@@ -76,6 +76,9 @@ struct ShaderData {
     // У шейдера неба: он же с определением YQLORA_SKY_CAPTURE, для захвата
     // неба в освещение (без того, что дают источники, например диска солнца).
     std::optional<rhi::ShaderDesc> captureDesc{};
+    // У поверхностного шейдера: он же с определением YQLORA_DEPTH, для карт
+    // теней материалов с альфа-тестом (kAlphaCutoffField).
+    std::optional<rhi::ShaderDesc> depthDesc{};
     // Размер блока Material; 0 - блока нет.
     std::uint32_t materialSize = 0;
     // В порядке объявления в шейдере.

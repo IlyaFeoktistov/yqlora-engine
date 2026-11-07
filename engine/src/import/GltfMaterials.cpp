@@ -32,7 +32,6 @@ constexpr const char* kNormalScaleField = "normalScale";
 constexpr const char* kEmissionField = "emission";
 constexpr const char* kEmissionIntensityField = "emissionIntensity";
 constexpr const char* kEmissionExposureWeightField = "emissionExposureWeight";
-constexpr const char* kAlphaCutoffField = "alphaCutoff";
 constexpr const char* kBaseColorMap = "baseColorMap";
 constexpr const char* kOrmMap = "ormMap";
 constexpr const char* kNormalMap = "normalMap";
@@ -308,7 +307,7 @@ private:
 
         switch (source.alpha_mode) {
         case cgltf_alpha_mode_opaque: break;
-        case cgltf_alpha_mode_mask: set(kAlphaCutoffField, {source.alpha_cutoff}); break;
+        case cgltf_alpha_mode_mask: set(kAlphaCutoffField.data(), {source.alpha_cutoff}); break;
         case cgltf_alpha_mode_blend: material->blend = MaterialBlend::Transparent; break;
         case cgltf_alpha_mode_max_enum: break;
         }

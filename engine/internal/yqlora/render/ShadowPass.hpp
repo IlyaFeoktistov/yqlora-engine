@@ -4,6 +4,7 @@
 #include "yqlora/render/FrameData.hpp"
 #include "yqlora/render/RenderGraph.hpp"
 #include "yqlora/render/ShadowCascades.hpp"
+#include "yqlora/render/UniformRing.hpp"
 #include "yqlora/rhi/Device.hpp"
 
 #include <memory>
@@ -17,11 +18,19 @@ struct RenderContext;
 // прожекторов - один на кадр, карта каскадов солнца - на вид, потому что
 // каскады следуют за его камерой. Проходы - только глубина, до вида, по
 // области вывода на каскад и плитку; рисуются непрозрачные меши с
-// castShadows, каждый лишь в те карты, чью пирамиду задевает. Без теней
+// castShadows, каждый лишь в те карты, чью пирамиду задевает. Меш с
+// альфа-тестом (kAlphaCutoffField больше 0) рисуется вариантом глубины
+// шейдера своего материала и отбрасывает тень своей формы, остальные -
+// общим шейдером глубины. Без теней
 // карта - 1 x 1, стёртая в "свет доходит": шейдеры освещения всегда
 // получают обе.
 class YQLORA_API ShadowPass {
 public:
+    // Сдвиг глубины по наклону треугольника: на скользящих поверхностях
+    // постоянного смещения шейдера не хватает. Остальное - Light3D::shadowBias.
+    static constexpr rhi::DepthBias kDepthBias{.constant = 1.0f, .slope = 1.5f};
+    static constexpr rhi::Format kFormat = rhi::Format::Depth32Float;
+
     explicit ShadowPass(const RenderContext& context);
     ~ShadowPass();
 
@@ -58,6 +67,17 @@ private:
         rhi::Viewport viewport;
     };
 
+    // Меш в карте теней; material - nullptr, если он рисуется общим
+    // шейдером глубины.
+    struct Caster {
+        const DrawItem* item = nullptr;
+        const FrameMaterial* material = nullptr;
+        const FrameOverrides* overrides = nullptr;
+    };
+
+    // view - блок View карты: ставится заново с каждым конвейером.
+    void drawCaster(rhi::CommandList& commands, const Caster& caster, const UniformSlice& view);
+
     RenderGraph::TextureId addMap(
         RenderGraph& graph,
         const FrameData& frame,
@@ -69,6 +89,8 @@ private:
     const RenderContext& m_context;
     std::unique_ptr<rhi::Shader> m_shader;
     std::unique_ptr<rhi::Pipeline> m_pipeline;
+    // Конвейер, привязанный последним в записи прохода.
+    const rhi::Pipeline* m_bound = nullptr;
     std::unique_ptr<rhi::Sampler> m_compareSampler;
     std::unique_ptr<rhi::Sampler> m_depthSampler;
 };
