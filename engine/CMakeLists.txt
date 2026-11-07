@@ -88,10 +88,13 @@ add_library(yqlora SHARED
     src/import/Cgltf.cpp
     src/import/EngineLoaders.cpp
     src/import/GltfDocument.cpp
+    src/import/GltfImages.cpp
     src/import/GltfLoader.cpp
+    src/import/GltfMaterials.cpp
     src/import/GltfMeshes.cpp
     src/import/GltfNodes.cpp
     src/import/MaterialLoader.cpp
+    src/import/OrmPacking.cpp
     src/import/ImageLoader.cpp
     src/import/ShaderLoader.cpp
     src/import/StbImage.cpp

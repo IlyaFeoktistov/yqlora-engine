@@ -286,6 +286,10 @@ void ResourceCache::loadFile(const fs::path& file)
             }
         }
         const std::vector<ResourceId> nested = nestedIds(own, keys);
+        std::map<std::string_view, ResourceId> byKey;
+        for (std::size_t i = 0; i < keys.size(); ++i) {
+            byKey.emplace(keys[i], nested[i]);
+        }
         auto nextNested = nested.begin();
         std::size_t notImported = 0;
         for (LoadedResource& resource : result.resources) {
@@ -293,6 +297,11 @@ void ResourceCache::loadFile(const fs::path& file)
             if (id == 0) {
                 ++notImported;
                 continue;
+            }
+            for (const NestedLink& link : resource.links) {
+                if (const auto found = byKey.find(link.key); found != byKey.end() && found->second != 0) {
+                    link.resolve(found->second);
+                }
             }
             put(id, {resource.kind, std::move(resource.data), {ResourceState::Ready, 0, {}}});
         }

@@ -1,6 +1,7 @@
 #include "yqlora/import/GltfMeshes.hpp"
 
 #include "yqlora/core/Log.hpp"
+#include "yqlora/render/MeshTangents.hpp"
 
 #include <cgltf.h>
 #include <glm/geometric.hpp>
@@ -96,8 +97,6 @@ std::string addPrimitive(const cgltf_data& data, const cgltf_primitive& primitiv
             vertices[i].uv0 = glm::make_vec2(&uv[i * Vec2::length()]);
         }
     }
-    // Без TANGENT касательные остаются по умолчанию; вычисляются они для
-    // карт нормалей вместе с материалами модели.
     if (tangents) {
         const std::vector<float> tangent = unpackFloats(*tangents);
         for (std::size_t i = 0; i < count; ++i) {
@@ -126,6 +125,10 @@ std::string addPrimitive(const cgltf_data& data, const cgltf_primitive& primitiv
     }
     if (!normals) {
         computeNormals(vertices, indices);
+    }
+    // Без TANGENT касательные нужны только под карту нормалей.
+    if (!tangents && primitive.material && primitive.material->normal_texture.texture) {
+        computeTangents(vertices, indices);
     }
 
     const auto base = static_cast<std::uint32_t>(mesh.vertices.size());

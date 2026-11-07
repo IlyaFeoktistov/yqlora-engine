@@ -1,10 +1,12 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/resource/ResourceId.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <set>
 #include <span>
@@ -24,6 +26,16 @@ struct LoadRequest {
     nlohmann::json import = nlohmann::json::object();
 };
 
+// Ссылка ресурса на вложенный ресурс того же файла (материал модели на её
+// текстуру). Загрузчик ID не знает: их даёт .meta после загрузки, поэтому
+// он называет ключ, а кэш вызывает resolve с ID до того, как отдать данные.
+// resolve не вызывается, если у ключа ID нет (в .meta его нет, а .meta
+// только читается): ссылка остаётся пустой.
+struct NestedLink {
+    std::string key;
+    std::function<void(ResourceId)> resolve;
+};
+
 // Один ресурс из файла. Пустой ключ - ресурс самого файла (ID из его .meta),
 // остальные - вложенные ресурсы (меши внутри модели) с ключом от
 // SubresourceKeys: по нему .meta находит их ID.
@@ -32,6 +44,7 @@ struct LoadedResource {
     // Вид данных: T::kResourceKind у типа данных (MeshData и другие).
     std::string_view kind;
     std::shared_ptr<const void> data;
+    std::vector<NestedLink> links{};
 };
 
 // Ресурсы файла или текст ошибки, если файл не прочитался.

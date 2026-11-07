@@ -9,6 +9,7 @@
 #include <glm/common.hpp>
 #include <nlohmann/json.hpp>
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -42,6 +43,32 @@ inline std::string base64(const std::vector<std::uint8_t>& bytes)
     }
 
     return text;
+}
+
+using Rgba = std::array<std::uint8_t, 4>;
+
+// Картинка TGA без сжатия, строки сверху вниз: её читает stb_image, а
+// собрать её можно без библиотек.
+inline std::vector<std::uint8_t> tga(int width, int height, const std::vector<Rgba>& pixels)
+{
+    constexpr std::uint8_t kUncompressedTrueColor = 2;
+    constexpr std::uint8_t kBitsPerPixel = 32;
+    // 8 бит альфы и начало в левом верхнем углу.
+    constexpr std::uint8_t kDescriptor = 0x28;
+    std::vector<std::uint8_t> bytes{0, 0, kUncompressedTrueColor, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    const auto word = [&](int value) {
+        bytes.push_back(static_cast<std::uint8_t>(value & 0xFF));
+        bytes.push_back(static_cast<std::uint8_t>((value >> 8) & 0xFF));
+    };
+    word(width);
+    word(height);
+    bytes.push_back(kBitsPerPixel);
+    bytes.push_back(kDescriptor);
+    for (const Rgba& pixel : pixels) {
+        bytes.insert(bytes.end(), {pixel[2], pixel[1], pixel[0], pixel[3]});
+    }
+
+    return bytes;
 }
 
 // Собирает glTF: двоичный буфер, виды и аксессоры, остальное - JSON руками.
@@ -79,6 +106,24 @@ struct GltfBuilder {
         json["accessors"].push_back(entry);
 
         return static_cast<int>(json["accessors"].size()) - 1;
+    }
+
+    // Картинка в двоичном буфере и текстура с ней; индекс текстуры.
+    int texture(const std::vector<std::uint8_t>& bytes, const char* name = nullptr, nlohmann::json sampler = {})
+    {
+        nlohmann::json image{{"bufferView", view(bytes)}, {"mimeType", "image/png"}};
+        if (name) {
+            image["name"] = name;
+        }
+        json["images"].push_back(image);
+        nlohmann::json entry{{"source", json["images"].size() - 1}};
+        if (sampler.is_object()) {
+            json["samplers"].push_back(sampler);
+            entry["sampler"] = json["samplers"].size() - 1;
+        }
+        json["textures"].push_back(entry);
+
+        return static_cast<int>(json["textures"].size()) - 1;
     }
 
     // Аксессор VEC3 из чисел подряд, с границами: их требует glTF для положений.

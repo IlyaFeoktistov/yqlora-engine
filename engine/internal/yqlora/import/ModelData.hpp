@@ -24,8 +24,9 @@ struct ModelNode {
 };
 
 // Дерево узлов модели, ресурс самого файла модели: по нему модель ставится в
-// сцену. Меши - вложенные ресурсы файла; здесь только их ключи, ID даёт .meta
-// (ResourceDatabase::subresources). Один меш у нескольких узлов - один ключ.
+// сцену. Меши и материалы - вложенные ресурсы файла; здесь только их ключи,
+// ID даёт .meta (ResourceDatabase::subresources). Один меш у нескольких узлов -
+// один ключ.
 struct ModelData {
     static constexpr std::string_view kResourceKind = kinds::kModel;
 
@@ -34,6 +35,9 @@ struct ModelData {
     std::vector<std::size_t> roots;
     // Ключи вложенных мешей по индексу меша в файле.
     std::vector<std::string> meshes;
+    // Ключи вложенных материалов по индексу материала в файле: подмеш находит
+    // свой через SubMesh::sourceMaterial.
+    std::vector<std::string> materials;
 };
 
 } // namespace yqlora
