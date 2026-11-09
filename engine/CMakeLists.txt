@@ -133,6 +133,7 @@ add_library(yqlora SHARED
     src/project/ProjectUpgrade.cpp
     src/project/SettingsSection.cpp
     src/reflection/ComponentLookup.cpp
+    src/reflection/ObjectAccess.cpp
     src/reflection/ComponentRules.cpp
     src/reflection/Method.cpp
     src/reflection/Property.cpp

@@ -34,19 +34,22 @@ public:
 
     using SceneSystem::SceneSystem;
 
+    // Узлы отдаются для записи: система ими не владеет, а скрипт меняет через
+    // неё небо, свет и камеру (смена дня и ночи, приближение).
+
     // Камеры с активным узлом в порядке отрисовки: меньший order раньше,
     // при равном - кто раньше вошёл в сцену.
-    std::vector<const Camera3D*> cameras() const;
+    std::vector<Camera3D*> cameras() const;
 
     // Главная камера - первая в порядке отрисовки, через неё видно игру.
     // nullptr, если активных камер нет.
-    const Camera3D* mainCamera() const;
+    Camera3D* mainCamera() const;
 
     // Источники с активным узлом, в порядке входа в сцену.
-    std::vector<const Light3D*> lights() const;
+    std::vector<Light3D*> lights() const;
 
     // Первое активное окружение в порядке входа в сцену; nullptr - нет.
-    const Environment* environment() const;
+    Environment* environment() const;
 
     // true только при первом вызове для report: так Extract пишет о
     // повторяющейся беде один раз на сцену.
@@ -55,20 +58,20 @@ public:
 private:
     // Камера сама входит в список, когда входит в сцену, и уходит вместе с ней.
     friend class Camera3D;
-    void addCamera(const Camera3D& camera);
+    void addCamera(Camera3D& camera);
     void removeCamera(const Camera3D& camera);
 
     friend class Light3D;
-    void addLight(const Light3D& light);
+    void addLight(Light3D& light);
     void removeLight(const Light3D& light);
 
     friend class Environment;
-    void addEnvironment(const Environment& environment);
+    void addEnvironment(Environment& environment);
     void removeEnvironment(const Environment& environment);
 
-    std::vector<const Camera3D*> m_cameras;
-    std::vector<const Light3D*> m_lights;
-    std::vector<const Environment*> m_environments;
+    std::vector<Camera3D*> m_cameras;
+    std::vector<Light3D*> m_lights;
+    std::vector<Environment*> m_environments;
     // Снимок кадра читает сцену только для чтения, а сообщение - не состояние сцены.
     mutable std::bitset<static_cast<std::size_t>(RenderReport::Count)> m_reported;
 };

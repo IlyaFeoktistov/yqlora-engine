@@ -61,7 +61,7 @@ TEST_CASE_FIXTURE(Fixture, "RenderSystem: active cameras by order, the first one
     spare.setActive(false);
 
     const RenderSystem& render = *scene.system<RenderSystem>();
-    CHECK(render.cameras() == std::vector<const Camera3D*>{&world, &arms});
+    CHECK(render.cameras() == std::vector<Camera3D*>{&world, &arms});
     CHECK(render.mainCamera() == &world);
 
     // Ушедшая из сцены камера выпадает из списка сама.

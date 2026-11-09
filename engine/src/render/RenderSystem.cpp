@@ -9,9 +9,9 @@
 
 namespace yqlora {
 
-std::vector<const Camera3D*> RenderSystem::cameras() const
+std::vector<Camera3D*> RenderSystem::cameras() const
 {
-    std::vector<const Camera3D*> result;
+    std::vector<Camera3D*> result;
     std::ranges::copy_if(m_cameras, std::back_inserter(result), [](const Camera3D* camera) {
         return camera->activeInHierarchy();
     });
@@ -20,16 +20,16 @@ std::vector<const Camera3D*> RenderSystem::cameras() const
     return result;
 }
 
-const Camera3D* RenderSystem::mainCamera() const
+Camera3D* RenderSystem::mainCamera() const
 {
     const auto active = cameras();
 
     return active.empty() ? nullptr : active.front();
 }
 
-std::vector<const Light3D*> RenderSystem::lights() const
+std::vector<Light3D*> RenderSystem::lights() const
 {
-    std::vector<const Light3D*> result;
+    std::vector<Light3D*> result;
     std::ranges::copy_if(m_lights, std::back_inserter(result), [](const Light3D* light) {
         return light->activeInHierarchy();
     });
@@ -37,7 +37,7 @@ std::vector<const Light3D*> RenderSystem::lights() const
     return result;
 }
 
-const Environment* RenderSystem::environment() const
+Environment* RenderSystem::environment() const
 {
     const auto found = std::ranges::find_if(m_environments, [](const Environment* environment) {
         return environment->activeInHierarchy();
@@ -65,7 +65,7 @@ std::optional<int> orderToBecomeMain(const RenderSystem& render, const Camera3D&
     return main->order() - 1;
 }
 
-void RenderSystem::addCamera(const Camera3D& camera)
+void RenderSystem::addCamera(Camera3D& camera)
 {
     m_cameras.push_back(&camera);
 }
@@ -75,7 +75,7 @@ void RenderSystem::removeCamera(const Camera3D& camera)
     std::erase(m_cameras, &camera);
 }
 
-void RenderSystem::addLight(const Light3D& light)
+void RenderSystem::addLight(Light3D& light)
 {
     m_lights.push_back(&light);
 }
@@ -85,7 +85,7 @@ void RenderSystem::removeLight(const Light3D& light)
     std::erase(m_lights, &light);
 }
 
-void RenderSystem::addEnvironment(const Environment& environment)
+void RenderSystem::addEnvironment(Environment& environment)
 {
     m_environments.push_back(&environment);
 }

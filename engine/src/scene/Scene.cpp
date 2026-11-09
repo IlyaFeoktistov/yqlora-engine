@@ -1,6 +1,7 @@
 #include "yqlora/scene/Scene.hpp"
 
 #include "yqlora/core/Log.hpp"
+#include "yqlora/reflection/ComponentRules.hpp"
 #include "yqlora/reflection/Property.hpp"
 #include "yqlora/scene/NodeTree.hpp"
 #include "yqlora/scene/TimeSettings.hpp"
@@ -53,6 +54,29 @@ void Scene::destroy(Node& node)
         return;
     }
     destroyNow(node);
+}
+
+bool Scene::destroy(Component& component)
+{
+    Node* node = component.owner();
+    assert(node && node->scene() == this && "destroy: the component is not in this scene");
+    if (!canDetach(m_services.registry(), *node, component)) {
+        log::error(
+            "Scene: component '{}' of node '{}' cannot be destroyed: it is built in or required by another",
+            component.typeName(),
+            node->name()
+        );
+
+        return false;
+    }
+    if (inFrame()) {
+        m_treeChanges.destroy(component);
+
+        return true;
+    }
+    node->removeComponent(component);
+
+    return true;
 }
 
 void Scene::setParent(Node& node, Node& parent, KeepWorld keepWorld)
