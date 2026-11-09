@@ -24,7 +24,7 @@ snapshot made by Extract, never the scene.
         |
         |  extractFrame(scene, aspect)                    render/FrameBuilder
         |    extractViews, extractLights, extractDrawItems,
-        |    extractEnvironment                           render/FrameExtract
+        |    extractEnvironment, extractShadowTiles      render/FrameExtract
         v
  FrameData (snapshot, nothing points back into the scene)
    views[]      one per camera: view and projection, clear mode,
@@ -36,10 +36,12 @@ snapshot made by Extract, never the scene.
    materials[]  each material once, with its shader and textures
    overrides[]  overrides of slots with their textures
    lights[]     up to 4 directional and 32 point and spot lights: world,
-                linear colour times intensity (lux, candela), range, cone;
-                the sun first, marked
-   environment  the sky material (an index into materials) and the
-                atmosphere
+                linear colour times intensity (lux, candela), range, cone,
+                shadow mode and parameters; the sun first, marked
+   environment  the sky material (an index into materials), the sky that
+                lights the scene, ambient intensity, the atmosphere
+   shadows      shadow settings of the project (Graphics)
+   shadowTiles  atlas tiles of spot and point lights with shadows
         |
         |  Renderer::render(frame)          -> window back buffer
         |  Renderer::render(frame, target)  -> RenderTarget (a texture)
@@ -47,14 +49,21 @@ snapshot made by Extract, never the scene.
  SceneRenderer::draw: one RenderGraph per call       engine/render
    AtmospherePass the transmittance and multiple scattering tables, only
                   when the atmosphere changed
-   for each view, in camera order, into the HDR target (kHdrColorFormat):
+   ShadowPass     the atlas: a depth map per spot light, six per point light
+   for each view:
      prepareView  layer mask and frustum culling; opaque by pipeline and
                   material, nearest first; then transparent, farthest first
      AtmospherePass  the sky view and aerial perspective tables of the view
+     ShadowPass   the sun cascades for the camera of the view
+   EnvironmentLighting  the sky of the first view into a cube: harmonics
+                  for ambient light, a reflection cube with mips by
+                  roughness, the BRDF table; only when the sky changed
+   for each view, in camera order, into the HDR target (kHdrColorFormat):
      view pass    clear: sky / colour and depth / depth only / nothing;
                   MeshPass: the opaque items through the view camera
-                  with their materials (PBR, all lights of the frame, the
-                  sun through the atmosphere, aerial perspective), times
+                  with their materials (PBR, all lights of the frame with
+                  their shadows, the sun through the atmosphere, ambient
+                  light and reflections of the sky, aerial perspective), times
                   the exposure of the view; drawSky on the far plane for
                   a Sky camera; MeshPass: the transparent items
    OutputPass     tone mapping of the main camera, then sRGB, from the HDR
@@ -82,20 +91,14 @@ snapshot made by Extract, never the scene.
 
 ### What the stages will hold [planned]
 
-The stages above stay; later steps fill them: lights, materials, sky,
-shadows and transparency in step 5, post-processing after the MVP,
-Vulkan and D3D12 as new backends.
+The stages above stay; later steps add to them: post-processing in and
+before the output pass (after the MVP), the HUD after it (step 8), Vulkan and D3D12
+as new backends under the same RHI.
 
 ```
- Extract   -> FrameData (also lights, materials)
- Prepare   -> per view: culling by bounds and layer mask, sorting
-              (opaque front to back, transparent back to front)
- Graph     -> passes declare what they read and write, the graph orders them:
-              shadows -> opaque -> sky -> transparent -> post-processing -> HUD
-              (+ passes the editor adds to its views: grid, outline)
- Renderer  -> records the passes as RHI commands     engine/render
+ Graph     -> shadows -> opaque -> sky -> transparent -> post-processing
+              -> output -> HUD (+ passes the editor adds to its views)
  RHI       -> one interface over OpenGL, Vulkan, D3D12   backends/<api>
- Present
 ```
 
 ## Photorealism by default [planned, after the MVP]
@@ -118,8 +121,8 @@ room for it:
 - **Area lights**: a rectangle and a disc (computed with LTC); directional, point and spot lights exist from step 5,
   and so does the sun, a directional light with a flag.
 - **Shadows beyond step 5** (which brings sun cascades, an atlas for spot
-  and point lights, PCF softness): contact shadows, softness by light size
-  (PCSS), shadows from transparent surfaces, ray tracing.
+  and point lights, softness by light size, alpha-tested casters): contact
+  shadows, shadows from transparent surfaces, ray tracing.
 - **Clouds and volumetric fog** on top of the tables of the atmosphere.
 
 The content and order of the stage are agreed separately, before it starts.
@@ -186,8 +189,8 @@ Vulkan itself.
   texture is `samplerDesc` (`render/TextureSampler.hpp`), shared by the
   previews and the materials.
 - **Shader data** goes through uniform blocks by frequency: frame (time,
-  lights), view (camera), material (step 5), object (matrices). The layout
-  is std140; the C++ structs repeat it with explicit `alignas` and are
+  lights, atmosphere), view (camera, shadows), material, object
+  (matrices). The layout is std140; the C++ structs repeat it with explicit `alignas` and are
   checked against the reflection at shader load (size and offsets of every
   field), not trusted to match. Per-object data lives in one buffer per
   frame, bound with an offset aligned to the device limit
@@ -231,7 +234,7 @@ profile below are checked on every target API when its backend arrives.
   - limits of OpenGL 3.3: at most 16 textures per shader, a uniform block
     at most 16 KB.
 
-  The profile has a version; a shader file of step 5 records it in its
+  The profile has a version; a shader file records it in its
   `.meta`, and a new profile version is a migration (see
   [project formats](project.md)).
 - **Reflection gives structure, not presentation.** `ShaderReflection` reads
@@ -241,7 +244,7 @@ profile below are checked on every target API when its backend arrives.
   a label, a group) comes from annotations next to the field in the same
   shader file and maps onto the property attributes of
   [reflection](reflection.md). Types and bindings are never written twice;
-  the annotation syntax is chosen in step 5.
+  the annotation syntax is in [materials](materials.md#shader-files-done).
 - **Compiling**: `#include` (relative to the file and from the engine
   shader library), defines and compile options, errors with the source file
   and line, results cached in memory by source, includes and defines for
@@ -258,7 +261,7 @@ profile below are checked on every target API when its backend arrives.
   into the engine library. Their path in the compiler starts with
   `engine:` (`engine:standard.yshader`); errors show the same path.
   `#include <yqlora/...>` takes a file from `engine/shaders/include`, so the
-  shaders of a project in step 5 include the same library.
+  shaders of a project include the same library.
 - **Where it lives** **[done]**: `engine/internal/yqlora/shader` -
   `ShaderCompiler` (glslang, includes, defines, cache), `reflectShader` and
   `checkShaderProfile`, `UniformLayout` with `checkUniformLayout` (the C++
@@ -275,9 +278,9 @@ profile below are checked on every target API when its backend arrives.
   not in the Scene window. Culling by the bounds of the mesh (AABB, carried
   by `DrawItem`) against the frustum and by the layer mask; opaque items
   sorted front to back with grouping by pipeline and material, transparent
-  ones back to front against that view. **[done]** without the grouping and
-  the transparent list: there is one pipeline and nothing transparent yet,
-  both come with materials in step 5. `prepareView` (`render/Prepare`)
+  ones back to front against that view (a material with `blend`
+  Transparent) **[done]**. Opaque groups are keyed by shader, its revision,
+  cull mode and material. `prepareView` (`render/Prepare`)
   takes the world bounds that Extract puts into `DrawItem`; the sort is
   stable, so equal distances keep the frame order.
 - **The graph, MVP scope**: a pass declares the textures it reads and
@@ -339,7 +342,7 @@ profile below are checked on every target API when its backend arrives.
 
 Out of the stage: the Vulkan and D3D12 backends, the render thread and
 post-processing (its place in the graph is ready); the sky and shadows are in
-[step 5](materials.md#environment-planned-step-5).
+[step 5](materials.md#environment-done).
 
 ## Meshes and textures [done]
 
@@ -348,12 +351,12 @@ post-processing (its place in the graph is ready); the sky and shadows are in
   in glTF.
 - **A mesh** (`MeshData`): vertices, indices of triangles counter-clockwise
   from outside, submeshes and bounds (AABB). A submesh is a range of indices
-  with its own material; its index is the material slot of a `MeshRenderer`
-  (step 5), and it keeps the index of the material of the source file. The
+  with its own material; its index is the material slot of a `MeshRenderer`,
+  and it keeps the index of the material of the source file. The
   bounds speed up picking, later culling.
 - **A texture** (`TextureData`): RGBA one byte per channel, rows from the
   top, and how to read it: sRGB or Linear, filter, wrap, mipmaps (import
-  settings). Textures go onto meshes through materials, step 5.
+  settings). Textures go onto meshes through materials.
 - **GPU copies** are kept by the backend itself, by resource ID and revision
   (`GpuResourceCache`): a `DrawItem` carries the mesh with its ID and
   revision, a copy of another revision is replaced, and a copy not drawn for

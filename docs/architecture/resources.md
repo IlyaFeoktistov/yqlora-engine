@@ -2,8 +2,8 @@
 
 [Русская версия](resources.ru.md)
 
-Files of a project that the game uses: scenes, models and pictures now,
-materials, shaders and sounds with their steps. How a model gets into a
+Files of a project that the game uses: scenes, models, pictures, shaders
+and materials now, sounds with their step. How a model gets into a
 scene is in the guide [importing a model](../guide/import-model.md). Where they lie and the file
 formats are in [project and file formats](project.md).
 
@@ -22,8 +22,8 @@ Status marks: see [README](README.md).
   paths relative to the project folder.
 - A new ID is 64 random bits, so two projects practically never give the
   same ID; it is always at least `builtin::kFirstProjectId`.
-- **Built-in resources** (the cube, sphere and plane meshes, the `Standard`
-  and `Error` shaders) have small constant IDs below `kFirstProjectId` and
+- **Built-in resources** (the cube, sphere and plane meshes, the built-in
+  shaders and materials) have small constant IDs below `kFirstProjectId` and
   no file; a project ID never collides with them. They are one table,
   `builtinResourceTable()`: ID, kind, name and how to make the data; the
   cache makes them from it and the editor lists and names them from it.
@@ -59,8 +59,9 @@ Status marks: see [README](README.md).
   else changes. The built-in meshes are in the same cache with their constant
   IDs; `findBuiltinMesh` goes away.
 - **Loading is synchronous**, on first use. Background loading is later.
-- **Not in step 4**: skinning, animation, morph targets, cameras and lights
-  from glTF, compressed textures (KTX2), PBR from glTF (step 5).
+- **Not read from glTF**: skinning, animation, morph targets, cameras and
+  lights, compressed textures (KTX2). Materials of glTF come in as nested
+  resources (see [materials](materials.md#gltf-materials-done)).
 
 ### Nested resource IDs
 
@@ -123,12 +124,11 @@ own `ResourceId`, so a `ResourceRef` stays a single 64-bit number.
 ### Meshes
 
 - `Vertex`: position, normal, `uv0`, tangent (from `TANGENT` when present;
-  computing them comes with glTF materials in step 5).
+  computed with MikkTSpace when a material of the mesh has a normal map).
 - `MeshData` has submeshes (index ranges, one per glTF primitive) and bounds
-  (AABB, for picking and later culling). A submesh has a stable index: it is
-  the material slot of step 5, and it keeps the index of the glTF material of
-  its primitive (or "none"), so step 5 imports materials without changing
-  the loader contract.
+  (AABB, for picking and culling). A submesh has a stable index: it is
+  the material slot of a `MeshRenderer`, and it keeps the index of the glTF
+  material of its primitive (or "none") and its name, the name of the slot.
 - The glTF loader reads data through cgltf accessors, so interleaved
   buffers, sparse accessors, normalized integers, external buffers, GLB
   chunks, missing indices and all component types work. Only the TRIANGLES
@@ -149,10 +149,10 @@ own `ResourceId`, so a `ResourceRef` stays a single 64-bit number.
   for color, Linear for data: normal, roughness, metallic), filter, wrap,
   mipmaps. The settings are a record, so new ones are added without changing
   the loader.
-- Textures go on meshes only through materials, in step 5. In step 4 a
-  texture is used as the game icon (General section).
+- Textures go on meshes only through materials; a texture is also the
+  game icon (General section) and a sky panorama.
 
-### Phases of step 4
+### Phases of step 4 [done]
 
 0. Step 3 leftovers. A game module registers only scripts, so its reload
    has no systems or settings sections to recreate: the contract is written
@@ -231,3 +231,30 @@ Tests, besides unit tests of each part:
   raises the revision.
 - 5: a model with nested nodes into a scene; re-export keeps references;
   save and reopen the scene; delete the source file while references exist.
+
+## Shaders and materials from files [done]
+
+The formats and the rules of values are in
+[materials](materials.md#shader-files-done); here is how they are resources.
+
+- **Loaders**: `ShaderLoader` (`.yshader`) compiles the file into
+  `ShaderData`, `MaterialLoader` (`.ymat`) reads `MaterialData`. A material
+  refers to its shader and textures by ID: a renamed shader or texture
+  keeps its materials, a changed one gets a new revision and the material
+  takes it at the next draw (pipelines are keyed by shader revision).
+- **Dependencies**: `LoadResult::dependencies` lists the files a loader
+  read besides the resource file, also on error (includes of a shader,
+  images next to a glTF model, external buffers). `reloadChanged` looks at
+  them too: a changed include recompiles every shader using it.
+- **Fields written on import**: `LoadResult::importUpdate` puts what a
+  loader learned into the import settings of `.meta` (the profile version
+  of a shader), only in the editor (`MetaPolicy::Import`).
+- **References inside a file**: a nested resource may refer to another
+  nested resource of the same file (a material of a model to its texture).
+  The loader does not know their IDs, so it names the key
+  (`LoadedResource::links`, `NestedLink`), and the cache writes the IDs in
+  before the data is published. Without an ID in `.meta` (read-only
+  `.meta`) the reference stays empty.
+- **Built-in** shaders (`Standard`, `Error`, the sky shaders) and materials
+  (default, error, the default sky and the gradient sky) are rows of
+  `builtinResourceTable()` like the meshes, made on first use.

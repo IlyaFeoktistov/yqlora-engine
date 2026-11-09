@@ -128,8 +128,8 @@ Status marks: see [README](README.md).
 - The main menu shows "Building scripts..." during a build and a red mark
   after a failed one.
 - The Scripts menu: Build. Scripts are created in Files: Create resource
-  lists `newResourceTypes()` (folder, scene, C++ script, shader; Luau and
-  visual scripts, materials join with their steps). A kind is one row of
+  lists `newResourceTypes()` (folder, scene, C++ script, shader, sky
+  shader, material; Luau and visual scripts join with their steps). A kind is one row of
   that table: its kind (for the icon), label, default name, the extension
   that shows a name is taken, whether the name is a C++ class name, and the
   function that creates it. Every kind asks for a name
@@ -157,12 +157,14 @@ Status marks: see [README](README.md).
 - **Selection**: clicking a resource in Files selects it instead of nodes
   (`Selection::selectResource`), and the inspector shows the
   file; a nested resource is shown under the name of its key, with its
-  file, read-only (`isResourceFile` is false). `ResourceInspector` shows what every file has (name, kind, the
-  state and the message if the file is not loaded, from `inspectResource`)
+  file, read-only (`isResourceFile` is false). `ResourceInspector` shows
+  what every file has (name, kind, the state and the message if the file
+  is not loaded, from `inspectResource`)
   and then the inspector of its kind (`ResourceKindInspector`): a model
   (`ModelInspector`, data from `inspectModel`) shows its meshes with
   vertex, triangle and submesh counts, a texture (`TextureInspector`,
-  `inspectTexture`) its size and a preview. A new kind is a new inspector
+  `inspectTexture`) its size and a preview; materials and shaders are in
+  [materials](materials.md#editor-done). A new kind is a new inspector
   and one line in the `ResourceInspector` constructor. Import settings
   (model scale; texture colour space, filter, wrap, mipmaps) are edited
   there and written to `.meta` by "Apply" (`applyModelImport`,

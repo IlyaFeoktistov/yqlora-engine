@@ -26,7 +26,10 @@ MyGame/
 |   `-- Player.cpp
 |-- assets/                 other resources with their .meta
 |   |-- house.glb           glTF models, pictures - anywhere
-|   `-- house.glb.meta      file ID, IDs of its meshes, import settings
+|   |-- house.glb.meta      file ID, IDs of its meshes, materials and
+|   |                       textures, import settings
+|   |-- wood.ymat           materials
+|   `-- water.yshader       shaders of the project
 `-- .build/                 build output, not in git
     |-- Debug-<fingerprint>/   CMake build folder of the game module
     `-- reload/             copies of the module the editor has loaded
@@ -52,7 +55,8 @@ MyGame/
 
 All files of the engine are JSON, written with indentation so a diff in
 version control reads well. Every file has `version`, the version of its
-format.
+format. Shaders are the exception: a `.yshader` is GLSL text, and the
+version it is written for (the shader profile) is in its `.meta`.
 
 `project.yqlora`:
 
@@ -87,11 +91,22 @@ hold only the ID.
     "import": {"scale": 0.01},
     "subresources": {
         "mesh:Door": "4c1e07a95b3d2f60",
-        "mesh:Frame": "e51d90c4b7a2f386"
+        "material:Wood": "e51d90c4b7a2f386",
+        "texture:Grain": "07b3c2e9d14a6f58"
     },
     "version": 1
 }
 ```
+
+The `.meta` of a shader holds the profile version in its import settings:
+`"import": {"profileVersion": 1}`.
+
+`*.ymat`: the shader, render state, values and textures of a material;
+the format and the rules of values are in
+[materials](materials.md#materials-done).
+
+`*.yshader`: one GLSL 450 file with both stages; the annotations and the
+engine library are in [materials](materials.md#shader-files-done).
 
 `*.yscene`: the root node with its properties, components and children.
 

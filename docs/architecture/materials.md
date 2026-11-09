@@ -9,7 +9,7 @@ compiler, profile and reflection as the built-in ones.
 
 Status marks: see [README](README.md).
 
-## Decisions [planned, step 5]
+## Decisions [done]
 
 - **Three parts, each on its own** (as the [roadmap](../../README.md#roadmap)
   says): a shader is a resource, a material is a resource that names a
@@ -27,16 +27,19 @@ Status marks: see [README](README.md).
   - `heightMap`, a height map for parallax (parallax occlusion mapping:
     steps along the view ray in tangent space, the step count by angle),
     depth `heightScale`; at 0 parallax is off and costs nothing;
-  - `emissionMap` (sRGB) times `emission` (a linear HDR colour, may exceed
-    1, like `KHR_materials_emissive_strength`).
+  - `emissionMap` (sRGB) times the colour `emission` and
+    `emissionIntensity` (see "Light units, exposure and tone mapping");
+  - `alphaCutoff`: fragments whose alpha is below it are discarded, at 0
+    nothing is.
   Occlusion darkens only the ambient light, not direct lights (as in glTF).
-  Separate metallic and roughness maps are packed into one on import
-  later; detail maps, anisotropy, clear coat and subsurface scattering come
+  Separate occlusion and metallic-roughness maps of glTF are packed into
+  one on import (see "glTF materials"); detail maps, anisotropy, clear coat and subsurface scattering come
   after the MVP with photorealism.
-- **Colour lives in the material.** `MeshRenderer` loses its colour. Old
-  scenes are not upgraded: until the branch is released, file formats stay
-  at version 1 without upgrades, and an object of an old scene draws with
-  the default material (its `color` stays an unknown property).
+- **Colour lives in the material.** `MeshRenderer` has no colour of its
+  own. Until there are users, file formats stay at version 1 without
+  upgrades (see [project](project.md#format-versions-done)), so a scene
+  written before materials draws its objects with the default material,
+  and their `color` stays an unknown property.
 - **Material edits go straight into the file**, without
   pressing "Save"; the edit history of the scene does not hold them. Undo
   for materials can come later; assigning a material in the scene is a
@@ -72,7 +75,7 @@ Status marks: see [README](README.md).
   (`GL_FRAMEBUFFER_SRGB`) is not used: ImGui would decode such a texture
   when showing it, and OpenGL 3.3 has no core way to skip that.
 
-## Shader files [planned, step 5]
+## Shader files [done]
 
 One file `.yshader` in GLSL 450 holds both stages. The engine compiles it
 twice, with `YQLORA_VERTEX` and with `YQLORA_FRAGMENT` defined, through the
@@ -138,9 +141,9 @@ void main()
 - **The profile** gets the tangent input: location 3, `vec4`, as glTF
   `TANGENT`: `xyz` the tangent, `w` the sign of the bitangent, so mirrored
   UV layouts work (`bitangent = cross(normal, tangent.xyz) * tangent.w`).
-  `Vertex` becomes position, normal, `uv0`, tangent. The profile stays at
-  version 1: no project has shaders yet. A shader file records the profile
-  version in its `.meta` on import in the editor.
+  `Vertex` is position, normal, `uv0`, tangent. The profile is at
+  version 1; a shader file records the profile version in its `.meta` on
+  import in the editor.
 - **Built-in shaders as resources**: `Standard` (the PBR shader every new
   material uses) and `Error` (magenta, for a material whose shader does not
   compile) have constant IDs below `kFirstProjectId`, like the built-in
@@ -203,7 +206,7 @@ auto& renderer = node().component<MeshRenderer>();
 renderer.overrides(0).setColor("baseColor", {1.0f, 0.2f, 0.2f, 1.0f});
 renderer.overrides(0).setFloat("roughness", 0.1f);
 renderer.overrides(0).setTexture("baseColorMap", hitTexture);
-renderer.overrides(0).clear();
+renderer.overrides(0).clearAll();
 ```
 
 - `MaterialOverrides` holds values and textures by field name for one slot
@@ -227,12 +230,12 @@ renderer.overrides(0).clear();
   new GPU objects.
 - Lights are nodes, so a script changes them through their properties
   (`light.setIntensity(...)`), with no new API.
-- A material file can also be changed from a script through the resource
-  (`materialData.set...`) for all objects at once; such a change is not
-  written to disk (`SharedMaterial`: `setFloat`, `setVector`, `setColor`,
-  `setTexture`; built-in materials do not change).
+- A material can also be changed from a script for all objects at once,
+  through `SharedMaterial(services, material)`: `setFloat`, `setVector`,
+  `setColor`, `setTexture`. Such a change is not written to disk; built-in
+  materials do not change (the setters return false).
 
-## Lights [planned, step 5]
+## Lights [done]
 
 - **Nodes** (engine nodes, see [scene](scene.md)): `DirectionalLight3D`,
   `PointLight3D`, `SpotLight3D`, all `Node3D`. Common: colour (sRGB, shown
@@ -252,7 +255,8 @@ renderer.overrides(0).clear();
   `intensity / max(d², ε) * saturate(1 - (d / range)⁴)²`; a spot also fades
   smoothly between the inner and outer angle.
 - **Ambient light and reflections** come from the `Environment` of the
-  scene (see "Ambient light and reflections").
+  scene (see "Ambient light and reflections"); shadows of every kind of
+  light are in "Shadows".
 - **A new scene** has a camera, the sun and an `Environment`, so a new object is lit at once.
 - **The editor** draws light icons and their range or direction in the
   viewport, as it does for cameras.
@@ -303,7 +307,7 @@ are undone like any other.
   - `sky`: a material with a sky shader (the built-in `Default Sky` by
     default); empty: no sky, a `Sky` camera clears to black;
   - `ambientSource`: `Sky`, `Gradient`, `Color`; `ambientIntensity`, a
-    multiplier (1 is physical); they light the scene from phase 5.5c;
+    multiplier (1 is physical); they light the scene (see "Ambient light and reflections");
   - for `Gradient`: `skyColor`, `equatorColor`, `groundColor` (sRGB) and
     `gradientLuminance` in nits; for `Color`: `ambientColor` and the same
     luminance;
@@ -670,7 +674,7 @@ that shadow maps do not give.
 - Nested materials and textures keep their IDs in `.meta` like meshes: a
   re-export keeps the references of the scenes.
 
-## Phases of step 5 (a commit per phase) [planned, step 5]
+## Phases of step 5 (a commit per phase) [done]
 
 ### 5.1 Lights and PBR [done]
 
@@ -1014,7 +1018,7 @@ Four parts, a commit per part; the contract is in
   textures. Tests: dropping fills the slots; the copy holds the same
   values; editing a model material does not write the model file.
 
-### 5.8 Documents
+### 5.8 Documents [done]
 
 This file, rendering (lighting, sRGB, Prepare with materials), resources
 (shaders, materials, dependencies), scene (light nodes, `MeshRenderer`

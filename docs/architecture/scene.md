@@ -117,6 +117,24 @@ The checks themselves are free functions in `ComponentRules.hpp` (`canAttach`,
 A spatial node creates its transform in the constructor (`Transform3D` for
 `Node3D`). It cannot be removed and is not offered in "Add component".
 
+### Rendering nodes and components [done]
+
+What a scene shows is engine nodes and one component; how they are drawn
+is in [materials](materials.md).
+
+- **Lights** are nodes: `DirectionalLight3D` (the sun is one with the
+  `sun` flag), `PointLight3D`, `SpotLight3D` derive from `Light3D`, which
+  holds colour, intensity and the shadow mode with its strength, softness
+  and biases. They register in `RenderSystem` in `onEnterScene`.
+- **`Environment`** is a non-spatial node with the sky material, the source
+  of ambient light and the atmosphere; the first active one in the scene
+  works.
+- **`MeshRenderer`** (only on `Node3D`, `requiresNode`) has a mesh and
+  material slots, one per submesh: an empty slot draws with the default
+  material. `castShadows` and `receiveShadows` are its own. Per-object
+  overrides of slot values (`MeshRenderer::overrides`) are run-time state
+  and are not saved; the slots are properties and are.
+
 ## Lifecycle
 
 | Call | Where | What for |

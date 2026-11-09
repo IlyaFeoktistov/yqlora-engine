@@ -16,7 +16,7 @@ documents keep only how the engine works.
 | [Types and reflection](reflection.md) | type registry, properties, methods, types declared at run time |
 | [Engine context and the frame](frame.md) | engine services, game time, scene systems, the order of a frame |
 | [Rendering](rendering.md) | cameras, layers, views, the RHI, shaders, Prepare and the render graph |
-| [Shaders, materials and lights](materials.md) | project shaders, materials and their slots, light nodes (step 5 plan) |
+| [Shaders, materials and lights](materials.md) | shaders, materials and their slots, lights, sky and atmosphere, ambient light, shadows, glTF materials |
 | [Noise](noise.md) | noise in code, scripts, textures and shaders from one set of algorithms |
 | [Animation](animation.md) | the animation resource, `AnimationPlayer`, the Animation panel with keys |
 | [Particles](particles.md) | particle effects: the effect resource, `ParticleEmitter`, instanced drawing |
@@ -56,7 +56,8 @@ engine/include/yqlora/reflection/  TypeRegistry, Property, Method, component rul
 engine/include/yqlora/scene/       Node, Node3D, Transform3D, Component, Scene, scene systems
 engine/include/yqlora/project/     Project, ProjectSettings, SettingsSection, GeneralSettings
 engine/include/yqlora/scripting/   Script, ModuleRegistrar; GameModule in internal/
-engine/include/yqlora/render/      Camera3D, MeshRenderer, RenderSystem; lights        [step 5]
+engine/include/yqlora/render/      Camera3D, MeshRenderer, RenderSystem, lights, Environment
+engine/include/yqlora/material/    MaterialOverrides, SharedMaterial (materials from scripts)
 engine/include/yqlora/physics/     RigidBody, colliders, PhysicsWorld                  [step 6]
 engine/include/yqlora/audio/       AudioSource, AudioListener, AudioWorld              [step 7]
 engine/include/yqlora/ui/          Control, Label, Button                              [step 8]

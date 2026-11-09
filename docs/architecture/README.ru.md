@@ -16,7 +16,7 @@
 | [Типы и рефлексия](reflection.ru.md) | реестр типов, свойства, методы, типы, объявленные во время выполнения |
 | [Контекст движка и кадр](frame.ru.md) | службы движка, игровое время, системы сцены, порядок кадра |
 | [Рендер](rendering.ru.md) | камеры, слои, виды, RHI, шейдеры, Prepare и граф проходов |
-| [Шейдеры, материалы и свет](materials.ru.md) | шейдеры проекта, материалы и их слоты, узлы света (план шага 5) |
+| [Шейдеры, материалы и свет](materials.ru.md) | шейдеры, материалы и их слоты, свет, небо и атмосфера, окружающий свет, тени, материалы glTF |
 | [Шумы](noise.ru.md) | шумы в коде, скриптах, текстурах и шейдерах из одного набора алгоритмов |
 | [Анимация](animation.ru.md) | ресурс анимации, `AnimationPlayer`, панель "Анимация" с ключами |
 | [Частицы](particles.ru.md) | эффекты частиц: ресурс эффекта, `ParticleEmitter`, инстансная отрисовка |
@@ -56,7 +56,8 @@ engine/include/yqlora/reflection/  TypeRegistry, Property, Method, component rul
 engine/include/yqlora/scene/       Node, Node3D, Transform3D, Component, Scene, scene systems
 engine/include/yqlora/project/     Project, ProjectSettings, SettingsSection, GeneralSettings
 engine/include/yqlora/scripting/   Script, ModuleRegistrar; GameModule in internal/
-engine/include/yqlora/render/      Camera3D, MeshRenderer, RenderSystem; lights        [step 5]
+engine/include/yqlora/render/      Camera3D, MeshRenderer, RenderSystem, свет, Environment
+engine/include/yqlora/material/    MaterialOverrides, SharedMaterial (материалы из скриптов)
 engine/include/yqlora/physics/     RigidBody, colliders, PhysicsWorld                  [step 6]
 engine/include/yqlora/audio/       AudioSource, AudioListener, AudioWorld              [step 7]
 engine/include/yqlora/ui/          Control, Label, Button                              [step 8]

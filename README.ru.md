@@ -21,7 +21,7 @@ MVP: всё, что нужно для небольшого прототипа и
 - [x] Скрипты на C++ на узлах ([первый скрипт](docs/guide/first-script.ru.md))
 - [x] Сборка скриптов из редактора, горячая перезагрузка
 - [x] Меши из файлов (glTF) и текстуры ([импорт модели](docs/guide/import-model.ru.md))
-- [ ] Материалы, свои шейдеры, свет, небо, солнце и тени
+- [x] Материалы, свои шейдеры, свет, небо, солнце и тени ([свой шейдер, материал и небо](docs/guide/shader-material-sky.ru.md))
 - [ ] Физика и столкновения
 - [ ] Звук
 - [ ] Интерфейс игрока
@@ -73,6 +73,7 @@ cmake --build --preset debug
 | [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) | MIT |
 | [cgltf](https://github.com/jkuhlmann/cgltf) | MIT |
 | [stb_image](https://github.com/nothings/stb) | MIT или общественное достояние |
+| [MikkTSpace](https://github.com/mmikk/MikkTSpace) | zlib |
 | [glslang](https://github.com/KhronosGroup/glslang) | BSD-3-Clause и другие (см. его LICENSE.txt) |
 | [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) | Apache-2.0 |
 | [doctest](https://github.com/doctest/doctest) | MIT |

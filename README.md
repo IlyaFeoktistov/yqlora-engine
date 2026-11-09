@@ -21,7 +21,7 @@ MVP: everything needed to build a small game prototype.
 - [x] C++ scripts on nodes ([first script](docs/guide/first-script.md))
 - [x] Building scripts from the editor, hot reload
 - [x] Meshes from files (glTF) and textures ([importing a model](docs/guide/import-model.md))
-- [ ] Materials, custom shaders, lights, sky, sun and shadows
+- [x] Materials, custom shaders, lights, sky, sun and shadows ([your own shader, material and sky](docs/guide/shader-material-sky.md))
 - [ ] Physics and collisions
 - [ ] Audio
 - [ ] Game UI
@@ -73,6 +73,7 @@ The program starts without a console and logs only warnings and errors;
 | [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) | MIT |
 | [cgltf](https://github.com/jkuhlmann/cgltf) | MIT |
 | [stb_image](https://github.com/nothings/stb) | MIT or public domain |
+| [MikkTSpace](https://github.com/mmikk/MikkTSpace) | zlib |
 | [glslang](https://github.com/KhronosGroup/glslang) | BSD-3-Clause and others (see its LICENSE.txt) |
 | [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) | Apache-2.0 |
 | [doctest](https://github.com/doctest/doctest) | MIT |

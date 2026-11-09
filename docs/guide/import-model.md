@@ -19,7 +19,7 @@ git together with the file.
 
 ## 2. See what is inside
 
-In Files a model opens into its meshes. Clicking the model shows the number
+In Files a model opens into its meshes, materials and textures. Clicking the model shows the number
 of nodes in the inspector and the meshes with their vertex, triangle and
 submesh counts (parts with different materials).
 
@@ -39,7 +39,8 @@ Drag the model from Files:
 
 The model appears as a node named after the file, with the nodes of the file
 under it with their position, rotation and scale, and a `MeshRenderer` on
-the nodes with a mesh. Doors with one mesh refer to one resource, the
+the nodes with a mesh, its slots filled with the materials of the file.
+Doors with one mesh refer to one resource, the
 geometry is not copied. Ctrl+Z removes the whole model.
 
 A single mesh is dragged the same way, from the opened model or from the
@@ -74,6 +75,9 @@ While moving a node:
 - **The inspector says Not loaded**: the error is next to it; details are in
   the Log panel. Primitives that are not triangles (lines, points) are
   skipped with a warning.
-- **The meshes have no textures**: textures go onto meshes through
-  materials, which come with the next step. For now a picture can be the
-  game icon (Project > Project settings > General > Icon).
+- **The meshes have no textures**: the pictures of a glTF file must lie
+  where the file says (next to it) or inside the GLB; a missing one is in
+  the Log. Textures go onto meshes through materials, see
+  [your own shader, material and sky](shader-material-sky.md).
+- **A material of the model does not change**: it is read from the file;
+  "Make a copy" in its inspector gives a material file you can edit.
