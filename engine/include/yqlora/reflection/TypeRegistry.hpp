@@ -158,6 +158,9 @@ public:
     std::vector<const Property*> properties(const TypeInfo& type) const;
 
     // Методы типа вместе с базовыми, от корня к наследнику.
+    // События типа вместе с базовыми, базовые первыми.
+    std::vector<const EventInfo*> events(const TypeInfo& type) const;
+
     std::vector<const Method*> methods(const TypeInfo& type) const;
 
     // Убирает все типы модуля, например перед выгрузкой dll игры: иначе в

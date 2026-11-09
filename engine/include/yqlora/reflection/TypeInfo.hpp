@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/reflection/EventInfo.hpp"
 #include "yqlora/reflection/Method.hpp"
 #include "yqlora/reflection/Property.hpp"
 #include "yqlora/scene/LifecyclePhase.hpp"
@@ -88,6 +89,12 @@ public:
         return m_methods;
     }
 
+    // Только события этого типа, без базовых. Все вместе: TypeRegistry::events().
+    std::span<const EventInfo> ownEvents() const
+    {
+        return m_events;
+    }
+
     // Правила компонента, только свои, без базовых. Проверяют их функции
     // из ComponentRules.hpp, они же учитывают правила базовых типов.
 
@@ -159,6 +166,7 @@ private:
     std::string m_settingsFile;
     std::vector<Property> m_properties;
     std::vector<Method> m_methods;
+    std::vector<EventInfo> m_events;
     std::string m_requiredNode;
     std::vector<std::string> m_requiredComponents;
     bool m_allowMultiple = false;

@@ -106,6 +106,7 @@ add_library(yqlora SHARED
     src/math/Euler.cpp
     src/scene/ExecutionOrder.cpp
     src/scene/ExecutionOrderSettings.cpp
+    src/scene/Event.cpp
     src/scene/GameTime.cpp
     src/scene/LayerSettings.cpp
     src/scene/MissingComponent.cpp

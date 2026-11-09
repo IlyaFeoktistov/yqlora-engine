@@ -83,6 +83,18 @@ std::vector<const Method*> TypeRegistry::methods(const TypeInfo& type) const
     return result;
 }
 
+std::vector<const EventInfo*> TypeRegistry::events(const TypeInfo& type) const
+{
+    std::vector<const EventInfo*> result;
+    for (const TypeInfo* t : chain(type) | std::views::reverse) {
+        for (const EventInfo& event : t->ownEvents()) {
+            result.push_back(&event);
+        }
+    }
+
+    return result;
+}
+
 std::size_t TypeRegistry::removeModule(std::string_view module)
 {
     const auto inModule = [&](const std::unique_ptr<TypeInfo>& type) {

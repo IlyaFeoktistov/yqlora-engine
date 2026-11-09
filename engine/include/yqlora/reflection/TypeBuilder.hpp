@@ -7,6 +7,7 @@
 #include "yqlora/reflection/TypeInfo.hpp"
 #include "yqlora/reflection/TypeName.hpp"
 #include "yqlora/scene/Component.hpp"
+#include "yqlora/scene/Event.hpp"
 #include "yqlora/scene/Node.hpp"
 #include "yqlora/scene/SceneSystem.hpp"
 
@@ -38,6 +39,23 @@ public:
     Self& property(Property property)
     {
         m_info.m_properties.push_back(std::move(property));
+
+        return self();
+    }
+
+    // Событие, уже описанное значениями (см. ClassTypeBuilder::event).
+    Self& addEvent(EventInfo event)
+    {
+        assert(
+            std::ranges::none_of(
+                m_info.m_events,
+                [&](const EventInfo& e) {
+                    return e.name == event.name;
+                }
+            )
+            && "TypeBuilder: the type already has an event with this name"
+        );
+        m_info.m_events.push_back(std::move(event));
 
         return self();
     }
@@ -297,6 +315,30 @@ public:
         requires(std::same_as<Root, Node> || std::same_as<Root, Component>)
     {
         return addMethod<Result, Args...>(std::move(name), function, parameters);
+    }
+
+    // Событие компонента с именами его параметров, по одному на каждый:
+    //   .event("onScored", &Score::onScored, {"points"})
+    template <typename Owner, typename... Args>
+        requires std::derived_from<Class, Owner>
+    ClassTypeBuilder& event(
+        std::string name,
+        Event<Args...> Owner::* member,
+        std::initializer_list<std::string> parameterNames = {}
+    )
+        requires std::same_as<Root, Component>
+    {
+        assert(parameterNames.size() == sizeof...(Args) && "event: name every parameter");
+        const std::array<PropertyType, sizeof...(Args)> types{propertyTypeOf<std::remove_cvref_t<Args>>()...};
+        EventInfo info{.name = std::move(name), .parameters = {}, .of = [member](Component& component) -> EventBase& {
+                           return static_cast<Class&>(component).*member;
+                       }};
+        for (std::size_t i = 0; const std::string& parameter : parameterNames) {
+            info.parameters.push_back({parameter, types[i++]});
+        }
+        Base::addEvent(std::move(info));
+
+        return *this;
     }
 
     //   registry.registerComponent<MeshRenderer>().requiresNode<Node3D>();

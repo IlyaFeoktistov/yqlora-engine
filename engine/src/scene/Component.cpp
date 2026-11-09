@@ -14,6 +14,20 @@ Component::Component()
 
 Component::~Component() = default;
 
+std::weak_ptr<const void> Component::lifetime()
+{
+    if (!m_lifetime) {
+        m_lifetime = std::make_shared<const char>();
+    }
+
+    return m_lifetime;
+}
+
+void Component::endLifetime()
+{
+    m_lifetime.reset();
+}
+
 void Component::setId(ComponentId id)
 {
     assert(id != 0 && "setId: 0 means no component");

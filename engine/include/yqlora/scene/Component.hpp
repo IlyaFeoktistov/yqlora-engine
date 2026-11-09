@@ -5,6 +5,7 @@
 #include "yqlora/reflection/TypeName.hpp"
 #include "yqlora/scene/ObjectId.hpp"
 
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -126,6 +127,16 @@ private:
     // ID из файла сцены выставляет только загрузчик.
     friend class SceneSerializer;
     void setId(ComponentId id);
+
+    // Метка жизни для подписок на события (EventBase): живёт, пока компонент
+    // в сцене. Когда он уходит из сцены, метка гаснет, и его подписки больше
+    // не вызываются.
+    friend class EventBase;
+    friend class Scene;
+    std::weak_ptr<const void> lifetime();
+    void endLifetime();
+
+    std::shared_ptr<const void> m_lifetime;
 
     ComponentId m_id;
     Node* m_owner = nullptr;

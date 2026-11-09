@@ -124,6 +124,8 @@ void Scene::exitComponent(Component& component)
 {
     m_lifecycle.deactivate(component);
     m_components.remove(component);
+    // Подписки компонента на события снимаются вместе с ним.
+    component.endLifetime();
 }
 
 Node* Scene::find(const NodeRef& ref) const
