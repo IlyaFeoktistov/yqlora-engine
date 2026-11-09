@@ -276,7 +276,8 @@
             "revert": "Revert",
             "notLoaded": "Not loaded",
             "missing": "Missing",
-            "dragHint": "Drag a model or a mesh into the scene tree or the viewport"
+            "dragHint": "Drag a model or a mesh into the scene tree or the viewport",
+            "nested": "From the model file, read-only"
         },
         "material": {
             "shader": "Shader",
@@ -284,7 +285,9 @@
             "cull": "Face culling",
             "values": "Values",
             "textures": "Textures",
-            "noShader": "The shader of the material is not loaded: it draws with Error"
+            "noShader": "The shader of the material is not loaded: it draws with Error",
+            "makeCopy": "Make a copy",
+            "copyTitle": "Copy of the material"
         },
         "shader": {
             "open": "Open",

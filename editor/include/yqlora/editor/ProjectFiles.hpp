@@ -12,6 +12,7 @@ namespace yqlora {
 
 class Project;
 class SceneSerializer;
+struct MaterialData;
 enum class ShaderKind : std::uint8_t;
 
 } // namespace yqlora
@@ -99,6 +100,13 @@ public:
     // умолчанию, при занятом - с номером ("New Scene 2", "NewScript2").
     std::string suggestName(const NewResourceType& type, const std::filesystem::path& folder) const;
 
+    // То же от своего имени base ("Bark", при занятом "Bark 2").
+    std::string suggestName(
+        const NewResourceType& type,
+        const std::filesystem::path& folder,
+        std::string_view base
+    ) const;
+
     // Новая пустая сцена name.yscene в папке folder. nullopt, если имя
     // не годится или занято.
     std::optional<std::filesystem::path> createScene(
@@ -129,9 +137,14 @@ public:
         const std::filesystem::path& templateFile
     );
 
-    // Материал name.ymat в папке folder: шейдер Standard, белый. nullopt,
-    // если имя не годится, занято или файл не записался.
-    std::optional<std::filesystem::path> createMaterial(const std::filesystem::path& folder, std::string_view name);
+    // Материал name.ymat в папке folder со значениями data (новый -
+    // MaterialData{}: шейдер Standard, белый). nullopt, если имя не годится,
+    // занято или файл не записался.
+    std::optional<std::filesystem::path> createMaterial(
+        const std::filesystem::path& folder,
+        std::string_view name,
+        const MaterialData& data
+    );
 
     // Переименовывает файл или папку в той же папке. Возвращает новый путь;
     // nullopt, если имя недопустимо, занято или путь трогать нельзя.

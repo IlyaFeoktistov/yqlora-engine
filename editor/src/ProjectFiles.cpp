@@ -91,7 +91,7 @@ const NewResourceType kNewResourceTypes[] = {
      kMaterialFileExtension,
      false,
      [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext&) {
-         return files.createMaterial(folder, name);
+         return files.createMaterial(folder, name, MaterialData{});
      }},
 };
 
@@ -202,14 +202,18 @@ bool ProjectFiles::canModify(const fs::path& path) const
 
 std::string ProjectFiles::suggestName(const NewResourceType& type, const fs::path& folder) const
 {
-    const std::string base = type.defaultName;
+    return suggestName(type, folder, type.defaultName);
+}
+
+std::string ProjectFiles::suggestName(const NewResourceType& type, const fs::path& folder, std::string_view base) const
+{
     // У скрипта имя - имя класса, пробел в нём недопустим.
     const std::string separator = type.className ? "" : " ";
     const fs::path directory = m_project.directory() / folder;
     std::error_code ec;
-    std::string name = base;
+    std::string name(base);
     for (int i = kFirstDuplicateNumber; fs::exists(directory / fromUtf8(occupiedFileName(type, name)), ec); ++i) {
-        name = base + separator + std::to_string(i);
+        name = std::string(base) + separator + std::to_string(i);
     }
 
     return name;
@@ -326,7 +330,11 @@ std::optional<fs::path> ProjectFiles::createShader(
     return relative;
 }
 
-std::optional<fs::path> ProjectFiles::createMaterial(const fs::path& folder, std::string_view name)
+std::optional<fs::path> ProjectFiles::createMaterial(
+    const fs::path& folder,
+    std::string_view name,
+    const MaterialData& data
+)
 {
     const NewResourceType& type = *findNewResourceType(MaterialData::kResourceKind);
     const fs::path relative = folder / fromUtf8(occupiedFileName(type, name));
@@ -334,7 +342,7 @@ std::optional<fs::path> ProjectFiles::createMaterial(const fs::path& folder, std
     if (!isValidResourceName(type, name) || !canModify(relative) || fs::exists(m_project.directory() / relative, ec)) {
         return std::nullopt;
     }
-    if (!writeMaterialFile(m_project.directory() / relative, MaterialData{})) {
+    if (!writeMaterialFile(m_project.directory() / relative, data)) {
         log::error("Cannot write material '{}'", toUtf8(relative));
 
         return std::nullopt;

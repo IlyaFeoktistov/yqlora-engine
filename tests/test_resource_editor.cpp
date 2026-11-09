@@ -54,15 +54,26 @@ using Json = nlohmann::json;
 
 namespace {
 
-// Дом: две двери с одним мешем и рама с другим, под общим узлом.
+// Дом: две двери с одним мешем и рама с другим, под общим узлом. Двери -
+// материал Wood с текстурой Grain; у рамы первый подмеш без материала,
+// второй - Glass.
 GltfBuilder house()
 {
     GltfBuilder gltf;
     const int positions = gltf.positions({0, 0, 0, 1, 0, 0, 0, 1, 0});
     const Json primitive{{"attributes", {{"POSITION", positions}}}};
+    const int grain = gltf.texture(tga(1, 1, {{200, 150, 100, 255}}), "Grain");
+    gltf.json["materials"] = {
+        {{"name", "Wood"}, {"pbrMetallicRoughness", {{"baseColorTexture", {{"index", grain}}}}}},
+        {{"name", "Glass"}, {"alphaMode", "BLEND"}},
+    };
+    Json wood = primitive;
+    wood["material"] = 0;
+    Json glass = primitive;
+    glass["material"] = 1;
     gltf.json["meshes"] = {
-        {{"name", "Door"}, {"primitives", {primitive}}},
-        {{"name", "Frame"}, {"primitives", {primitive}}},
+        {{"name", "Door"}, {"primitives", {wood}}},
+        {{"name", "Frame"}, {"primitives", {primitive, glass}}},
     };
     gltf.json["nodes"] = {
         {{"name", "House"}, {"children", {1, 2, 3}}, {"translation", {0.0, 1.0, 0.0}}},
@@ -91,11 +102,17 @@ struct Fixture {
         REQUIRE(model != 0);
     }
 
+    // Вложенный ресурс модели по ключу ("mesh:Door", "material:Wood").
     ResourceId mesh(const std::string& key)
     {
         REQUIRE(session.resources().find<ModelData>(model));
 
         return session.project()->resources().subresources(model).at(key);
+    }
+
+    fs::path modelFile() const
+    {
+        return directory / "models" / "house.glb";
     }
 
     test::EngineRegistry registry;
@@ -148,6 +165,80 @@ TEST_CASE_FIXTURE(Fixture, "instantiateResource: a model becomes its node tree u
     const ResourceId scene = session.project()->settings().get<GeneralSettings>().startupScene.id;
     REQUIRE(scene != 0);
     CHECK(instantiateResource(scene, session.resources(), session.project()->resources()) == nullptr);
+}
+
+TEST_CASE_FIXTURE(Fixture, "instantiateResource: slots of a model mesh get the materials of the file")
+{
+    const ResourceId wood = mesh("material:Wood");
+    const ResourceId glass = mesh("material:Glass");
+    const auto branch = instantiateResource(model, session.resources(), session.project()->resources());
+    REQUIRE(branch);
+    const Node& house = *branch->children()[0];
+    const MeshRenderer* door = rendererOf(*house.children()[0]);
+    REQUIRE(door);
+    REQUIRE(door->materials().size() == 1);
+    CHECK(door->materials()[0].id == wood);
+    // Подмеш без материала - пустой слот, по нему рисуется материал по умолчанию.
+    const MeshRenderer* frame = rendererOf(*house.children()[2]);
+    REQUIRE(frame->materials().size() == 2);
+    CHECK(frame->materials()[0].id == 0);
+    CHECK(frame->materials()[1].id == glass);
+
+    // Один меш модели - те же слоты.
+    const auto single = instantiateResource(mesh("mesh:Frame"), session.resources(), session.project()->resources());
+    REQUIRE(single);
+    CHECK(rendererOf(*single)->materials() == frame->materials());
+    // Встроенный меш не из модели: слотов нет.
+    const auto cube = instantiateResource(builtin::kCubeMesh, session.resources(), session.project()->resources());
+    REQUIRE(cube);
+    CHECK(rendererOf(*cube)->materials().empty());
+}
+
+TEST_CASE_FIXTURE(Fixture, "A model material is read-only; its copy is a material file with the same values")
+{
+    const ResourceId wood = mesh("material:Wood");
+    const auto written = fs::last_write_time(modelFile());
+    MaterialEditing& editing = session.materialEditing();
+    REQUIRE(editing.material(wood));
+    const auto values = editing.material(wood)->values;
+    CHECK_FALSE(editing.editable(wood));
+    CHECK_FALSE(editing.change(wood, [](MaterialData& material) {
+        material.values["roughness"] = {0.1f};
+    }));
+    CHECK_FALSE(editing.pending());
+    CHECK(editing.material(wood)->values == values);
+    CHECK(fs::last_write_time(modelFile()) == written);
+
+    // Копия рядом с моделью: имя предлагается по ключу материала.
+    ProjectFiles files(*session.project());
+    const NewResourceType& type = *findNewResourceType(MaterialData::kResourceKind);
+    CHECK(files.suggestName(type, "models", "Wood") == "Wood");
+    const std::uint64_t revision = session.project()->resources().filesRevision();
+    const auto copy = files.createMaterial("models", "Wood", *editing.material(wood));
+    REQUIRE(copy);
+    CHECK(session.project()->resources().filesRevision() > revision);
+    CHECK(files.suggestName(type, "models", "Wood") == "Wood 2");
+    const ResourceId copied = session.project()->resources().id(*copy);
+    REQUIRE(editing.material(copied));
+    CHECK(editing.editable(copied));
+    const MaterialData& original = *editing.material(wood);
+    const MaterialData& result = *editing.material(copied);
+    CHECK(result.shader == original.shader);
+    CHECK(result.blend == original.blend);
+    CHECK(result.cull == original.cull);
+    CHECK(result.values == original.values);
+    // Копия ссылается на вложенную текстуру модели.
+    CHECK(result.textures == original.textures);
+    CHECK(result.textures.at("baseColorMap") == mesh("texture:Grain"));
+}
+
+TEST_CASE_FIXTURE(Fixture, "A model texture is inspected read-only, with the sampling of the file")
+{
+    const auto grain = inspectTexture(session, mesh("texture:Grain"));
+    REQUIRE(grain);
+    CHECK_FALSE(grain->editable);
+    CHECK(grain->import == grain->texture.data->sampling);
+    CHECK(grain->import.colorSpace == ColorSpace::Srgb);
 }
 
 TEST_CASE_FIXTURE(Fixture, "SceneEditing: a model goes into the scene in one undo step, at the placement point")
@@ -238,7 +329,16 @@ TEST_CASE_FIXTURE(Fixture, "Resource inspection: meshes of a model, import setti
     CHECK(inspected->kind == ModelData::kResourceKind);
     REQUIRE(inspected->status);
     CHECK(inspected->status->state == ResourceState::Ready);
-    CHECK(inspectResource(session, mesh("mesh:Door")) == std::nullopt);
+    // Вложенный ресурс показан под файлом модели, со своим видом и ключом.
+    const auto nested = inspectResource(session, mesh("mesh:Door"));
+    REQUIRE(nested);
+    CHECK(nested->path == "models/house.glb");
+    CHECK(nested->nestedKey == "Door");
+    CHECK(nested->kind == MeshData::kResourceKind);
+    CHECK(inspected->nestedKey.empty());
+    CHECK(isResourceFile(session, model));
+    CHECK_FALSE(isResourceFile(session, mesh("mesh:Door")));
+    CHECK_FALSE(isResourceFile(session, builtin::kDefaultMaterial));
     const auto scene = inspectResource(session, session.project()->settings().get<GeneralSettings>().startupScene.id);
     REQUIRE(scene);
     CHECK(scene->kind == SceneSerializer::kResourceKind);
@@ -323,11 +423,13 @@ TEST_CASE_FIXTURE(Fixture, "resourceChoices: built-in resources first, then nest
     CHECK(door.group == "models/house.glb");
     CHECK(door.id == mesh("mesh:Door"));
 
-    // Сцены - файлы верхнего уровня, без групп; текстур в проекте нет.
+    // Сцены - файлы верхнего уровня, без групп; текстура в проекте одна, в модели.
     const auto scenes = resourceChoices(SceneSerializer::kResourceKind, {}, &resources, session.resources());
     REQUIRE(scenes.size() == 1);
     CHECK(scenes[0].group.empty());
-    CHECK(resourceChoices(TextureData::kResourceKind, {}, &resources, session.resources()).empty());
+    const auto textures = resourceChoices(TextureData::kResourceKind, {}, &resources, session.resources());
+    REQUIRE(textures.size() == 1);
+    CHECK(textures[0].id == mesh("texture:Grain"));
     // Встроенные ресурсы любого вида - из одной таблицы.
     const auto shaders = resourceChoices(ShaderData::kResourceKind, {}, nullptr, session.resources());
     REQUIRE(shaders.size() == builtinShaders().size());
@@ -346,7 +448,7 @@ TEST_CASE_FIXTURE(Fixture, "resourceForField: a model on a mesh field gives its 
     const ResourceId scene = session.project()->settings().get<GeneralSettings>().startupScene.id;
     CHECK(resourceForField(SceneSerializer::kResourceKind, {}, scene, &resources, cache) == scene);
     CHECK_FALSE(resourceForField(MeshData::kResourceKind, {}, scene, &resources, cache));
-    CHECK_FALSE(resourceForField(TextureData::kResourceKind, {}, model, &resources, cache));
+    CHECK(resourceForField(TextureData::kResourceKind, {}, model, &resources, cache) == mesh("texture:Grain"));
     CHECK_FALSE(resourceForField(TextureData::kResourceKind, {}, mesh("mesh:Door"), &resources, cache));
     CHECK_FALSE(resourceForField(TextureData::kResourceKind, {}, builtin::kCubeMesh, &resources, cache));
 }
@@ -418,7 +520,7 @@ TEST_CASE_FIXTURE(
 )
 {
     ProjectFiles files(*session.project());
-    const auto created = files.createMaterial({}, "Wood");
+    const auto created = files.createMaterial({}, "Wood", MaterialData{});
     REQUIRE(created);
     const ResourceId wood = session.project()->resources().id(*created);
     const fs::path file = directory / *created;

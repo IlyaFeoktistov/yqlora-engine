@@ -148,9 +148,16 @@ Status marks: see [README](README.md).
   its nested resources (`nestedResources`). Any resource can be dragged.
   A click on an empty place clears the selection, so a new resource is
   made in the project root; a right click there opens the create menu.
+  Files reads the folder again when the list of resource files changes
+  (`ResourceDatabase::filesRevision`), whoever changed it.
+- **The name window** (`NameDialog`): everything made, copied or renamed
+  in the editor goes through one window with a name field and a confirm
+  button; nothing is made before the button, and a failure (the name is
+  taken) is said in the window.
 - **Selection**: clicking a resource in Files selects it instead of nodes
   (`Selection::selectResource`), and the inspector shows the
-  file. `ResourceInspector` shows what every file has (name, kind, the
+  file; a nested resource is shown under the name of its key, with its
+  file, read-only (`isResourceFile` is false). `ResourceInspector` shows what every file has (name, kind, the
   state and the message if the file is not loaded, from `inspectResource`)
   and then the inspector of its kind (`ResourceKindInspector`): a model
   (`ModelInspector`, data from `inspectModel`) shows its meshes with
@@ -166,7 +173,8 @@ Status marks: see [README](README.md).
   the root, into the viewport - at the point on the ground under the cursor
   (`placementPoint`). A model becomes a `Node3D` named after the file with
   the nodes of the model under it, a mesh - a `Node3D` with a
-  `MeshRenderer` (`instantiateResource`). One undo step
+  `MeshRenderer` (`instantiateResource`); the slots of a mesh of a model
+  get the materials of its file. One undo step
   (`SceneEditing::addResource`, `AddBranchCommand`).
 - **A resource field** (`resourceField`): an icon and the name
   of the resource or "None (Mesh)"; clicking the field or the button on its

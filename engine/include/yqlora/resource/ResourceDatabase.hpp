@@ -4,6 +4,7 @@
 #include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/resource/ResourceMeta.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -78,6 +79,13 @@ public:
     // объект JSON или .meta не записалась.
     bool setImportSettings(ResourceId file, std::string json);
 
+    // Растёт, когда файл ресурса появился, переехал или исчез: по ней
+    // показ файлов проекта узнаёт, что пора перечитать папку.
+    std::uint64_t filesRevision() const
+    {
+        return m_filesRevision;
+    }
+
     std::size_t size() const
     {
         return m_paths.size();
@@ -107,6 +115,7 @@ private:
     std::map<std::filesystem::path, ResourceId> m_ids;
     std::map<ResourceId, ResourceMeta> m_meta;
     std::map<ResourceId, Nested> m_nested;
+    std::uint64_t m_filesRevision = 0;
 };
 
 } // namespace yqlora

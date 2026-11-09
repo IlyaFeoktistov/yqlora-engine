@@ -2,6 +2,7 @@
 
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/editor/ResourceChoices.hpp"
+#include "yqlora/resource/ResourceLoader.hpp"
 
 namespace yqlora::editor {
 
@@ -9,11 +10,18 @@ std::optional<ResourceInspection> inspectResource(EditorSession& session, Resour
 {
     const auto& project = session.project();
     const auto path = project ? project->resources().path(id) : std::nullopt;
-    if (!path || !project->resources().key(id).empty()) {
+    if (!path) {
         return std::nullopt;
     }
     ResourceCache& cache = session.resources();
-    ResourceInspection inspection{.id = id, .path = *path, .kind = fileKind(*path, cache), .status = std::nullopt};
+    const std::string_view key = project->resources().key(id);
+    ResourceInspection inspection{
+        .id = id,
+        .path = *path,
+        .nestedKey = std::string(subresourceLocalKey(key)),
+        .kind = key.empty() ? fileKind(*path, cache) : cache.loadedKind(id),
+        .status = std::nullopt,
+    };
     if (cache.kindOf(*path).empty()) {
         return inspection;
     }
@@ -23,6 +31,13 @@ std::optional<ResourceInspection> inspectResource(EditorSession& session, Resour
     }
 
     return inspection;
+}
+
+bool isResourceFile(const EditorSession& session, ResourceId id)
+{
+    const auto& project = session.project();
+
+    return project && project->resources().path(id) && project->resources().key(id).empty();
 }
 
 nlohmann::json importSettingsOf(EditorSession& session, ResourceId id)

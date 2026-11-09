@@ -13,7 +13,15 @@ std::optional<TextureInspection> inspectTexture(EditorSession& session, Resource
         return std::nullopt;
     }
 
-    return TextureInspection{texture, textureSamplingFromJson(importSettingsOf(session, id))};
+    if (!isResourceFile(session, id)) {
+        return TextureInspection{.texture = texture, .import = texture.data->sampling, .editable = false};
+    }
+
+    return TextureInspection{
+        .texture = texture,
+        .import = textureSamplingFromJson(importSettingsOf(session, id)),
+        .editable = true,
+    };
 }
 
 bool applyTextureImport(EditorSession& session, ResourceId id, const TextureSampling& settings)

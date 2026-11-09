@@ -4,6 +4,7 @@
 #include "yqlora/editor/ui/style/ResourceIcons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
+#include "yqlora/editor/ui/widgets/NameDialog.hpp"
 
 #include "yqlora/core/AppPaths.hpp"
 #include "yqlora/core/Utf8Path.hpp"
@@ -18,7 +19,6 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <imgui_stdlib.h>
 
 #include <cstdint>
 #include <utility>
@@ -26,8 +26,6 @@
 namespace yqlora::editor {
 
 namespace {
-
-constexpr float kNameFieldWidth = 360.0f;
 
 // kind - вид ресурса файла (fileKind).
 const char* iconFor(const ProjectFiles::Entry& entry, bool open, std::string_view kind)
@@ -42,7 +40,8 @@ const char* iconFor(const ProjectFiles::Entry& entry, bool open, std::string_vie
     return resourceIcon(kind);
 }
 
-// Вложенные ресурсы строками под их файлом: их тянут в сцену или на поле.
+// Вложенные ресурсы строками под их файлом: их тянут в сцену или на поле,
+// по щелчку инспектор показывает их только для чтения.
 void drawNestedResources(ResourceId file, const std::filesystem::path& path, EditorSession& session)
 {
     ResourceCache& cache = session.resources();
@@ -51,12 +50,15 @@ void drawNestedResources(ResourceId file, const std::filesystem::path& path, Edi
         const std::string label = std::string(resourceIcon(cache.loadedKind(id))) + "  "
                                   + std::string(subresourceLocalKey(key));
         ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(id)));
-        ImGui::TreeNodeEx(
-            "##nested",
-            ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth,
-            "%s",
-            label.c_str()
-        );
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen
+                                   | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (id == session.selection().resource()) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+        ImGui::TreeNodeEx("##nested", flags, "%s", label.c_str());
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+            session.selection().selectResource(id);
+        }
         resourceDragSource(id, label);
         ImGui::PopID();
     }
@@ -91,8 +93,11 @@ void FileSystemPanel::draw(EditorContext& context)
     // Перечитываем, когда открыли другой проект и когда панель получила фокус:
     // файлы могли поменять в проводнике.
     const bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-    if (project.directory() != m_projectDirectory || (focused && !m_wasFocused)) {
+    // Файл ресурса мог появиться и не отсюда: копия материала из инспектора.
+    const std::uint64_t filesRevision = project.resources().filesRevision();
+    if (project.directory() != m_projectDirectory || (focused && !m_wasFocused) || filesRevision != m_filesRevision) {
         m_projectDirectory = project.directory();
+        m_filesRevision = filesRevision;
         m_dirty = true;
     }
     m_wasFocused = focused;
@@ -287,9 +292,7 @@ void FileSystemPanel::drawNewResourceItems(const ProjectFiles& files, const std:
         }
         m_createType = &type;
         m_createFolder = folder;
-        m_createName = files.suggestName(type, folder);
-        m_error.clear();
-        m_createRequested = true;
+        m_createDialog.open(files.suggestName(type, folder));
     }
 }
 
@@ -304,87 +307,57 @@ void FileSystemPanel::drawCreateDialog(
     }
     const NewResourceType& type = *m_createType;
     const bool script = type.className;
-    const std::string title = tr(type.labelKey) + "###NewResource";
-    if (m_createRequested) {
-        ImGui::OpenPopup(title.c_str());
-        m_createRequested = false;
-    }
-    if (!ImGui::BeginPopupModal(title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        return;
-    }
-    ImGui::TextUnformatted(tr(script ? "editor.files.scriptName" : "editor.files.name").c_str());
-    if (ImGui::IsWindowAppearing()) {
-        ImGui::SetKeyboardFocusHere();
-    }
-    ImGui::SetNextItemWidth(kNameFieldWidth);
-    const bool entered = ImGui::InputText("##name", &m_createName, ImGuiInputTextFlags_EnterReturnsTrue);
-    const bool valid = isValidResourceName(type, m_createName);
-    if (!valid) {
-        ImGui::TextColored(
-            toImVec4(colors.errorText),
-            "%s",
-            tr(script ? "editor.files.error.scriptName" : "editor.files.error.name").c_str()
-        );
-    } else if (!m_error.empty()) {
-        ImGui::TextColored(toImVec4(colors.errorText), "%s", tr(m_error).c_str());
-    }
-
-    ImGui::BeginDisabled(!valid);
-    if (ImGui::Button(tr("editor.files.create").c_str()) || (entered && valid)) {
+    const NameDialog::Text text{
+        .title = tr(type.labelKey) + "###NewResource",
+        .label = tr(script ? "editor.files.scriptName" : "editor.files.name"),
+        .confirm = tr("editor.files.create"),
+        .invalid = tr(script ? "editor.files.error.scriptName" : "editor.files.error.name"),
+        .failed = tr("editor.files.error.exists"),
+    };
+    const auto valid = [&](std::string_view name) {
+        return isValidResourceName(type, name);
+    };
+    const auto create = [&](const std::string& name) {
         ProjectFiles files(*session.project());
-        const auto created = type.create(files, m_createFolder, m_createName, {serializer, assetsDirectory()});
-        if (created) {
-            m_selected = *created;
-            m_selectedIsDirectory = type.extension.empty();
-            m_dirty = true;
-            ImGui::CloseCurrentPopup();
-        } else {
-            m_error = "editor.files.error.exists";
+        const auto created = type.create(files, m_createFolder, name, {serializer, assetsDirectory()});
+        if (!created) {
+            return false;
         }
-    }
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    if (ImGui::Button(tr("editor.common.cancel").c_str()) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-        ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
+        m_selected = *created;
+        m_selectedIsDirectory = type.extension.empty();
+        m_dirty = true;
+
+        return true;
+    };
+    m_createDialog.draw(text, valid, create, colors);
 }
 
 void FileSystemPanel::drawRenameDialog(EditorSession& session, const EditorColors& colors)
 {
-    const std::string title = tr("editor.files.rename") + "###RenameFile";
-    if (m_renameRequested) {
-        ImGui::OpenPopup(title.c_str());
-        m_renameRequested = false;
-    }
-    if (!ImGui::BeginPopupModal(title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        return;
-    }
-    if (ImGui::IsWindowAppearing()) {
-        ImGui::SetKeyboardFocusHere();
-    }
-    ImGui::SetNextItemWidth(kNameFieldWidth);
-    const bool entered = ImGui::InputText("##name", &m_newName, ImGuiInputTextFlags_EnterReturnsTrue);
-    if (!m_error.empty()) {
-        ImGui::TextColored(toImVec4(colors.errorText), "%s", tr(m_error).c_str());
-    }
-
-    if (ImGui::Button(tr("editor.files.rename").c_str()) || entered) {
-        if (const auto renamed = ProjectFiles(*session.project()).rename(m_renaming, m_newName)) {
-            if (m_selected == m_renaming) {
-                m_selected = *renamed;
-            }
-            m_dirty = true;
-            ImGui::CloseCurrentPopup();
-        } else {
-            m_error = "editor.files.error.rename";
+    const NameDialog::Text text{
+        .title = tr("editor.files.rename") + "###RenameFile",
+        .label = {},
+        .confirm = tr("editor.files.rename"),
+        .invalid = {},
+        .failed = tr("editor.files.error.rename"),
+    };
+    // Имя проверяет само переименование: причин отказа много, ответ один.
+    const auto valid = [](std::string_view) {
+        return true;
+    };
+    const auto rename = [&](const std::string& name) {
+        const auto renamed = ProjectFiles(*session.project()).rename(m_renaming, name);
+        if (!renamed) {
+            return false;
         }
-    }
-    ImGui::SameLine();
-    if (ImGui::Button(tr("editor.common.cancel").c_str()) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-        ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
+        if (m_selected == m_renaming) {
+            m_selected = *renamed;
+        }
+        m_dirty = true;
+
+        return true;
+    };
+    m_renameDialog.draw(text, valid, rename, colors);
 }
 
 void FileSystemPanel::drawDeleteDialog(EditorSession& session)
@@ -429,9 +402,7 @@ std::filesystem::path FileSystemPanel::targetFolder() const
 void FileSystemPanel::startRename(const std::filesystem::path& path)
 {
     m_renaming = path;
-    m_newName = toUtf8(path.filename());
-    m_error.clear();
-    m_renameRequested = true;
+    m_renameDialog.open(toUtf8(path.filename()));
 }
 
 } // namespace yqlora::editor

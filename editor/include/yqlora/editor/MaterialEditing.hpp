@@ -26,8 +26,12 @@ public:
     // Материал id, каким его видят объекты; nullptr - не загружен.
     const MaterialData* material(ResourceId id) const;
 
+    // Материал id - свой файл проекта: его можно править. Встроенный и
+    // материал модели (isResourceFile) только читаются.
+    bool editable(ResourceId id) const;
+
     // Меняет копию материала id и ставит её в кэш. false, если материал не
-    // загружен или встроенный.
+    // загружен или не editable.
     bool change(ResourceId id, const std::function<void(MaterialData&)>& edit);
 
     // Правка закончена (отпустили ползунок, выбрали значение): файл

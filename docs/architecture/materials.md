@@ -534,7 +534,7 @@ Lights give shadows, their meshes cast and receive them.
   cascade ends and where shadows stop.
 - **After the MVP**: contact shadows, shadows from transparent surfaces, ray
   tracing. Shadows of alpha-tested materials come with
-  [glTF materials](#gltf-materials-planned-step-5).
+  [glTF materials](#gltf-materials-done).
 
 ## Baked lighting [planned, after MVP]
 
@@ -603,7 +603,7 @@ that shadow maps do not give.
   dropped from Files onto a slot, or onto an object in the viewport (the
   slot of the submesh under the cursor).
 
-## glTF materials [planned, step 5]
+## glTF materials [done]
 
 - Materials and images of a model become nested resources of the file
   (`material:Name`, `texture:Name`), with IDs in `.meta` as meshes have.
@@ -660,10 +660,13 @@ that shadow maps do not give.
   `MaterialEditing` refuses nested resources (their path is the model
   file). To change it, the inspector offers "Make a copy", which writes a
   `.ymat` next to the model through the create window; the copy refers to
-  the nested textures of the model.
+  the nested textures of the model and is selected. A texture of a model
+  shows the sampling of the file, read-only.
 - Dropping a model into the scene fills the slots of every `MeshRenderer`
-  with the materials of the file; so does dropping one nested mesh. Files
-  shows the materials and textures of a model under it, like its meshes.
+  with the materials of the file (a submesh without a material leaves its
+  slot empty); so does dropping one nested mesh. Files shows the materials
+  and textures of a model under it, like its meshes; a click shows one in
+  the inspector.
 - Nested materials and textures keep their IDs in `.meta` like meshes: a
   re-export keeps the references of the scenes.
 
@@ -978,10 +981,10 @@ that shadow maps do not give.
   it, and wider for a larger light; the settings switch removes shadows
   and their passes.
 
-### 5.7 glTF materials
+### 5.7 glTF materials [done]
 
 Four parts, a commit per part; the contract is in
-[glTF materials](#gltf-materials-planned-step-5).
+[glTF materials](#gltf-materials-done).
 
 - **5.7a Base**: `alphaCutoff` in `Standard` (0..1, default 0: fragments
   below it are discarded); back faces flip the

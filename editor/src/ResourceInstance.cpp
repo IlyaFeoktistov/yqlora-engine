@@ -11,6 +11,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 namespace yqlora::editor {
 
@@ -20,13 +21,52 @@ namespace {
 constexpr const char* kUnnamedNode = "Node3D";
 constexpr const char* kUnnamedMesh = "Mesh";
 
-std::unique_ptr<Node3D> meshNode(std::string name, ResourceId mesh)
+// Слоты меша mesh модели model: подмеш получает вложенный материал, которым
+// он покрашен в файле. Без материала или без его ID в .meta (проект только для
+// чтения) слот пуст; пустые слоты в конце не пишутся.
+std::vector<ResourceRef> modelSlots(
+    ResourceId mesh,
+    const ModelData& model,
+    const std::map<std::string, ResourceId>& subresources,
+    ResourceCache& cache
+)
 {
-    auto node = std::make_unique<Node3D>();
-    node->setName(std::move(name));
-    node->addComponent<MeshRenderer>().setMesh(ResourceRef{mesh});
+    std::vector<ResourceRef> slots;
+    const MeshData* data = cache.find<MeshData>(mesh);
+    if (!data) {
+        return slots;
+    }
+    for (const SubMesh& submesh : data->submeshes) {
+        ResourceRef material;
+        const auto index = submesh.sourceMaterial;
+        if (index && *index >= 0 && static_cast<std::size_t>(*index) < model.materials.size()) {
+            if (const auto found = subresources.find(model.materials[*index]); found != subresources.end()) {
+                material.id = found->second;
+            }
+        }
+        slots.push_back(material);
+    }
+    while (!slots.empty() && slots.back().id == 0) {
+        slots.pop_back();
+    }
 
-    return node;
+    return slots;
+}
+
+// Узел с мешем mesh; model - модель, в которой меш лежит (nullptr - не из модели).
+void addMeshRenderer(
+    Node3D& node,
+    ResourceId mesh,
+    const ModelData* model,
+    const std::map<std::string, ResourceId>& subresources,
+    ResourceCache& cache
+)
+{
+    MeshRenderer& renderer = node.addComponent<MeshRenderer>();
+    renderer.setMesh(ResourceRef{mesh});
+    if (model) {
+        renderer.setMaterials(modelSlots(mesh, *model, subresources, cache));
+    }
 }
 
 std::string meshName(const ResourceDatabase& resources, ResourceId mesh)
@@ -40,7 +80,8 @@ void addModelNode(
     Node3D& parent,
     const ModelData& model,
     std::size_t index,
-    const std::map<std::string, ResourceId>& meshes,
+    const std::map<std::string, ResourceId>& subresources,
+    ResourceCache& cache,
     std::size_t depth
 )
 {
@@ -55,14 +96,14 @@ void addModelNode(
     node->transform().setRotation(source.rotation);
     node->transform().setScale(source.scale);
     if (source.mesh && *source.mesh < model.meshes.size()) {
-        if (const auto mesh = meshes.find(model.meshes[*source.mesh]); mesh != meshes.end()) {
-            node->addComponent<MeshRenderer>().setMesh(ResourceRef{mesh->second});
+        if (const auto mesh = subresources.find(model.meshes[*source.mesh]); mesh != subresources.end()) {
+            addMeshRenderer(*node, mesh->second, &model, subresources, cache);
         }
     }
     Node3D& added = *node;
     parent.addChild(std::move(node));
     for (const std::size_t child : source.children) {
-        addModelNode(added, model, child, meshes, depth + 1);
+        addModelNode(added, model, child, subresources, cache, depth + 1);
     }
 }
 
@@ -74,15 +115,22 @@ std::unique_ptr<Node> instantiateResource(ResourceId id, ResourceCache& cache, c
         auto root = std::make_unique<Node3D>();
         const auto path = resources.path(id);
         root->setName(path ? toUtf8(path->stem()) : kUnnamedNode);
-        const auto& meshes = resources.subresources(id);
+        const auto& subresources = resources.subresources(id);
         for (const std::size_t index : model->roots) {
-            addModelNode(*root, *model, index, meshes, 0);
+            addModelNode(*root, *model, index, subresources, cache, 0);
         }
 
         return root;
     }
     if (cache.find<MeshData>(id)) {
-        return meshNode(meshName(resources, id), id);
+        const ResourceId file = resources.fileOf(id);
+        // Встроенный меш не лежит в файле модели: он без материалов.
+        const ModelData* model = file != 0 && file != id ? cache.find<ModelData>(file) : nullptr;
+        auto node = std::make_unique<Node3D>();
+        node->setName(meshName(resources, id));
+        addMeshRenderer(*node, id, model, resources.subresources(file), cache);
+
+        return node;
     }
 
     return nullptr;

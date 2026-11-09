@@ -1,9 +1,11 @@
 #pragma once
 
 #include "yqlora/editor/ui/core/EditorPanel.hpp"
+#include "yqlora/editor/ui/widgets/NameDialog.hpp"
 
 #include "yqlora/editor/ProjectFiles.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -64,23 +66,22 @@ private:
 
     ProjectFiles::Entry m_root;
     std::filesystem::path m_projectDirectory;
+    // ResourceDatabase::filesRevision при последнем чтении папки.
+    std::uint64_t m_filesRevision = 0;
     std::filesystem::path m_selected;
     bool m_selectedIsDirectory = false;
     bool m_dirty = true;
     bool m_wasFocused = false;
     std::optional<std::filesystem::path> m_openRequest;
 
-    bool m_renameRequested = false;
     std::filesystem::path m_renaming;
-    std::string m_newName;
-    bool m_createRequested = false;
+    NameDialog m_renameDialog;
     // Что создаёт открытое окно создания; nullptr - окно ещё не открывали.
     const NewResourceType* m_createType = nullptr;
     std::filesystem::path m_createFolder;
-    std::string m_createName;
+    NameDialog m_createDialog;
     bool m_deleteRequested = false;
     std::filesystem::path m_deleting;
-    std::string m_error;
 };
 
 } // namespace yqlora::editor

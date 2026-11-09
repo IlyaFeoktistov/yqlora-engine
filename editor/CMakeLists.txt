@@ -119,6 +119,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/widgets/ChoiceFields.cpp
     ui/src/widgets/InputControlField.cpp
     ui/src/widgets/LayerFields.cpp
+    ui/src/widgets/NameDialog.cpp
     ui/src/widgets/NumberFields.cpp
     ui/src/widgets/PlayFrame.cpp
     ui/src/widgets/PropertyContext.cpp

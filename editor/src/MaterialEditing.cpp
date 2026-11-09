@@ -3,6 +3,7 @@
 #include "yqlora/core/Log.hpp"
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/editor/EditorSession.hpp"
+#include "yqlora/editor/ResourceInspection.hpp"
 #include "yqlora/material/MaterialFile.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 
@@ -13,10 +14,15 @@ const MaterialData* MaterialEditing::material(ResourceId id) const
     return m_session.resources().find<MaterialData>(id);
 }
 
+bool MaterialEditing::editable(ResourceId id) const
+{
+    return material(id) && isResourceFile(m_session, id);
+}
+
 bool MaterialEditing::change(ResourceId id, const std::function<void(MaterialData&)>& edit)
 {
     const MaterialData* current = material(id);
-    if (!current) {
+    if (!current || !editable(id)) {
         return false;
     }
     // Другой материал: правка прежнего дописывается в его файл.

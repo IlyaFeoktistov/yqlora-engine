@@ -2,22 +2,26 @@
 
 #include "yqlora/editor/ui/core/EditorContext.hpp"
 #include "yqlora/editor/ui/core/EditorHost.hpp"
+#include "yqlora/editor/ui/style/Theme.hpp"
 #include "yqlora/editor/ui/widgets/EnumCombo.hpp"
 #include "yqlora/editor/ui/widgets/PropertyContext.hpp"
 #include "yqlora/editor/ui/widgets/ResourceField.hpp"
 
 #include "yqlora/editor/EditorSession.hpp"
+#include "yqlora/editor/ProjectFiles.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/material/MaterialData.hpp"
 #include "yqlora/render/RenderTarget.hpp"
 #include "yqlora/render/Renderer.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/resource/ResourceKinds.hpp"
+#include "yqlora/resource/ResourceLoader.hpp"
 #include "yqlora/shader/ShaderData.hpp"
 
 #include <imgui.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -90,15 +94,56 @@ void MaterialInspector::draw(EditorContext& context, ResourceId id)
     drawPreview(context, id);
     // Копия: правка ставит в кэш новые данные, прежние указатели устаревают.
     const MaterialData current = *material;
+    const bool editable = editing.editable(id);
+    if (!editable) {
+        drawCopy(context, id, current);
+    }
+    ImGui::BeginDisabled(!editable);
     drawState(context, id, current);
     const ShaderData* shader = context.session.resources().find<ShaderData>(current.shader);
-    if (!shader) {
+    if (shader) {
+        drawFields(context, id, current, *shader);
+        drawTextures(context, id, current, *shader);
+    } else {
         ImGui::TextDisabled("%s", tr("editor.material.noShader").c_str());
+    }
+    ImGui::EndDisabled();
+}
 
+void MaterialInspector::drawCopy(EditorContext& context, ResourceId id, const MaterialData& material)
+{
+    auto& project = context.session.project();
+    const auto path = project ? project->resources().path(id) : std::nullopt;
+    // Встроенный материал не лежит в проекте: копировать его некуда.
+    if (!path) {
         return;
     }
-    drawFields(context, id, current, *shader);
-    drawTextures(context, id, current, *shader);
+    const NewResourceType& type = *findNewResourceType(MaterialData::kResourceKind);
+    const std::filesystem::path folder = path->parent_path();
+    if (ImGui::Button(tr("editor.material.makeCopy").c_str())) {
+        const std::string_view key = subresourceLocalKey(project->resources().key(id));
+        m_copyDialog.open(ProjectFiles(*project).suggestName(type, folder, key));
+    }
+    const NameDialog::Text text{
+        .title = tr("editor.material.copyTitle") + "###MaterialCopy",
+        .label = tr("editor.files.name"),
+        .confirm = tr("editor.files.create"),
+        .invalid = tr("editor.files.error.name"),
+        .failed = tr("editor.files.error.exists"),
+    };
+    const auto valid = [&](std::string_view name) {
+        return isValidResourceName(type, name);
+    };
+    // Копия ссылается на те же вложенные текстуры модели.
+    const auto copy = [&](const std::string& name) {
+        const auto created = ProjectFiles(*project).createMaterial(folder, name, material);
+        if (created) {
+            context.session.selection().selectResource(project->resources().id(*created));
+        }
+
+        return created.has_value();
+    };
+    m_copyDialog.draw(text, valid, copy, context.theme.colors());
 }
 
 void MaterialInspector::drawPreview(EditorContext& context, ResourceId id)

@@ -35,6 +35,7 @@ void ResourceDatabase::scan(
 )
 {
     m_root = root;
+    ++m_filesRevision;
     m_paths.clear();
     m_ids.clear();
     m_meta.clear();
@@ -93,6 +94,7 @@ ResourceId ResourceDatabase::add(const fs::path& path)
 
         return 0;
     }
+    ++m_filesRevision;
 
     return created;
 }
@@ -120,6 +122,7 @@ void ResourceDatabase::moved(const fs::path& from, const fs::path& to)
             log::error("Cannot move resource meta of '{}': {}", toUtf8(from), ec.message());
         }
     }
+    ++m_filesRevision;
     // Вложенные ресурсы знают свой файл по ID, им переезд не нужен.
     for (const auto& [id, target] : changed) {
         m_ids.erase(m_paths[id]);
@@ -142,6 +145,7 @@ void ResourceDatabase::removed(const fs::path& path)
     for (const ResourceId id : gone) {
         forget(id);
     }
+    ++m_filesRevision;
 }
 
 std::optional<fs::path> ResourceDatabase::path(ResourceId id) const

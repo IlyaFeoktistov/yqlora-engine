@@ -56,10 +56,15 @@ void TextureInspector::draw(EditorContext& context, ResourceId id)
     drawPreview(context, id, inspection->texture);
 
     ImGui::SeparatorText(tr("editor.resource.import").c_str());
+    ImGui::BeginDisabled(!inspection->editable);
     enumCombo(tr("editor.resource.colorSpace").c_str(), m_import->colorSpace);
     enumCombo(tr("editor.resource.filter").c_str(), m_import->filter);
     enumCombo(tr("editor.resource.wrap").c_str(), m_import->wrap);
     ImGui::Checkbox(tr("editor.resource.mipmaps").c_str(), &m_import->mipmaps);
+    ImGui::EndDisabled();
+    if (!inspection->editable) {
+        return;
+    }
     switch (importButtons(*m_import != inspection->import)) {
     case ImportAction::Apply: applyTextureImport(context.session, id, *m_import); break;
     case ImportAction::Revert: m_import = inspection->import; break;

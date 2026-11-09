@@ -41,11 +41,16 @@ void ResourceInspector::draw(EditorContext& context, const ResourceInspection& i
             each->reset();
         }
     }
-    ImGui::Text("%s  %s", resourceIcon(inspection.kind), toUtf8(inspection.path.filename()).c_str());
+    const bool nested = !inspection.nestedKey.empty();
+    const std::string name = nested ? inspection.nestedKey : toUtf8(inspection.path.filename());
+    ImGui::Text("%s  %s", resourceIcon(inspection.kind), name.c_str());
     const std::string kindName = inspection.kind.empty() ? tr("editor.resource.file")
                                                          : tr("editor.resourceKind." + std::string(inspection.kind));
     ImGui::TextDisabled("%s", kindName.c_str());
     ImGui::SetItemTooltip("%s", toGenericUtf8(inspection.path).c_str());
+    if (nested) {
+        ImGui::TextDisabled("%s: %s", tr("editor.resource.nested").c_str(), toGenericUtf8(inspection.path).c_str());
+    }
 
     if (inspection.status && inspection.status->state != ResourceState::Ready) {
         const char* key = inspection.status->state == ResourceState::Missing ? "editor.resource.missing"
