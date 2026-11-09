@@ -241,3 +241,20 @@ A file with an error opens at its line in the code editor the person uses.
   argument.
 - When the Scripts tab comes (see [code editor](code-editor.md)), it is one
   more choice in the same setting.
+
+### Phases (a commit per phase)
+
+- **CE.1 Launching**: `platform::launchDetached` (starts a program without
+  waiting for it, arguments as a list, no console window on Windows), the
+  template with its placeholders, the ready rows. Tests: a template with
+  `{file}` and `{line}` gives the right argument list for a path with spaces
+  and quotes; an unknown placeholder is an error of the setting, not a
+  silent empty string.
+- **CE.2 Editor**: the first editor settings window (Edit > Editor
+  settings; the toolchain overrides, now edited only in the file, move into
+  it too) with the code editor setting; the log
+  click, the double click in Files and "Open" of the shader inspector go
+  through it; the system opening stays when the path is empty. Tests (logic
+  without the interface): a diagnostic opens at its line and column; an
+  empty setting falls back to the system.
+- **CE.3 Documents**: this section, the guide "First script".

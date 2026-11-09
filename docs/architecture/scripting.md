@@ -240,16 +240,11 @@ What a script cannot do yet, and where each item is done. Every item is a
 registered method or type, so Luau and visual scripts get it through the
 bindings without extra work.
 
-- **Timers and delayed actions** (after step 5, with noise): a `Timer`
-  component (`duration`, `repeat`, `autostart`, the `onTimeout` event) and
-  `time().after(seconds, callback)` for one call. Delays run on game time,
-  so pause and time scale apply; a callback of a destroyed component is
-  never called (the owner is part of the handle).
-- **Creating objects from resources in a game** (after step 5): a model
-  now, `scene().instantiate(model, parent)`, the same tree a drop into the
-  editor makes, deferred like other tree changes. Scenes as prefabs need
-  stable IDs of nodes inside nested scenes and come as their own stage
-  before step 9.
+- **Timers and delayed actions**: see "Timers" below.
+- **Events** (a timer ran out, a button was pressed), from code and wired
+  in the inspector: see [events](events.md).
+- **Creating objects in a game**: `scene().instantiate(prefab, parent)`
+  for a prefab or a model, see [prefabs](prefabs.md).
 - **Rays and overlaps** (step 6): `physics().raycast`, `sphereCast`,
   `overlap` in the physics world, with layers. Picking of the editor stays
   in the editor.
@@ -259,6 +254,141 @@ bindings without extra work.
   cache so tests of a game never touch saves of a released one.
 - **Audio and the game interface**: steps 7 and 8.
 - **Luau**: after the MVP (below).
+
+## Scene access from code [planned]
+
+Everything a person changes in the inspector a script changes from code,
+with the same effect: the registry builds properties from the getters and
+setters of the C++ types, so the inspector and code call one function. The
+API is the established one for a scene tree with components: lookup by
+path, ID and group, components by type in the node, its children and its
+parents, changes deferred during a frame.
+
+- **References set in the inspector, no lookup in code**: a field of a
+  script is typed, and the inspector fills it by a drop:
+
+  ```cpp
+  class Door : public Script {
+      ComponentRef<Light3D> lamp;      // drop a node with a light, or the light itself
+      NodeRef hinge;                   // any node; .node<Node3D>() narrows it
+      Ref<MaterialData> openMaterial;  // drop a material from Files
+      Ref<Prefab> debris;              // a prefab or a model to instantiate
+      YQLORA_FIELDS(field("lamp", &Door::lamp), field("hinge", &Door::hinge),
+                    field("openMaterial", &Door::openMaterial), field("debris", &Door::debris))
+  };
+  // lamp->setIntensity(0.0f); scene().instantiate(debris, node());
+  ```
+
+  `ComponentRef<T>` holds the node and the component (`ComponentId`) and
+  gives `T*`, null when it is gone; `Ref<T>` takes its resource kind from
+  `T::kResourceKind`, so the type of the field is the only place it is
+  written. A reference to a node inside a prefab instance survives changes
+  of the prefab (see [prefabs](prefabs.md)).
+- **Drops onto fields**: a node dragged from the scene tree onto a node or
+  component field (a node with several components of the type opens a
+  short list to pick one), a component dragged by its header in the
+  inspector onto a component field, a file from Files onto a resource
+  field (as now for meshes, materials and textures), several files onto a
+  list field (each one becomes an element). A field that does not take
+  the dragged thing shows it while dragging and refuses the drop. Choosing
+  from a list with search stays for when dragging is not handy; a click on
+  a filled field shows its target (the node in the tree, the file in
+  Files).
+- **Finding nodes**: `scene().find(NodeRef)`; `node().find("Arm/Hand")`, a
+  path relative to the node (`..` for the parent), and `scene().findNode`
+  for the first node with a name; `children()`, `parent()`.
+- **Groups**: a node has a list of group names (`groups`, saved, set in
+  the inspector); `scene().group("enemies")` gives the nodes of a group,
+  kept in an index like components, so finding all enemies does not walk
+  the tree.
+- **Components**: `getComponent<T>()` (the first of the type or derived),
+  `getComponents<T>()` (all of them, for types with `allowMultiple`),
+  `findComponentInChildren<T>()`, `findComponentInParent<T>()`, and by the
+  registry name (`getComponent("Rotator")`) for types declared at run time;
+  `scene().components<T>()` for a whole scene.
+- **Changing the tree from code**: `addChild`, `addComponent`,
+  `instantiate`; `scene().destroy(node)` and `scene().destroy(component)`,
+  both applied at the end of the frame; a new node or component takes part
+  from the next frame.
+- **Systems a script may change**: the active `Environment` and the main
+  camera are returned for writing (`RenderSystem::environment()`,
+  `mainCamera()`), so a day and night cycle changes the sky and the sun
+  from a script.
+- **By name, for Luau and visual scripts**: `get` and `set` of any
+  registered property and `call` of a method on a node or component, the
+  same entries the inspector uses.
+- **Each step adds its own**: physics, audio and the game interface come
+  with their script API in their plans (bodies and forces, queries, sources
+  and buses, controls and their events).
+
+### Phases (a commit per phase)
+
+- **SA.1 Lookup**: `find(NodeRef)`, paths, groups with their index,
+  `getComponents`, in children and parents, by registry name. Tests: a path
+  with `..`; a group after a node is renamed, moved and destroyed; the
+  component searches on a three-level branch.
+- **SA.2 Changes from code**: `destroy(component)` deferred; writable
+  `environment()` and `mainCamera()`; `get`, `set`, `call` by name. Tests:
+  a component destroyed in `onUpdate` gets `onDisable` and `onStop` at the
+  end of the frame, the others still run that frame; a test walks every
+  registered property of every engine node and component, sets a value
+  through the registry on a live scene and reads it back; light intensity,
+  camera field of view and the sky material set from a script reach
+  `FrameData`.
+- **SA.3 References in the inspector** (after PF.1, which gives
+  components their IDs): `ComponentRef<T>`, `Ref<T>`, narrowing of
+  `NodeRef`; the node and component fields with drops from the tree and
+  from component headers, the picker with search, showing the target;
+  drops of several files onto a list. Tests (logic without the interface):
+  a drop of a node onto a `ComponentRef<Light3D>` takes its light and is
+  refused for a node without one; a node with two lights asks which; a
+  reference survives save, load, the Play copy and a hot reload; a removed
+  component makes the reference null, not dangling; three textures dropped
+  onto a list make three elements in one undo step.
+- **SA.4 Documents**: this section, scene (groups, deferred removal of a
+  component), the guide "First script" (references in the inspector,
+  finding nodes and components).
+
+## Timers [planned]
+
+The design is the established one of a timer manager: handles, owners,
+game time.
+
+- **`TimerSystem`**, a scene system, keeps the timers of a scene and runs
+  them in `systems.update`, after `onUpdate` of components, on game time:
+  pause and time scale apply. A timer may run on real time instead
+  (`unscaled`, for the game interface during a pause).
+- **From a script**: `timers().after(seconds, callback)` for one call and
+  `timers().every(seconds, callback)` for repeated ones return a
+  `TimerHandle`; `cancel`, `pause`, `resume`, `remaining` take it. The
+  owner is the calling component: its timers stop when it leaves the scene
+  and wait while it is disabled, so a callback of a destroyed component is
+  never called.
+- **Order and catching up**: timers due in one frame fire by due time, then
+  by creation order. A repeated timer whose interval is shorter than the
+  frame fires once per elapsed interval, so ten shots per second stay ten
+  at a low frame rate. A timer made inside a callback fires at the next
+  frame at the earliest. An exception in a callback is caught and logged
+  like the calls of the lifecycle.
+- **The `Timer` component** for timers set in the inspector: `duration`,
+  `repeat`, `autostart`, `unscaled`, the event `onTimeout` (see
+  [events](events.md)), methods `start`, `stop`, `remaining`. It is a
+  `TimerSystem` timer owned by the component.
+- **Not saved**: running timers are run-time state; a hot reload or a load
+  of a scene starts from the properties (`autostart`).
+
+### Phases (a commit per phase)
+
+- **T.1 Timers from code**: `TimerSystem`, `TimerHandle`, owners, order,
+  catching up, `unscaled`. Tests: a one-shot fires once at its time with
+  time scale 0.5; a repeated one at a frame longer than its interval fires
+  the right count; pause stops it; a destroyed owner is never called; a
+  disabled owner waits and resumes with the remaining time.
+- **T.2 The `Timer` component**: properties, `onTimeout`, methods, icon in
+  the inspector. Tests: `autostart` fires in the Play copy and not in the
+  edited scene; a persistent listener of `onTimeout` calls a method of
+  another node.
+- **T.3 Documents**: this section, frame (the place of timers in the frame).
 
 ## Scripts in Luau [planned, after MVP]
 

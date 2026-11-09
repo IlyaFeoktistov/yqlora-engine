@@ -56,7 +56,7 @@ never go into the project.
 | Graphics | graphics API per platform (OpenGL; Vulkan and D3D12 come with the RHI), vsync, both applied at once (see [rendering](rendering.md)); shadows: on or off, distance, cascades, map and atlas sizes, sample counts, the penumbra limit (see [materials](materials.md#shadows-done)) | **[done]** |
 | Scripts | C++ build configuration (Debug, Release), used as `CMAKE_BUILD_TYPE`; each configuration has its own build folder. The toolchain is per machine: it comes from `sdk/toolchain.json`, overrides go to the editor settings (`editor.json`, `toolchain`), see [scripts](scripting.md); Luau later | **[done]** |
 | Physics | gravity, layers, collision matrix | **[planned, step 6]** |
-| Audio | master volume, sample rate | **[planned, step 7]** |
+| Audio | the bus tree with volumes and effects, the voice limit (see [audio](audio.md)) | **[planned, step 7]** |
 | Display | resolution, fullscreen, resizable window | **[planned, step 9]** |
 | Build | target platforms (Windows, Linux), scenes in the game, output folder, debug or release | **[planned, step 9]** |
 
