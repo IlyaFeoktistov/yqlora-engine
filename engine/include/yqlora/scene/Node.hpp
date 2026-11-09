@@ -100,6 +100,19 @@ public:
 
     void setLayer(int layer);
 
+    // Группы узла ("enemies", "pickups"): по ним сцена отдаёт узлы без обхода
+    // дерева (Scene::group). Список хранится как задан (в инспекторе новая
+    // строка сначала пуста); пустое имя - не группа, повтор не считается.
+    const std::vector<std::string>& groups() const
+    {
+        return m_groups;
+    }
+
+    void setGroups(std::vector<std::string> groups);
+    void addToGroup(std::string_view group);
+    void removeFromGroup(std::string_view group);
+    bool isInGroup(std::string_view group) const;
+
     // Сцена, в дереве которой узел. nullptr, пока узел вне сцены.
     Scene* scene() const
     {
@@ -135,6 +148,10 @@ public:
     // Поиск среди прямых детей по имени.
     Node* findChild(std::string_view name) const;
 
+    // Узел по пути от этого: имена детей через "/", ".." - родитель, пустой
+    // путь - сам узел ("Arm/Hand", "../Door"). nullptr, если пути нет.
+    Node* find(std::string_view path) const;
+
     std::span<const std::unique_ptr<Component>> components() const
     {
         return m_components;
@@ -166,6 +183,51 @@ public:
         for (const auto& c : m_components) {
             if (auto* typed = dynamic_cast<T*>(c.get())) {
                 return typed;
+            }
+        }
+
+        return nullptr;
+    }
+
+    // Все компоненты типа T (или его наследников) в порядке узла: для типов,
+    // которых на узле бывает несколько (allowMultiple).
+    template <std::derived_from<Component> T>
+    std::vector<T*> getComponents() const
+    {
+        std::vector<T*> found;
+        for (const auto& c : m_components) {
+            if (auto* typed = dynamic_cast<T*>(c.get())) {
+                found.push_back(typed);
+            }
+        }
+
+        return found;
+    }
+
+    // Первый компонент типа T у узла или его потомков, в глубину, сам узел
+    // первым; неактивные ветки тоже. nullptr, если нет нигде.
+    template <std::derived_from<Component> T>
+    T* findComponentInChildren() const
+    {
+        if (T* own = getComponent<T>()) {
+            return own;
+        }
+        for (const auto& child : m_children) {
+            if (T* found = child->findComponentInChildren<T>()) {
+                return found;
+            }
+        }
+
+        return nullptr;
+    }
+
+    // Первый компонент типа T у узла или его предков, от узла к корню.
+    template <std::derived_from<Component> T>
+    T* findComponentInParent() const
+    {
+        for (const Node* node = this; node; node = node->m_parent) {
+            if (T* found = node->getComponent<T>()) {
+                return found;
             }
         }
 
@@ -238,6 +300,7 @@ private:
     bool m_active = true;
     bool m_activeInHierarchy = true;
     int m_layer = 0;
+    std::vector<std::string> m_groups;
     std::vector<std::unique_ptr<Component>> m_components;
     std::vector<std::unique_ptr<Node>> m_children;
 };

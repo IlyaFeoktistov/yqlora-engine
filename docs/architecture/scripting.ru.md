@@ -300,8 +300,8 @@ YQLORA_REGISTER_SCRIPT(Player).requiresNode<Node3D>();
 - **Компоненты**: `getComponent<T>()` (первый этого типа или наследника),
   `getComponents<T>()` (все, для типов с `allowMultiple`),
   `findComponentInChildren<T>()`, `findComponentInParent<T>()` и по имени в
-  реестре (`getComponent("Rotator")`) для типов, описанных во время
-  выполнения; `scene().components<T>()` - по всей сцене.
+  реестре вместе с наследниками (`componentOfType(node, "Rotator",
+  registry)`) для типов, описанных во время выполнения; `scene().components<T>()` - по всей сцене.
 - **Изменение дерева из кода**: `addChild`, `addComponent`, `instantiate`;
   `scene().destroy(node)` и `scene().destroy(component)` применяются в
   конце кадра; новый узел или компонент участвует со следующего кадра.

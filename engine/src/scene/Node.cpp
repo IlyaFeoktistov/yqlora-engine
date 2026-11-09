@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cassert>
 #include <random>
+#include <utility>
 
 namespace yqlora {
 
@@ -38,7 +39,10 @@ Node::~Node() = default;
 void Node::setId(NodeId id)
 {
     assert(id != 0 && "setId: 0 means no node");
-    m_id = id;
+    const NodeId previous = std::exchange(m_id, id);
+    if (m_scene) {
+        m_scene->nodeIdChanged(*this, previous);
+    }
 }
 
 Node& Node::addChild(std::unique_ptr<Node> child)
@@ -181,6 +185,7 @@ Node* Node::findChild(std::string_view name) const
 void Node::enterScene(Scene& scene)
 {
     m_scene = &scene;
+    scene.enterNode(*this);
     for (const auto& component : m_components) {
         scene.enterComponent(*component);
         component->onEnterScene();
@@ -201,6 +206,7 @@ void Node::exitScene()
         component->onExitScene();
         m_scene->exitComponent(*component);
     }
+    m_scene->exitNode(*this);
     m_scene = nullptr;
 }
 
@@ -240,6 +246,56 @@ void Node::moveTo(Node& parent, KeepWorld keepWorld)
 void Node::setLayer(int layer)
 {
     m_layer = std::clamp(layer, 0, kLayerCount - 1);
+}
+
+void Node::setGroups(std::vector<std::string> groups)
+{
+    std::vector<std::string> previous = std::exchange(m_groups, std::move(groups));
+    if (m_scene) {
+        m_scene->nodeGroupsChanged(*this, previous);
+    }
+}
+
+void Node::addToGroup(std::string_view group)
+{
+    if (!group.empty() && !isInGroup(group)) {
+        std::vector<std::string> groups = m_groups;
+        groups.emplace_back(group);
+        setGroups(std::move(groups));
+    }
+}
+
+void Node::removeFromGroup(std::string_view group)
+{
+    if (isInGroup(group)) {
+        std::vector<std::string> groups = m_groups;
+        std::erase(groups, group);
+        setGroups(std::move(groups));
+    }
+}
+
+bool Node::isInGroup(std::string_view group) const
+{
+    return std::ranges::find(m_groups, group) != m_groups.end();
+}
+
+Node* Node::find(std::string_view path) const
+{
+    // Путь только читает дерево; узел отдаётся для изменения, как findChild.
+    Node* node = const_cast<Node*>(this);
+    std::size_t start = 0;
+    while (node && start <= path.size()) {
+        const std::size_t end = std::min(path.find('/', start), path.size());
+        const std::string_view part = path.substr(start, end - start);
+        if (part == "..") {
+            node = node->m_parent;
+        } else if (!part.empty() && part != ".") {
+            node = node->findChild(part);
+        }
+        start = end + 1;
+    }
+
+    return node;
 }
 
 void Node::setActive(bool active)

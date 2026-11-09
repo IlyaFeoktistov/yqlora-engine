@@ -304,7 +304,8 @@ parents, changes deferred during a frame.
 - **Components**: `getComponent<T>()` (the first of the type or derived),
   `getComponents<T>()` (all of them, for types with `allowMultiple`),
   `findComponentInChildren<T>()`, `findComponentInParent<T>()`, and by the
-  registry name (`getComponent("Rotator")`) for types declared at run time;
+  registry name with its derived types (`componentOfType(node, "Rotator",
+  registry)`) for types declared at run time;
   `scene().components<T>()` for a whole scene.
 - **Changing the tree from code**: `addChild`, `addComponent`,
   `instantiate`; `scene().destroy(node)` and `scene().destroy(component)`,

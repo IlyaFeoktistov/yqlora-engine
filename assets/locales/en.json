@@ -376,6 +376,7 @@
         "active": "Active",
         "enabled": "Enabled",
         "layer": "Layer",
+        "groups": "Groups",
         "order": "Order",
         "cullingMask": "Culling mask",
         "clear": "Clear",

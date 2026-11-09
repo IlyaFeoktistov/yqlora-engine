@@ -7,6 +7,7 @@
 #include "yqlora/scene/ComponentLifecycle.hpp"
 #include "yqlora/scene/GameTime.hpp"
 #include "yqlora/scene/Node.hpp"
+#include "yqlora/scene/NodeIndex.hpp"
 #include "yqlora/scene/SceneSystems.hpp"
 #include "yqlora/scene/TreeChangeQueue.hpp"
 
@@ -14,9 +15,12 @@
 #include <memory>
 #include <ranges>
 #include <span>
+#include <string>
 #include <string_view>
 
 namespace yqlora {
+
+struct NodeRef;
 
 // Дерево узлов с одним корнем. Новая сцена пуста:
 // корня нет, пока его не создадут (любого типа: Node, Node3D, ...).
@@ -98,6 +102,20 @@ public:
                });
     }
 
+    // Узел сцены по ID или ссылке; nullptr, если его в сцене нет.
+    Node* find(NodeId id) const
+    {
+        return m_nodes.find(id);
+    }
+
+    Node* find(const NodeRef& ref) const;
+
+    // Узлы группы (Node::groups) в порядке, в каком они в неё вошли.
+    std::span<Node* const> group(std::string_view name) const
+    {
+        return m_nodes.group(name);
+    }
+
     // По имени типа: так находятся и типы, описанные во время выполнения, у
     // которых нет своего C++-класса (все скрипты Luau - один LuauScript).
     std::span<Component* const> componentsOfType(std::string_view typeName) const;
@@ -142,6 +160,13 @@ private:
     void enterComponent(Component& component);
     void exitComponent(Component& component);
 
+    // Узел вошёл в дерево сцены, вышел из него или сменил ID или группы:
+    // индекс узлов.
+    void enterNode(Node& node);
+    void exitNode(Node& node);
+    void nodeIdChanged(Node& node, NodeId previous);
+    void nodeGroupsChanged(Node& node, std::span<const std::string> previous);
+
     // Участие компонента в игре, см. ComponentLifecycle.
     void activate(Component& component);
     void deactivate(Component& component);
@@ -153,6 +178,7 @@ private:
     GameTime m_time;
     ComponentLifecycle m_lifecycle{m_services};
     ComponentIndex m_components;
+    NodeIndex m_nodes;
     TreeChangeQueue m_treeChanges;
     std::unique_ptr<Node> m_root;
     // Создаются последними: конструктор системы может обратиться к сцене.

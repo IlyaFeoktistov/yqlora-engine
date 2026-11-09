@@ -16,7 +16,10 @@ void registerSceneTypes(TypeRegistry& registry)
         .property("name", &Node::name, &Node::setName)
         .property("active", &Node::active, &Node::setActive)
         .property("layer", &Node::layer, &Node::setLayer, PropertyHint::Layer)
-        .method("findChild", &Node::findChild, {{"name"}});
+        .property("groups", &Node::groups, &Node::setGroups)
+        .method("findChild", &Node::findChild, {{"name"}})
+        .method("find", &Node::find, {{"path"}})
+        .method("isInGroup", &Node::isInGroup, {{"group"}});
 
     registry.registerComponent<Component>().property("enabled", &Component::enabled, &Component::setEnabled);
 

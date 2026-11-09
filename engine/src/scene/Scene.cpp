@@ -1,6 +1,7 @@
 #include "yqlora/scene/Scene.hpp"
 
 #include "yqlora/core/Log.hpp"
+#include "yqlora/reflection/Property.hpp"
 #include "yqlora/scene/NodeTree.hpp"
 #include "yqlora/scene/TimeSettings.hpp"
 
@@ -98,6 +99,31 @@ void Scene::exitComponent(Component& component)
 {
     m_lifecycle.deactivate(component);
     m_components.remove(component);
+}
+
+Node* Scene::find(const NodeRef& ref) const
+{
+    return ref.id != 0 ? m_nodes.find(ref.id) : nullptr;
+}
+
+void Scene::enterNode(Node& node)
+{
+    m_nodes.add(node);
+}
+
+void Scene::exitNode(Node& node)
+{
+    m_nodes.remove(node);
+}
+
+void Scene::nodeIdChanged(Node& node, NodeId previous)
+{
+    m_nodes.changeId(node, previous);
+}
+
+void Scene::nodeGroupsChanged(Node& node, std::span<const std::string> previous)
+{
+    m_nodes.changeGroups(node, previous);
 }
 
 void Scene::activate(Component& component)

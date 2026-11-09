@@ -8,6 +8,7 @@
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -92,6 +93,7 @@ TEST_CASE("TypeRegistry: properties include base types, base first")
             "name",
             "active",
             "layer",
+            "groups",
             "fov",
             "near",
             "far",
@@ -124,7 +126,9 @@ TEST_CASE("Property: reads and writes values through getters and setters")
     Camera3D camera("Main");
     const auto properties = registry.properties(*registry.find("Camera3D"));
     const Property& name = *properties[0];
-    const Property& fov = *properties[3];
+    const auto fovAt = std::ranges::find(properties, std::string("fov"), &Property::name);
+    REQUIRE(fovAt != properties.end());
+    const Property& fov = **fovAt;
 
     CHECK(std::get<std::string>(name.get(camera)) == "Main");
     CHECK(fov.type() == PropertyType::Float);
