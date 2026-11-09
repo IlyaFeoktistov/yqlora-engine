@@ -3,8 +3,10 @@
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/ResourceIcons.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
+#include "yqlora/editor/ui/widgets/ReferenceButton.hpp"
 
 #include "yqlora/core/Text.hpp"
+#include "yqlora/editor/Pings.hpp"
 #include "yqlora/editor/ResourceChoices.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
 #include "yqlora/i18n/Translate.hpp"
@@ -132,34 +134,24 @@ bool resourceField(
     bool changed = false;
 
     ImGui::BeginGroup();
-    const float pickWidth = ImGui::GetFrameHeight();
-    const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-    const float fieldWidth = std::max(ImGui::GetContentRegionAvail().x - pickWidth - spacing, pickWidth);
-    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_FrameBgHovered));
-    const std::string label = std::string(resourceIcon(kind)) + "  " + name + "##field";
-    const bool open = ImGui::Button(label.c_str(), ImVec2(fieldWidth, 0.0f));
-    ImGui::PopStyleColor(2);
-    ImGui::PopStyleVar();
-    ImGui::SetItemTooltip("%s", name.c_str());
-    ImGui::SameLine(0.0f, spacing);
-    const bool pick = ImGui::Button(icons::kPick, ImVec2(pickWidth, 0.0f));
-    ImGui::SetItemTooltip("%s", tr("editor.resourceField.pick").c_str());
-    if (open || pick) {
-        ImGui::OpenPopup(kPickerPopup);
-    }
+    const ReferenceClick click = referenceButton(std::string(resourceIcon(kind)) + "  " + name, name);
     if (kind == TextureData::kResourceKind && value.id != 0) {
         textureImage(value.id, context, kPreviewLines);
     }
     ImGui::EndGroup();
+    if (click == ReferenceClick::Field && value.id != 0 && context.pings) {
+        context.pings->resource(value.id);
+    } else if (click != ReferenceClick::None) {
+        ImGui::OpenPopup(kPickerPopup);
+    }
 
-    // Вся группа - цель для перетаскивания из "Файлов".
-    if (const auto dropped = acceptResourceDrop()) {
-        if (const auto taken = resourceForField(kind, use, *dropped, context.resources, context.cache)) {
-            value.id = *taken;
-            changed = true;
-        }
+    // Вся группа - цель для перетаскивания из "Файлов"; неподходящее не берётся.
+    const auto fits = [&](std::span<const ResourceId> ids) {
+        return resourceForField(kind, use, ids.front(), context.resources, context.cache).has_value();
+    };
+    if (const auto dropped = acceptResourcesDrop(fits)) {
+        value.id = *resourceForField(kind, use, dropped->front(), context.resources, context.cache);
+        changed = true;
     }
 
     ImGui::SetNextWindowSize(ImVec2(ImGui::GetFrameHeight() * kPickerWidthLines, 0.0f));

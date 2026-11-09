@@ -117,9 +117,11 @@ public:
     }
 
     // Все атрибуты последнего добавленного свойства разом: из описания поля.
+    // То, что вывел тип C++ свойства (вид ресурса Ref<T>, тип компонента
+    // ComponentRef<T>), остаётся, если в attributes оно не задано.
     Self& withAttributes(PropertyAttributes attributes)
     {
-        attributesToEdit() = std::move(attributes);
+        attributesToEdit() = withTypeAttributes(std::move(attributes), attributesToEdit());
 
         return self();
     }

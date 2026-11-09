@@ -17,10 +17,23 @@
 
 #include <iterator>
 #include <optional>
+#include <string>
 
 namespace yqlora::editor {
 
 namespace {
+
+// Кнопка строки меню во всю её высоту (шрифт и отступы рамки): у маленькой
+// кнопки отступов сверху и снизу нет, и иконки выходят за её рамку.
+bool barButton(const char* label)
+{
+    return ImGui::Button(label);
+}
+
+bool barButton(const std::string& label)
+{
+    return barButton(label.c_str());
+}
 
 void drawPlayControls(const MainMenuContext& context)
 {
@@ -36,7 +49,7 @@ void drawPlayControls(const MainMenuContext& context)
     if (playing) {
         ImGui::PushStyleColor(ImGuiCol_Text, toImVec4(accent));
     }
-    if (ImGui::SmallButton(icons::kPlay)) {
+    if (barButton(icons::kPlay)) {
         context.actions.run(actions::kTogglePlay);
     }
     if (playing) {
@@ -53,14 +66,14 @@ void drawPlayControls(const MainMenuContext& context)
     if (paused) {
         ImGui::PushStyleColor(ImGuiCol_Text, toImVec4(accent));
     }
-    if (ImGui::SmallButton(icons::kPause)) {
+    if (barButton(icons::kPause)) {
         context.actions.run(actions::kPause);
     }
     if (paused) {
         ImGui::PopStyleColor();
     }
     ImGui::SetItemTooltip("%s", tr("editor.play.pause").c_str());
-    if (ImGui::SmallButton(icons::kStop)) {
+    if (barButton(icons::kStop)) {
         context.actions.run(actions::kStop);
     }
     ImGui::SetItemTooltip("%s", tr("editor.play.stop").c_str());
@@ -94,7 +107,7 @@ void drawStatus(const MainMenuContext& context)
         ImGui::SameLine();
     } else if (context.scriptsFailed) {
         ImGui::PushStyleColor(ImGuiCol_Text, toImVec4(colors.errorText));
-        if (ImGui::SmallButton(build.c_str())) {
+        if (barButton(build)) {
             context.showLog();
         }
         ImGui::PopStyleColor();
@@ -105,7 +118,7 @@ void drawStatus(const MainMenuContext& context)
         if (count > 0) {
             ImGui::PushStyleColor(ImGuiCol_Text, toImVec4(color));
         }
-        if (ImGui::SmallButton(label.c_str())) {
+        if (barButton(label)) {
             context.showLog();
         }
         if (count > 0) {

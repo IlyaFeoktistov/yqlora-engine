@@ -4,6 +4,7 @@
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/NodeIcons.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
+#include "yqlora/editor/ui/widgets/PingFlash.hpp"
 
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/editor/EditorSettings.hpp"
@@ -32,6 +33,11 @@ void SceneTreePanel::draw(EditorContext& context)
     const Scene& scene = session.scene();
     Selection& selection = session.selection();
     m_reveal = selection.selected() != m_lastSelected;
+    if (const auto pinged = session.pings().takeNode()) {
+        m_pinged = *pinged;
+        m_pingedAt = ImGui::GetTime();
+        m_scrollToPinged = true;
+    }
 
     if (beginWindow(context)) {
         if (ImGui::Button(icons::kAdd)) {
@@ -107,7 +113,9 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection)
         flags |= ImGuiTreeNodeFlags_Selected;
     }
     // Выбор пришёл из окна сцены: раскрываем путь до выбранного узла.
-    if (m_reveal && !selected && findNode(node, selection.selected())) {
+    const bool revealSelected = m_reveal && !selected && findNode(node, selection.selected());
+    const bool revealPinged = m_scrollToPinged && node.id() != m_pinged && findNode(node, m_pinged);
+    if (revealSelected || revealPinged) {
         ImGui::SetNextItemOpen(true);
     }
 
@@ -122,17 +130,40 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection)
         ImGui::PopStyleColor();
     }
     ImGui::SetItemTooltip("%s", std::string(node.typeName()).c_str());
+    if (node.id() == m_pinged) {
+        if (std::exchange(m_scrollToPinged, false)) {
+            ImGui::SetScrollHereY();
+        }
+        if (!drawPingFlash(m_pingedAt)) {
+            m_pinged = 0;
+        }
+    }
     if (const auto dropped = acceptResourceDrop()) {
         m_drop = Drop{*dropped, node.id()};
     }
     // Корень не переносится: он единственный.
+    // Тянут выбранный узел - тянется весь выбор (в поле-список узлов);
+    // перенос в дереве берёт первый.
     if (node.parent()) {
-        nodeDragSource(node.id(), std::string(nodeIcon(node.typeName())) + "  " + node.name());
+        const std::string label = std::string(nodeIcon(node.typeName())) + "  " + node.name();
+        // Сам узел первым, корня в списке нет: перенос корня невозможен.
+        std::vector<NodeId> dragged{node.id()};
+        if (selected) {
+            for (const NodeId id : selection.nodes()) {
+                const Node* other = node.scene() ? node.scene()->find(id) : nullptr;
+                if (id != node.id() && other && other->parent()) {
+                    dragged.push_back(id);
+                }
+            }
+        }
+        nodeDragSource(dragged, label);
     }
     if (const auto moved = acceptNodeDrop()) {
         m_move = Move{*moved, node.id(), ImGui::GetIO().KeyAlt};
     }
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen()) {
+    // По отпусканию без перетаскивания: узел, который тянут в поле, не
+    // меняет выбор и инспектор.
+    if (m_release.released(node.id())) {
         if (ImGui::GetIO().KeyCtrl) {
             selection.toggle(node.id());
         } else {

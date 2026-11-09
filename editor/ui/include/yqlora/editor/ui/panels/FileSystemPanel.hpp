@@ -2,13 +2,16 @@
 
 #include "yqlora/editor/ui/core/EditorPanel.hpp"
 #include "yqlora/editor/ui/widgets/NameDialog.hpp"
+#include "yqlora/editor/ui/widgets/ReleaseClick.hpp"
 
 #include "yqlora/editor/ProjectFiles.hpp"
+#include "yqlora/resource/ResourceId.hpp"
 
 #include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace yqlora {
 
@@ -52,6 +55,18 @@ private:
         const EditorColors& colors
     );
     void drawContextMenu(const ProjectFiles::Entry& entry, EditorSession& session);
+    // Вложенные ресурсы строками под их файлом: их тянут в сцену или на поле,
+    // по щелчку инспектор показывает их только для чтения.
+    void drawNestedResources(ResourceId file, const std::filesystem::path& path, EditorSession& session);
+    // Отметка нескольких файлов (Ctrl+щелчок): их тянут на поле-список разом.
+    bool isMarked(ResourceId id) const;
+    static std::uint64_t rowKey(const std::filesystem::path& path);
+    void mark(ResourceId id);
+    void dragResource(ResourceId id, const std::string& label);
+    // Просьба показать файл (Pings): путь раскрывается, строка прокручивается
+    // в вид и подсвечивается.
+    void showIfPinged(ResourceId id);
+    bool leadsToPinged(const ProjectFiles::Entry& entry) const;
     // Пункты "Создать ресурс" для папки folder. Файл появляется только после
     // кнопки "Создать" в окне с именем: отмена ничего не оставляет.
     void drawNewResourceItems(const ProjectFiles& files, const std::filesystem::path& folder);
@@ -73,6 +88,12 @@ private:
     bool m_dirty = true;
     bool m_wasFocused = false;
     std::optional<std::filesystem::path> m_openRequest;
+    std::vector<ResourceId> m_marked;
+    ReleaseClick m_release;
+    ResourceId m_pinged = 0;
+    std::filesystem::path m_pingedFile;
+    double m_pingedAt = 0.0;
+    bool m_scrollToPinged = false;
 
     std::filesystem::path m_renaming;
     NameDialog m_renameDialog;

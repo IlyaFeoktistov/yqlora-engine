@@ -6,6 +6,7 @@
 
 #include "yqlora/editor/ui/core/EditorPanel.hpp"
 #include "yqlora/editor/ui/dialogs/AddNodeDialog.hpp"
+#include "yqlora/editor/ui/widgets/ReleaseClick.hpp"
 
 #include "yqlora/scene/Node.hpp"
 
@@ -41,7 +42,13 @@ private:
     // Что было выбрано в прошлом кадре: если выбор сменился не здесь,
     // дерево раскрывается и прокручивается к выбранному узлу.
     NodeId m_lastSelected = 0;
+    ReleaseClick m_release;
     bool m_reveal = false;
+    // Узел, который просили показать (Pings): путь до него раскрывается,
+    // строка прокручивается в вид и подсвечивается.
+    NodeId m_pinged = 0;
+    double m_pingedAt = 0.0;
+    bool m_scrollToPinged = false;
     // Удалять узлы можно только после обхода дерева.
     bool m_deleteRequested = false;
     // Ресурс, отпущенный над узлом (или над пустым местом - 0), тоже ставится

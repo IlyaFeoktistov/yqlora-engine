@@ -5,6 +5,7 @@
 #include "yqlora/editor/ui/style/Theme.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
 #include "yqlora/editor/ui/widgets/NameDialog.hpp"
+#include "yqlora/editor/ui/widgets/PingFlash.hpp"
 
 #include "yqlora/core/AppPaths.hpp"
 #include "yqlora/core/Utf8Path.hpp"
@@ -20,6 +21,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <utility>
 
@@ -38,30 +40,6 @@ const char* iconFor(const ProjectFiles::Entry& entry, bool open, std::string_vie
     }
 
     return resourceIcon(kind);
-}
-
-// Вложенные ресурсы строками под их файлом: их тянут в сцену или на поле,
-// по щелчку инспектор показывает их только для чтения.
-void drawNestedResources(ResourceId file, const std::filesystem::path& path, EditorSession& session)
-{
-    ResourceCache& cache = session.resources();
-    for (const ResourceId id : nestedResources(file, path, cache)) {
-        const std::string_view key = session.project()->resources().key(id);
-        const std::string label = std::string(resourceIcon(cache.loadedKind(id))) + "  "
-                                  + std::string(subresourceLocalKey(key));
-        ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(id)));
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen
-                                   | ImGuiTreeNodeFlags_SpanAvailWidth;
-        if (id == session.selection().resource()) {
-            flags |= ImGuiTreeNodeFlags_Selected;
-        }
-        ImGui::TreeNodeEx("##nested", flags, "%s", label.c_str());
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-            session.selection().selectResource(id);
-        }
-        resourceDragSource(id, label);
-        ImGui::PopID();
-    }
 }
 
 constexpr const char* kNewResourcePopup = "##newResource";
@@ -104,6 +82,13 @@ void FileSystemPanel::draw(EditorContext& context)
     if (m_dirty) {
         m_root = files.scan();
         m_dirty = false;
+    }
+    if (const auto pinged = session.pings().takeResource()) {
+        const auto path = project.resources().path(*pinged);
+        m_pinged = path ? *pinged : 0;
+        m_pingedFile = path ? *path : std::filesystem::path();
+        m_pingedAt = ImGui::GetTime();
+        m_scrollToPinged = path.has_value();
     }
 
     if (iconButton(icons::kAdd, tr("editor.files.newResource"))) {
@@ -153,6 +138,99 @@ void FileSystemPanel::draw(EditorContext& context)
     }
 }
 
+void FileSystemPanel::drawNestedResources(ResourceId file, const std::filesystem::path& path, EditorSession& session)
+{
+    ResourceCache& cache = session.resources();
+    for (const ResourceId id : nestedResources(file, path, cache)) {
+        const std::string_view key = session.project()->resources().key(id);
+        const std::string label = std::string(resourceIcon(cache.loadedKind(id))) + "  "
+                                  + std::string(subresourceLocalKey(key));
+        ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(id)));
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen
+                                   | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (id == session.selection().resource() || isMarked(id)) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+        ImGui::TreeNodeEx("##nested", flags, "%s", label.c_str());
+        if (m_release.released(id) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+            session.selection().selectResource(id);
+            mark(id);
+        }
+        showIfPinged(id);
+        dragResource(id, label);
+        ImGui::PopID();
+    }
+}
+
+std::uint64_t FileSystemPanel::rowKey(const std::filesystem::path& path)
+{
+    // Младший бит выставлен: ключ строки не бывает 0.
+    return static_cast<std::uint64_t>(std::hash<std::string>{}(toGenericUtf8(path))) | 1U;
+}
+
+bool FileSystemPanel::isMarked(ResourceId id) const
+{
+    return id != 0 && std::ranges::find(m_marked, id) != m_marked.end();
+}
+
+void FileSystemPanel::mark(ResourceId id)
+{
+    if (id == 0) {
+        return;
+    }
+    if (!ImGui::GetIO().KeyCtrl) {
+        m_marked = {id};
+    } else if (isMarked(id)) {
+        std::erase(m_marked, id);
+    } else {
+        m_marked.push_back(id);
+    }
+}
+
+void FileSystemPanel::dragResource(ResourceId id, const std::string& label)
+{
+    if (!isMarked(id) || m_marked.size() < 2) {
+        resourceDragSource(id, label);
+
+        return;
+    }
+    // Тянется вся отметка, сам файл первым: поле с одним ресурсом берёт его.
+    std::vector<ResourceId> dragged{id};
+    for (const ResourceId other : m_marked) {
+        if (other != id) {
+            dragged.push_back(other);
+        }
+    }
+    resourceDragSource(dragged, label);
+}
+
+void FileSystemPanel::showIfPinged(ResourceId id)
+{
+    if (id == 0 || id != m_pinged) {
+        return;
+    }
+    if (std::exchange(m_scrollToPinged, false)) {
+        ImGui::SetScrollHereY();
+    }
+    if (!drawPingFlash(m_pingedAt)) {
+        m_pinged = 0;
+    }
+}
+
+bool FileSystemPanel::leadsToPinged(const ProjectFiles::Entry& entry) const
+{
+    if (!m_scrollToPinged || m_pingedFile.empty()) {
+        return false;
+    }
+    if (!entry.directory) {
+        // Модель раскрывается, если просили её вложенный ресурс.
+        return entry.path == m_pingedFile;
+    }
+    const auto [end, rest] = std::ranges::mismatch(entry.path, m_pingedFile);
+
+    return end == entry.path.end() && rest != m_pingedFile.end();
+}
+
 void FileSystemPanel::drawEntry(
     const ProjectFiles::Entry& entry,
     EditorSession& session,
@@ -189,6 +267,12 @@ void FileSystemPanel::drawEntry(
     if (resource != 0 && resource == session.selection().resource()) {
         flags |= ImGuiTreeNodeFlags_Selected;
     }
+    if (isMarked(resource)) {
+        flags |= ImGuiTreeNodeFlags_Selected;
+    }
+    if (leadsToPinged(entry)) {
+        ImGui::SetNextItemOpen(true);
+    }
     // Иконка папки зависит от того, раскрыта ли она, а это известно до отрисовки узла.
     const bool expanded = entry.directory && ImGui::TreeNodeGetOpen(ImGui::GetID(id.c_str()));
     const char* icon = iconFor(entry, expanded, kind);
@@ -197,16 +281,24 @@ void FileSystemPanel::drawEntry(
         ImGui::PopStyleColor();
     }
 
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+    // Левой кнопкой - по отпусканию без перетаскивания, правой (меню) - сразу.
+    if (m_release.released(rowKey(entry.path)) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
         m_selected = entry.path;
         m_selectedIsDirectory = entry.directory;
         // Ресурс показывает инспектор; исходники и папки - не ресурсы.
         if (resource != 0) {
             session.selection().selectResource(resource);
         }
+        // Ctrl добавляет файл к отметке: её тянут на поле-список разом.
+        if (resource != 0) {
+            mark(resource);
+        } else if (!ImGui::GetIO().KeyCtrl) {
+            m_marked.clear();
+        }
     }
+    showIfPinged(resource);
     // Любой ресурс тянется: модель - в сцену, текстура - на поле текстуры.
-    resourceDragSource(resource, std::string(icon) + "  " + entry.name);
+    dragResource(resource, std::string(icon) + "  " + entry.name);
     // Файл с вложенными ресурсами по двойному щелчку раскрывается, как папка.
     if (!entry.directory && !nested && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
         if (ProjectFiles::isScene(entry.path)) {

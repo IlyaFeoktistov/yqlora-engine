@@ -4,10 +4,14 @@
 #include "yqlora/editor/ui/style/Theme.hpp"
 #include "yqlora/editor/ui/widgets/Checkbox.hpp"
 #include "yqlora/editor/ui/widgets/ChoiceFields.hpp"
+#include "yqlora/editor/ui/widgets/DragDrop.hpp"
 #include "yqlora/editor/ui/widgets/InputControlField.hpp"
 #include "yqlora/editor/ui/widgets/LayerFields.hpp"
 #include "yqlora/editor/ui/widgets/NumberFields.hpp"
+#include "yqlora/editor/ui/widgets/ReferenceField.hpp"
 #include "yqlora/editor/ui/widgets/ResourceField.hpp"
+
+#include "yqlora/editor/ReferenceFields.hpp"
 
 #include "yqlora/editor/PropertyValues.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
@@ -193,6 +197,36 @@ void listField(const Property& property, ListValue& list, const PropertyEditorCo
         list.items.push_back(property.defaultElement());
         result.changed = true;
     }
+    // На кнопку добавления бросают сразу несколько файлов или узлов: каждый
+    // подходящий становится элементом, всё одной правкой.
+    std::vector<PropertyValue> dropped;
+    if (property.elementType() == PropertyType::Resource) {
+        const auto fits = [&](std::span<const ResourceId> ids) {
+            return !resourceItems(property, ids, context.resources, context.cache).empty();
+        };
+        if (const auto ids = acceptResourcesDrop(fits)) {
+            dropped = resourceItems(property, *ids, context.resources, context.cache);
+        }
+    } else if (property.elementType() == PropertyType::Node) {
+        const auto nodesOf = [&](std::span<const NodeId> ids) {
+            std::vector<const Node*> nodes;
+            for (const NodeId id : ids) {
+                nodes.push_back(context.scene.find(id));
+            }
+
+            return nodes;
+        };
+        const auto fits = [&](std::span<const NodeId> ids) {
+            return !nodeItems(property, nodesOf(ids), context.registry).empty();
+        };
+        if (const auto ids = acceptNodesDrop(fits)) {
+            dropped = nodeItems(property, nodesOf(*ids), context.registry);
+        }
+    }
+    if (!dropped.empty()) {
+        list.items.insert(list.items.end(), dropped.begin(), dropped.end());
+        result.changed = true;
+    }
 }
 
 // Список, чьи строки задают подписи объекта (слоты по подмешам): строка на
@@ -294,7 +328,10 @@ void valueField(
         break;
     case PropertyType::Enum: result.changed = enumCombo(property, std::get<EnumValue>(value)) || result.changed; break;
     case PropertyType::Node:
-        result.changed = nodeCombo(context.scene, std::get<NodeRef>(value)) || result.changed;
+        result.changed = nodeField(property, std::get<NodeRef>(value), context) || result.changed;
+        break;
+    case PropertyType::Component:
+        result.changed = componentField(property, std::get<ComponentRef<>>(value), context) || result.changed;
         break;
     case PropertyType::Resource:
         if (const PropertyAttributes& attributes = property.attributes(); !attributes.resourceKind.empty()) {

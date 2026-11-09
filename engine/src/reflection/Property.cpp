@@ -59,6 +59,18 @@ void Property::setEnumNames(std::vector<std::string> names)
     m_enumNames = std::move(names);
 }
 
+PropertyAttributes withTypeAttributes(PropertyAttributes given, const PropertyAttributes& fromType)
+{
+    if (given.resourceKind.empty()) {
+        given.resourceKind = fromType.resourceKind;
+    }
+    if (given.componentType.empty()) {
+        given.componentType = fromType.componentType;
+    }
+
+    return given;
+}
+
 PropertyValue defaultPropertyValue(PropertyType type)
 {
     switch (type) {
@@ -72,6 +84,7 @@ PropertyValue defaultPropertyValue(PropertyType type)
     case PropertyType::Enum: return EnumValue{};
     case PropertyType::Node: return NodeRef{};
     case PropertyType::Resource: return ResourceRef{};
+    case PropertyType::Component: return ComponentRef<>{};
     case PropertyType::List: return ListValue{};
     case PropertyType::Record: return RecordValue{};
     }

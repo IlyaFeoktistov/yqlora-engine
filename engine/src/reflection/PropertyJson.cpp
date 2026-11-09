@@ -12,6 +12,24 @@ namespace {
 
 using Json = nlohmann::json;
 
+// Ключи ссылки на компонент: {"node": "...", "component": "..."}.
+constexpr const char* kComponentRefNode = "node";
+constexpr const char* kComponentRefComponent = "component";
+
+std::optional<PropertyValue> componentRefFromJson(const Json& json)
+{
+    if (!json.is_object() || !json.contains(kComponentRefNode) || !json.contains(kComponentRefComponent)) {
+        return std::nullopt;
+    }
+    const auto node = idFromJson(json[kComponentRefNode]);
+    const auto component = idFromJson(json[kComponentRefComponent]);
+    if (!node || !component) {
+        return std::nullopt;
+    }
+
+    return ComponentRef<>{*node, *component};
+}
+
 std::optional<PropertyValue> enumFromJson(const Json& json, const Property& property)
 {
     if (json.is_number_integer()) {
@@ -131,6 +149,8 @@ Json valueToJson(const Property& property, const PropertyValue& value)
                 return v.value;
             } else if constexpr (std::is_same_v<T, NodeRef> || std::is_same_v<T, ResourceRef>) {
                 return idToJson(v.id);
+            } else if constexpr (std::is_same_v<T, ComponentRef<>>) {
+                return Json{{kComponentRefNode, idToJson(v.node)}, {kComponentRefComponent, idToJson(v.component)}};
             } else if constexpr (std::is_same_v<T, RecordValue>) {
                 Json object = Json::object();
                 const auto& fields = property.fields();
@@ -200,6 +220,7 @@ std::optional<PropertyValue> fromJson(const Json& json, PropertyType type, const
             return ResourceRef{*id};
         }
         break;
+    case PropertyType::Component: return componentRefFromJson(json);
     case PropertyType::List: return listFromJson(json, property);
     case PropertyType::Record: return recordFromJson(json, property);
     }

@@ -156,10 +156,36 @@ std::vector<Property> recordFieldsOf()
 
 // Дописывает свойству со значением типа Value то, что не видно по одному
 // PropertyType: имена значений перечисления, тип элементов списка и поля записи.
+// Тип C++ ссылки говорит, на что она ведёт: вид ресурса Ref<T>, тип компонента
+// ComponentRef<T>. У списка ссылок - его элементы.
+template <typename Value>
+inline constexpr bool kIsTypedResourceRef = false;
+template <typename T>
+inline constexpr bool kIsTypedResourceRef<Ref<T>> = true;
+
+template <typename Value>
+inline constexpr bool kIsTypedComponentRef = false;
+template <typename T>
+inline constexpr bool kIsTypedComponentRef<ComponentRef<T>> = true;
+
+template <typename Value>
+void describeReference(Property& property)
+{
+    if constexpr (kIsTypedResourceRef<Value>) {
+        property.attributes().resourceKind = std::string(Value::Kind::kResourceKind);
+    } else if constexpr (kIsTypedComponentRef<Value>) {
+        property.attributes().componentType = std::string(Value::Target::staticTypeName());
+    }
+}
+
 template <typename Value>
 void describeValue(Property& property)
 {
     static_assert(!std::is_enum_v<Value> || NamedEnum<Value>, "Enum property: add YQLORA_ENUM_NAMES for its enum");
+    describeReference<Value>(property);
+    if constexpr (kIsListProperty<Value>) {
+        describeReference<typename Value::value_type>(property);
+    }
     if constexpr (NamedEnum<Value>) {
         property.setEnumNames(
             std::vector<std::string>(std::begin(EnumNames<Value>::names), std::end(EnumNames<Value>::names))

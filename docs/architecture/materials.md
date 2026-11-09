@@ -352,10 +352,15 @@ are undone like any other.
 - **Built-in sky shaders** with fixed IDs, like `Standard`:
   - `Physical` (`builtin::kPhysicalSkyShader`): the sky of the atmosphere
     of the environment, with the disc of the sun: `sunDisc` (on or off),
-    `limbDarkening`, `sunDiscIntensity` (1 is physical). The luminance of
-    the disc is the illuminance of the sun divided by its solid angle,
-    dimmed by the atmosphere; the size of the disc is the angular diameter
-    of the sun itself (`DirectionalLight3D::angularDiameter`). `Default Sky` (`builtin::kDefaultSkyMaterial`) is this
+    `limbDarkening`, `sunDiscIntensity` (1 is physical), `sunDiscSize`
+    (the angular size seen, in degrees, 3.5 by default; 0 takes the angular
+    diameter of the light, `DirectionalLight3D::angularDiameter`) and
+    `sunDiscSoftness` (the outer part of the radius where the edge fades,
+    0.3 by default; 0 is a hard edge). The luminance of the disc is the
+    illuminance of the sun divided by the solid angle of the disc, dimmed by
+    the atmosphere, so a larger disc gives the same light and is less
+    blinding. The size of the disc is only how it looks: shadows and the
+    light of the sun use the size of the light. `Default Sky` (`builtin::kDefaultSkyMaterial`) is this
     shader with its defaults;
   - `Panoramic` (`builtin::kPanoramicSkyShader`): an equirectangular image
     `panorama` (8 bit sRGB or HDR `.hdr`), `rotation` around the vertical,
@@ -377,6 +382,26 @@ are undone like any other.
   the same light, cloud shadows on the ground (through the sun shadows) and
   their part in the sky light. Clouds change the sky capture, so with wind
   it repeats at a limited rate rather than every frame.
+
+## Night sky: stars and the moon [planned, after MVP]
+
+Together with clouds and auto exposure: a night scene needs all three.
+
+- **Stars** are part of the built-in `Physical`, with their own switch:
+  procedural by default (no files), with intensity and twinkle; an own
+  panorama (`.hdr` or an image) may replace them. The star sphere turns
+  around a celestial pole (axis and speed are parameters). Their luminance
+  is physical, so they vanish in a bright day sky by themselves and show
+  at a low exposure.
+- **The moon** is a second directional light: `DirectionalLight3D` gets a
+  role (sun, moon, plain light). The sky draws its disc with the phase
+  from the direction of the sun, optionally with a texture; moonlight is
+  physical (about 0.1 to 0.3 lux) and casts ordinary shadows.
+- **The atmosphere scatters the light of both bodies**, so a moonlit night
+  sky is dark blue, not black; the tables are computed for two bodies.
+- **Where the engine ends**: the engine draws stars and the moon, its
+  phases and scattering; the game moves them in time (the day cycle, a
+  calendar) through the API of lights and the sky.
 
 ## Atmosphere [done]
 
@@ -580,7 +605,8 @@ that shadow maps do not give.
   twice a second during a long drag, atomically.
 - "Create resource" also gets **Sky shader** (from the template
   `assets/templates/sky`: a colour from the horizon to the zenith, the sun
-  disc as large as its `angularDiameter` and a glow around it).
+  disc with a soft edge, `sunDiscSize` and `sunDiscSoftness` as in
+  `Physical`, and a glow around it).
 - **The preview** has its own render target, camera, sphere, sun and a
   default environment (the sky, its light and reflections); nothing of it
   enters the scene, and its light does not light the scene. A sky material

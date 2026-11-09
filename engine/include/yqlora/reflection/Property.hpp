@@ -4,6 +4,7 @@
 #include "yqlora/math/Math.hpp"
 #include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/scene/NodeId.hpp"
+#include "yqlora/scene/ObjectId.hpp"
 
 #include <bit>
 #include <concepts>
@@ -44,13 +45,50 @@ struct ResourceRef {
     bool operator==(const ResourceRef&) const = default;
 };
 
+// Ссылка на компонент узла той же сцены: узел и компонент по их ID. T - тип,
+// который поле берёт (инспектор предлагает и принимает только его и его
+// наследников); в значении свойства хранится ComponentRef<Component>.
+// Компонент по ссылке даёт Scene::find; ушедший компонент - nullptr.
+template <typename T = Component>
+struct ComponentRef {
+    using Target = T;
+
+    NodeId node = 0;
+    ComponentId component = 0;
+
+    bool operator==(const ComponentRef&) const = default;
+};
+
+// Ссылка на ресурс вида T (T::kResourceKind): поле с ней берёт только такие
+// ресурсы, и вид записан только в типе поля. Хранится как ResourceRef.
+template <typename T>
+struct Ref {
+    using Kind = T;
+
+    ResourceId id = 0;
+
+    bool operator==(const Ref&) const = default;
+};
+
 struct ListValue;
 struct RecordValue;
 
 // Значение свойства, которое умеют показывать инспектор и сохранять файлы сцен.
 // Порядок типов совпадает с PropertyType.
-using PropertyValue = std::
-    variant<bool, int, float, std::string, Vec2, Vec3, Vec4, EnumValue, NodeRef, ResourceRef, ListValue, RecordValue>;
+using PropertyValue = std::variant<
+    bool,
+    int,
+    float,
+    std::string,
+    Vec2,
+    Vec3,
+    Vec4,
+    EnumValue,
+    NodeRef,
+    ResourceRef,
+    ComponentRef<>,
+    ListValue,
+    RecordValue>;
 
 // Список значений одного типа (Property::elementType). Элементы - тоже
 // PropertyValue, поэтому список может хранить значения любого типа свойства.
@@ -85,11 +123,12 @@ enum class PropertyType {
     Enum,
     Node,
     Resource,
+    Component,
     List,
     Record,
 };
 
-static_assert(std::variant_size_v<PropertyValue> == 12, "PropertyType must list every PropertyValue type");
+static_assert(std::variant_size_v<PropertyValue> == 13, "PropertyType must list every PropertyValue type");
 
 // Как значение типа C++ хранится в PropertyValue. Обычно как есть,
 // а любое перечисление C++ - как EnumValue.
@@ -167,6 +206,40 @@ struct PropertyStorage<T*> {
     static NodeRef store(const T* node)
     {
         return node ? NodeRef{node->id()} : NodeRef{};
+    }
+};
+
+// Ссылка на компонент типа T - как ComponentRef<Component>, тип остаётся в
+// атрибутах свойства (PropertyAttributes::componentType).
+template <typename T>
+    requires(!std::is_same_v<T, Component>)
+struct PropertyStorage<ComponentRef<T>> {
+    using Type = ComponentRef<>;
+
+    static ComponentRef<> store(const ComponentRef<T>& value)
+    {
+        return {value.node, value.component};
+    }
+
+    static ComponentRef<T> load(const ComponentRef<>& value)
+    {
+        return {value.node, value.component};
+    }
+};
+
+// Ссылка на ресурс вида T - как ResourceRef, вид - в атрибутах свойства.
+template <typename T>
+struct PropertyStorage<Ref<T>> {
+    using Type = ResourceRef;
+
+    static ResourceRef store(const Ref<T>& value)
+    {
+        return {value.id};
+    }
+
+    static Ref<T> load(const ResourceRef& value)
+    {
+        return {value.id};
     }
 };
 
@@ -282,7 +355,18 @@ struct PropertyAttributes {
     // Назначение ресурса (uses::kSkyMaterial): из ресурсов вида поле
     // предлагает только подходящие. Пусто - любой ресурс вида.
     std::string resourceUse;
+    // Тип узла, на который ведёт ссылка на узел (у списка - его элементы):
+    // поле берёт только его и наследников. Пусто - любой узел.
+    std::string nodeType;
+    // Тип компонента ссылки на компонент; задаёт его тип поля
+    // (ComponentRef<T>). Пусто - любой компонент.
+    std::string componentType;
 };
+
+// Атрибуты, которые следуют из типа C++ поля (вид ресурса у Ref<T>, тип
+// компонента у ComponentRef<T>), поверх заданных при описании: заданное явно
+// остаётся, пустое берётся из типа.
+YQLORA_API PropertyAttributes withTypeAttributes(PropertyAttributes given, const PropertyAttributes& fromType);
 
 // Атрибуты в цепочке описания свойства: .range(0, 100).tooltip("..."). Одни
 // и те же методы у строителя типа (к последнему свойству) и у полей скриптов
@@ -347,6 +431,15 @@ public:
     {
         edit().resourceKind = std::string(kind);
         edit().resourceUse = std::string(use);
+
+        return self();
+    }
+
+    // Ссылка на узел берёт только узлы типа T и наследников: .node<Light3D>().
+    template <typename T>
+    Self& node()
+    {
+        edit().nodeType = std::string(T::staticTypeName());
 
         return self();
     }

@@ -304,6 +304,9 @@
             "pick": "Choose",
             "choose": "Choose"
         },
+        "referenceField": {
+            "whichComponent": "Which component?"
+        },
         "resourceKind": {
             "mesh": "Mesh",
             "texture": "Texture",

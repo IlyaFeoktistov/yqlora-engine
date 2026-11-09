@@ -366,4 +366,6 @@ TEST_CASE_FIXTURE(ProjectFixture, "ProjectFiles: the sky shader template compile
     CHECK(shader->captureDesc);
     CHECK(shader->findField("sunGlow"));
     CHECK(shader->findField("sunDiscIntensity"));
+    CHECK(shader->findField("sunDiscSize"));
+    CHECK(shader->findField("sunDiscSoftness"));
 }

@@ -13,6 +13,12 @@ layout(set = 2, binding = 0, std140) uniform Material {
     // Насколько темнее край диска: 0 - ровный.
     float limbDarkening;      //@ range(0, 1) default(0.6)
     float sunDiscIntensity;   //@ range(0, 10) default(1)
+    // Видимый угловой размер диска в градусах; 0 - как у света
+    // (DirectionalLight3D::angularDiameter). Только вид: тени и свет солнца
+    // считаются от размера света.
+    float sunDiscSize;        //@ range(0, 20) default(3.5)
+    // Доля радиуса, на которой край диска плавно гаснет; 0 - резкий край.
+    float sunDiscSoftness;    //@ range(0, 1) default(0.3)
 } material;
 
 const float kPi = 3.14159265358979;
@@ -20,8 +26,7 @@ const float kPi = 3.14159265358979;
 // Яркость диска солнца в направлении direction, 0 - мимо диска.
 vec3 sunDiscLuminance(vec3 direction)
 {
-    // Размер диска - угловой радиус самого солнца (DirectionalLight3D::angularDiameter).
-    float radius = frame.sunAngularRadius;
+    float radius = material.sunDiscSize > 0.0 ? radians(material.sunDiscSize) * 0.5 : frame.sunAngularRadius;
     if (radius <= 0.0) {
         return vec3(0.0);
     }
@@ -35,9 +40,13 @@ vec3 sunDiscLuminance(vec3 direction)
     float mu = sqrt(max(1.0 - fromCenter * fromCenter, 0.0));
     // Закон потемнения к краю, нормированный: средняя яркость диска та же.
     float limb = (1.0 - material.limbDarkening * (1.0 - mu)) / (1.0 - material.limbDarkening / 3.0);
+    // Мягкий край: яркость плавно уходит в ноль на внешней доле радиуса.
+    // smoothstep с равными краями не определён: при 0 край резкий.
+    float softness = material.sunDiscSoftness;
+    float edge = softness > 0.0 ? 1.0 - smoothstep(1.0 - softness, 1.0, fromCenter) : 1.0;
     vec3 transmittance = atmosphereTransmittance(view.cameraPosition, direction);
 
-    return frame.sunColor / solidAngle * limb * transmittance * material.sunDiscIntensity;
+    return frame.sunColor / solidAngle * limb * edge * transmittance * material.sunDiscIntensity;
 }
 
 vec3 sky(vec3 direction)

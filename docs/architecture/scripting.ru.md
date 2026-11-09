@@ -267,18 +267,21 @@ YQLORA_REGISTER_SCRIPT(Player).requiresNode<Node3D>();
 
   ```cpp
   class Door : public Script {
-      ComponentRef<Light3D> lamp;      // drop a node with a light, or the light itself
-      NodeRef hinge;                   // any node; .node<Node3D>() narrows it
-      Ref<MaterialData> openMaterial;  // drop a material from Files
-      Ref<Prefab> debris;              // a prefab or a model to instantiate
-      YQLORA_FIELDS(field("lamp", &Door::lamp), field("hinge", &Door::hinge),
+      NodeRef lamp;                       // a node from the tree; .node<Light3D>() narrows it
+      ComponentRef<MeshRenderer> shade;   // a node with a renderer, or the renderer itself
+      Ref<MaterialData> openMaterial;     // a material from Files
+      Ref<Prefab> debris;                 // a prefab or a model to instantiate
+      YQLORA_FIELDS(field("lamp", &Door::lamp).node<Light3D>(), field("shade", &Door::shade),
                     field("openMaterial", &Door::openMaterial), field("debris", &Door::debris))
   };
-  // lamp->setIntensity(0.0f); scene().instantiate(debris, node());
+  // scene().find<Light3D>(lamp)->setIntensity(0.0f);
+  // scene().find(shade)->setMaterials({...}); scene().instantiate(debris, node());
   ```
 
-  `ComponentRef<T>` хранит узел и компонент (`ComponentId`) и даёт `T*`,
-  нулевой, если его нет; `Ref<T>` берёт вид ресурса из `T::kResourceKind`,
+  `ComponentRef<T>` хранит узел и компонент (`ComponentId`);
+  `scene().find(ref)` даёт `T*`, нулевой, если его нет, а
+  `scene().find<T>(nodeRef)` - узел нужного типа. Свет и камеры - узлы,
+  поэтому ссылка на них - `NodeRef`, суженный `.node<T>()`; `Ref<T>` берёт вид ресурса из `T::kResourceKind`,
   поэтому тип поля - единственное место, где он записан. Ссылка на узел
   внутри экземпляра префаба переживает изменения префаба (см.
   [префабы](prefabs.ru.md)).
@@ -334,8 +337,9 @@ YQLORA_REGISTER_SCRIPT(Player).requiresNode<Node3D>();
   `ComponentRef<T>`, `Ref<T>`, сужение `NodeRef`; поля узла и компонента
   с бросками из дерева и с заголовков компонентов, выбор с поиском, показ
   цели; бросок нескольких файлов на список. Тесты (логика без интерфейса):
-  бросок узла на `ComponentRef<Light3D>` берёт его свет и отклоняется для
-  узла без света; узел с двумя источниками спрашивает, какой; ссылка
+  бросок узла на `ComponentRef<MeshRenderer>` берёт его рендерер и
+  отклоняется для узла без него; узел с двумя скриптами одного типа
+  спрашивает, какой; ссылка
   переживает сохранение, загрузку, копию Play и горячую перезагрузку;
   удалённый компонент делает ссылку нулевой, а не висячей; три текстуры,
   брошенные на список, дают три элемента одним шагом отмены.

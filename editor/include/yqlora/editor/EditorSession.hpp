@@ -4,6 +4,7 @@
 #include "yqlora/editor/EditHistory.hpp"
 #include "yqlora/editor/GameLibrary.hpp"
 #include "yqlora/editor/MaterialEditing.hpp"
+#include "yqlora/editor/Pings.hpp"
 #include "yqlora/editor/PlayMode.hpp"
 #include "yqlora/editor/SceneDocument.hpp"
 #include "yqlora/editor/SceneEditing.hpp"
@@ -115,6 +116,12 @@ public:
     MaterialEditing& materialEditing()
     {
         return m_materialEditing;
+    }
+
+    // Просьбы показать цель ссылки в дереве и в "Файлах", см. Pings.
+    Pings& pings()
+    {
+        return m_pings;
     }
 
     // Правка закончилась (отпустили мышь, ушли из поля ввода): следующая
@@ -256,6 +263,7 @@ private:
     float m_sinceModifiedCheck = 0.0f;
     SceneEditing m_editing{*this};
     MaterialEditing m_materialEditing{*this};
+    Pings m_pings;
     SettingsEditing m_settingsEditing{*this};
 };
 

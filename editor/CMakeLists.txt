@@ -40,6 +40,7 @@ add_library(yqlora_editor STATIC
     src/MaterialEditing.cpp
     src/MaterialPreview.cpp
     src/PlayMode.cpp
+    src/ReferenceFields.cpp
     src/ResourceChoices.cpp
     src/ModelInspection.cpp
     src/ResourceInspection.cpp
@@ -121,10 +122,14 @@ add_library(yqlora_editor_ui STATIC
     ui/src/widgets/LayerFields.cpp
     ui/src/widgets/NameDialog.cpp
     ui/src/widgets/NumberFields.cpp
+    ui/src/widgets/PingFlash.cpp
     ui/src/widgets/PlayFrame.cpp
     ui/src/widgets/PropertyContext.cpp
     ui/src/widgets/PropertyEditor.cpp
     ui/src/widgets/PropertyTable.cpp
+    ui/src/widgets/ReferenceButton.cpp
+    ui/src/widgets/ReleaseClick.cpp
+    ui/src/widgets/ReferenceField.cpp
     ui/src/widgets/RenderView.cpp
     ui/src/widgets/ResourceField.cpp
     ui/src/widgets/DragDrop.cpp

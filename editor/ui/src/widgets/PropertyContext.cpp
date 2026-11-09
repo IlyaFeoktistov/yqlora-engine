@@ -28,9 +28,11 @@ PropertyEditorContext propertyEditorContext(const EditorContext& context)
         .cache = session.scene().services().resources(),
         .renderer = context.host.renderer(),
         .layerNames = layers ? std::span<const std::string>(layers->names()) : std::span<const std::string>(),
-        .editLayers = [open = context.openProjectSettings] {
-            open(typeNameOf<LayerSettings>());
-        },
+        .editLayers =
+            [open = context.openProjectSettings] {
+                open(typeNameOf<LayerSettings>());
+            },
+        .pings = &session.pings(),
     };
 }
 

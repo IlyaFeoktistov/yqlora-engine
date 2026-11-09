@@ -2,7 +2,6 @@
 
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
-#include "yqlora/scene/Scene.hpp"
 
 #include <imgui.h>
 
@@ -13,20 +12,6 @@
 namespace yqlora::editor {
 
 namespace {
-
-void collectNodes(const Node& node, std::vector<const Node*>& out)
-{
-    out.push_back(&node);
-    for (const auto& child : node.children()) {
-        collectNodes(*child, out);
-    }
-}
-
-// Узел сцены по имени. Удалённый узел показывается как "нет".
-
-// Типы компонентов, у которых есть порядок выполнения: только те, что
-
-// переопределяют фазы кадра. Выбранный виден всегда, даже если его модуль не загружен.
 
 // Подпись значения перечисления на языке редактора; без перевода - его имя.
 std::string enumValueLabel(const std::string& name)
@@ -57,37 +42,6 @@ bool enumCombo(const Property& property, EnumValue& value)
                 value.value = static_cast<int>(i);
                 changed = true;
             }
-        }
-        ImGui::EndCombo();
-    }
-
-    return changed;
-}
-
-bool nodeCombo(const Scene& scene, NodeRef& value)
-{
-    std::vector<const Node*> nodes;
-    if (const Node* root = scene.root()) {
-        collectNodes(*root, nodes);
-    }
-    const auto current = std::ranges::find(nodes, value.id, &Node::id);
-    const std::string none = tr("editor.inspector.none");
-    const char* preview = current != nodes.end() ? (*current)->name().c_str() : none.c_str();
-
-    bool changed = false;
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("##value", preview)) {
-        if (ImGui::Selectable(none.c_str(), value.id == 0)) {
-            value.id = 0;
-            changed = true;
-        }
-        for (const Node* node : nodes) {
-            ImGui::PushID(node);
-            if (ImGui::Selectable(node->name().c_str(), node->id() == value.id)) {
-                value.id = node->id();
-                changed = true;
-            }
-            ImGui::PopID();
         }
         ImGui::EndCombo();
     }

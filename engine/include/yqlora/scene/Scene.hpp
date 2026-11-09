@@ -3,6 +3,7 @@
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
+#include "yqlora/reflection/Property.hpp"
 #include "yqlora/scene/ComponentIndex.hpp"
 #include "yqlora/scene/ComponentLifecycle.hpp"
 #include "yqlora/scene/GameTime.hpp"
@@ -19,8 +20,6 @@
 #include <string_view>
 
 namespace yqlora {
-
-struct NodeRef;
 
 // Дерево узлов с одним корнем. Новая сцена пуста:
 // корня нет, пока его не создадут (любого типа: Node, Node3D, ...).
@@ -115,6 +114,24 @@ public:
     }
 
     Node* find(const NodeRef& ref) const;
+
+    // Узел по ссылке, если он типа T или наследник: scene.find<Light3D>(lamp).
+    template <std::derived_from<Node> T>
+    T* find(const NodeRef& ref) const
+    {
+        return dynamic_cast<T*>(find(ref));
+    }
+
+    // Компонент по ссылке; nullptr, если узла или компонента в сцене нет или
+    // он не того типа.
+    Component* find(const ComponentRef<>& ref) const;
+
+    template <std::derived_from<Component> T>
+        requires(!std::same_as<T, Component>)
+    T* find(const ComponentRef<T>& ref) const
+    {
+        return dynamic_cast<T*>(find(ComponentRef<>{ref.node, ref.component}));
+    }
 
     // Узлы группы (Node::groups) в порядке, в каком они в неё вошли.
     std::span<Node* const> group(std::string_view name) const

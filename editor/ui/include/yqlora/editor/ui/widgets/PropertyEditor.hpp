@@ -23,6 +23,8 @@ class TypeRegistry;
 
 namespace yqlora::editor {
 
+class Pings;
+
 struct EditorColors;
 struct EditorMetrics;
 
@@ -62,6 +64,8 @@ struct PropertyEditorContext {
     // Открыть раздел Layers настроек проекта: пункт "Изменить слои..." в
     // списках слоёв. Пусто - пункта нет.
     std::function<void()> editLayers;
+    // Показать цель ссылки в дереве и в "Файлах"; nullptr - поля только выбирают.
+    Pings* pings = nullptr;
 };
 
 PropertyResult drawProperty(const Property& property, Node& node, const PropertyEditorContext& context);

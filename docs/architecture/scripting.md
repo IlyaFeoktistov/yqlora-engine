@@ -269,18 +269,22 @@ parents, changes deferred during a frame.
 
   ```cpp
   class Door : public Script {
-      ComponentRef<Light3D> lamp;      // drop a node with a light, or the light itself
-      NodeRef hinge;                   // any node; .node<Node3D>() narrows it
-      Ref<MaterialData> openMaterial;  // drop a material from Files
-      Ref<Prefab> debris;              // a prefab or a model to instantiate
-      YQLORA_FIELDS(field("lamp", &Door::lamp), field("hinge", &Door::hinge),
+      NodeRef lamp;                       // a node from the tree; .node<Light3D>() narrows it
+      ComponentRef<MeshRenderer> shade;   // a node with a renderer, or the renderer itself
+      Ref<MaterialData> openMaterial;     // a material from Files
+      Ref<Prefab> debris;                 // a prefab or a model to instantiate
+      YQLORA_FIELDS(field("lamp", &Door::lamp).node<Light3D>(), field("shade", &Door::shade),
                     field("openMaterial", &Door::openMaterial), field("debris", &Door::debris))
   };
-  // lamp->setIntensity(0.0f); scene().instantiate(debris, node());
+  // scene().find<Light3D>(lamp)->setIntensity(0.0f);
+  // scene().find(shade)->setMaterials({...}); scene().instantiate(debris, node());
   ```
 
-  `ComponentRef<T>` holds the node and the component (`ComponentId`) and
-  gives `T*`, null when it is gone; `Ref<T>` takes its resource kind from
+  `ComponentRef<T>` holds the node and the component (`ComponentId`);
+  `scene().find(ref)` gives `T*`, null when it is gone, and
+  `scene().find<T>(nodeRef)` a node of a type. Lights and cameras are nodes,
+  so a reference to one is a `NodeRef` narrowed by `.node<T>()`. `Ref<T>`
+  takes its resource kind from
   `T::kResourceKind`, so the type of the field is the only place it is
   written. A reference to a node inside a prefab instance survives changes
   of the prefab (see [prefabs](prefabs.md)).
@@ -341,8 +345,9 @@ parents, changes deferred during a frame.
   `NodeRef`; the node and component fields with drops from the tree and
   from component headers, the picker with search, showing the target;
   drops of several files onto a list. Tests (logic without the interface):
-  a drop of a node onto a `ComponentRef<Light3D>` takes its light and is
-  refused for a node without one; a node with two lights asks which; a
+  a drop of a node onto a `ComponentRef<MeshRenderer>` takes its renderer
+  and is refused for a node without one; a node with two scripts of a type
+  asks which; a
   reference survives save, load, the Play copy and a hot reload; a removed
   component makes the reference null, not dangling; three textures dropped
   onto a list make three elements in one undo step.

@@ -1,10 +1,12 @@
 #include "yqlora/editor/ui/panels/InspectorPanel.hpp"
 
+#include "yqlora/editor/ui/widgets/DragDrop.hpp"
 #include "yqlora/editor/ui/widgets/PropertyContext.hpp"
 #include "yqlora/editor/ui/widgets/PropertyTable.hpp"
 
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/editor/Inspection.hpp"
+#include "yqlora/editor/ReferenceFields.hpp"
 #include "yqlora/editor/ResourceInspection.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
@@ -72,6 +74,8 @@ bool drawComponent(
         inspected.removable ? &keep : nullptr,
         ImGuiTreeNodeFlags_DefaultOpen
     );
+    // За заголовок компонент тянут в поле ссылки на компонент.
+    componentDragSource(inspected.component, componentLabel(inspected.component));
     if (!inspected.requiredBy.empty()) {
         ImGui::SetItemTooltip(
             "%s %s",

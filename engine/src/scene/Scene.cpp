@@ -6,6 +6,7 @@
 #include "yqlora/scene/NodeTree.hpp"
 #include "yqlora/scene/TimeSettings.hpp"
 
+#include <algorithm>
 #include <cassert>
 
 namespace yqlora {
@@ -128,6 +129,20 @@ void Scene::exitComponent(Component& component)
 Node* Scene::find(const NodeRef& ref) const
 {
     return ref.id != 0 ? m_nodes.find(ref.id) : nullptr;
+}
+
+Component* Scene::find(const ComponentRef<>& ref) const
+{
+    const Node* node = ref.node != 0 ? m_nodes.find(ref.node) : nullptr;
+    if (!node || ref.component == 0) {
+        return nullptr;
+    }
+    const auto components = node->components();
+    const auto it = std::ranges::find_if(components, [&](const auto& component) {
+        return component->id() == ref.component;
+    });
+
+    return it != components.end() ? it->get() : nullptr;
 }
 
 void Scene::enterNode(Node& node)
