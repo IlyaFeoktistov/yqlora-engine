@@ -304,6 +304,10 @@
             "pick": "Choose",
             "choose": "Choose"
         },
+        "eventTargets": {
+            "method": "Method...",
+            "noMethods": "No methods for this event"
+        },
         "referenceField": {
             "whichComponent": "Which component?"
         },

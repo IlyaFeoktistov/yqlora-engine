@@ -336,9 +336,18 @@ public:
         for (std::size_t i = 0; const std::string& parameter : parameterNames) {
             info.parameters.push_back({parameter, types[i++]});
         }
+        std::string propertyName = info.name;
         Base::addEvent(std::move(info));
+        // Постоянные подписчики - свойство с тем же именем: так они пишутся в
+        // файл, правятся в инспекторе с отменой и копируются в Play.
+        const auto targets = [member](const Class& object) -> const std::vector<EventTarget>& {
+            return (object.*member).targets();
+        };
+        const auto setTargets = [member](Class& object, const std::vector<EventTarget>& value) {
+            (object.*member).setTargets(object, value);
+        };
 
-        return *this;
+        return property(std::move(propertyName), targets, setTargets, PropertyHint::EventTargets);
     }
 
     //   registry.registerComponent<MeshRenderer>().requiresNode<Node3D>();

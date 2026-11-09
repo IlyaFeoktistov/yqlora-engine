@@ -7,6 +7,7 @@ namespace yqlora {
 GameRuntime::GameRuntime(const EngineServices& services)
     : m_scene(services)
 {
+    m_scene.setPlaying(true);
 }
 
 void GameRuntime::simulate(float deltaSeconds)

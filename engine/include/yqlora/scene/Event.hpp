@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/reflection/Property.hpp"
+#include "yqlora/reflection/Record.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -21,6 +22,15 @@ namespace detail {
 struct EventSlots;
 
 } // namespace detail
+
+// Постоянный подписчик события, заданный в инспекторе и сохранённый со
+// сценой: метод узла или его компонента по имени (component 0 - сам узел).
+struct EventTarget {
+    ComponentRef<> target;
+    std::string method;
+
+    bool operator==(const EventTarget&) const = default;
+};
 
 // Подписка на событие. Отписывается, когда её уничтожают или зовут
 // disconnect(); release() оставляет подписку жить, пока жив её владелец.
@@ -67,6 +77,19 @@ public:
     // Живые подписки: их владельцы ещё в сцене.
     std::size_t listenerCount() const;
 
+    // Постоянные подписчики. Вызываются после подписчиков из кода, по порядку
+    // списка, и только в идущей сцене (Scene::playing). Метод с параметрами
+    // получает аргументы события, без параметров - вызывается без них; цель,
+    // которой нет или чей метод не подходит, пропускается с сообщением в лог
+    // один раз. owner - компонент, которому принадлежит событие: через его
+    // сцену находятся цели.
+    const std::vector<EventTarget>& targets() const
+    {
+        return m_targets;
+    }
+
+    void setTargets(Component& owner, std::vector<EventTarget> targets);
+
 protected:
     // Типизированный вызов получает адрес кортежа аргументов.
     using TypedCall = std::function<void(const void* arguments)>;
@@ -79,7 +102,13 @@ protected:
     void emitArguments(const void* arguments, const std::function<std::vector<PropertyValue>()>& values);
 
 private:
+    void callTargets(std::span<const PropertyValue> arguments);
+
     std::shared_ptr<detail::EventSlots> m_slots;
+    Component* m_owner = nullptr;
+    std::vector<EventTarget> m_targets;
+    // Цели, о которых лог уже сказал, что они не вызываются.
+    std::vector<bool> m_reported;
 };
 
 // Событие компонента: член класса, регистрируется в реестре как .event(...).
@@ -116,3 +145,9 @@ public:
 };
 
 } // namespace yqlora
+
+YQLORA_RECORD(
+    yqlora::EventTarget,
+    field("target", &yqlora::EventTarget::target),
+    field("method", &yqlora::EventTarget::method)
+)

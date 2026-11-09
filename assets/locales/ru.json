@@ -304,6 +304,10 @@
             "pick": "Выбрать",
             "choose": "Выбор"
         },
+        "eventTargets": {
+            "method": "Метод...",
+            "noMethods": "Нет методов для этого события"
+        },
         "referenceField": {
             "whichComponent": "Какой компонент?"
         },

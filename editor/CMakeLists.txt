@@ -34,6 +34,7 @@ add_library(yqlora_editor STATIC
     src/PropertyValues.cpp
     src/EditorSession.cpp
     src/EditorSettings.cpp
+    src/EventTargets.cpp
     src/GameLibrary.cpp
     src/Inspection.cpp
     src/LayerUsage.cpp
@@ -118,6 +119,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/style/Theme.cpp
     ui/src/widgets/Checkbox.cpp
     ui/src/widgets/ChoiceFields.cpp
+    ui/src/widgets/EventTargetsField.cpp
     ui/src/widgets/InputControlField.cpp
     ui/src/widgets/LayerFields.cpp
     ui/src/widgets/NameDialog.cpp

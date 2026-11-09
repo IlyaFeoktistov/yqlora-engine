@@ -5,12 +5,14 @@
 #include "yqlora/editor/ui/widgets/Checkbox.hpp"
 #include "yqlora/editor/ui/widgets/ChoiceFields.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
+#include "yqlora/editor/ui/widgets/EventTargetsField.hpp"
 #include "yqlora/editor/ui/widgets/InputControlField.hpp"
 #include "yqlora/editor/ui/widgets/LayerFields.hpp"
 #include "yqlora/editor/ui/widgets/NumberFields.hpp"
 #include "yqlora/editor/ui/widgets/ReferenceField.hpp"
 #include "yqlora/editor/ui/widgets/ResourceField.hpp"
 
+#include "yqlora/editor/EventTargets.hpp"
 #include "yqlora/editor/ReferenceFields.hpp"
 
 #include "yqlora/editor/PropertyValues.hpp"
@@ -499,6 +501,12 @@ PropertyResult drawPropertyRow(const Property& property, Object& object, const P
     }
     if (!labels.empty()) {
         labeledListField(property, std::get<ListValue>(value), labels, context, result);
+    } else if (property.hint() == PropertyHint::EventTargets && std::holds_alternative<ListValue>(value)) {
+        std::span<const EventParameter> parameters;
+        if constexpr (std::is_same_v<Object, Component>) {
+            parameters = eventParametersOf(object, property.name(), context.registry);
+        }
+        result.changed = eventTargetsField(property, std::get<ListValue>(value), parameters, context) || result.changed;
     } else {
         valueField(property, property.type(), value, context, result);
     }

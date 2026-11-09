@@ -1,7 +1,11 @@
 #include "yqlora/scene/Event.hpp"
 
 #include "yqlora/core/Log.hpp"
+#include "yqlora/reflection/ObjectAccess.hpp"
+#include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/scene/Component.hpp"
+#include "yqlora/scene/Node.hpp"
+#include "yqlora/scene/Scene.hpp"
 
 #include <algorithm>
 #include <exception>
@@ -152,6 +156,54 @@ std::size_t EventBase::listenerCount() const
     }));
 }
 
+void EventBase::setTargets(Component& owner, std::vector<EventTarget> targets)
+{
+    m_owner = &owner;
+    m_targets = std::move(targets);
+    m_reported.assign(m_targets.size(), false);
+}
+
+void EventBase::callTargets(std::span<const PropertyValue> arguments)
+{
+    const Scene* scene = m_owner && m_owner->owner() ? m_owner->owner()->scene() : nullptr;
+    if (!scene || !scene->playing()) {
+        return;
+    }
+    const TypeRegistry& registry = scene->services().registry();
+    for (std::size_t i = 0; i < m_targets.size(); ++i) {
+        const EventTarget& target = m_targets[i];
+        MethodCallResult result;
+        try {
+            const auto call = [&](auto& object) {
+                result = callMethod(object, target.method, arguments, registry);
+                // Метод без параметров слушает любое событие.
+                if (!result.called && !arguments.empty()) {
+                    result = callMethod(object, target.method, {}, registry);
+                }
+            };
+            if (target.target.component != 0) {
+                if (Component* component = scene->find(target.target)) {
+                    call(*component);
+                }
+            } else if (Node* node = scene->find(NodeRef{target.target.node})) {
+                call(*node);
+            }
+        } catch (const std::exception& error) {
+            log::error("Event target '{}' threw: {}", target.method, error.what());
+            continue;
+        }
+        if (!result.called && !m_reported[i]) {
+            m_reported[i] = true;
+            log::warn(
+                "Event target '{}' of component '{}' is not called: no such node, component or method with fitting "
+                "parameters",
+                target.method,
+                m_owner->typeName()
+            );
+        }
+    }
+}
+
 void EventBase::emitArguments(const void* arguments, const std::function<std::vector<PropertyValue>()>& values)
 {
     // Список держится живым на время вызова: подписчик может уничтожить само событие.
@@ -190,6 +242,12 @@ void EventBase::emitArguments(const void* arguments, const std::function<std::ve
     }
     if (--slots->emitting == 0) {
         slots->compact();
+    }
+    if (!m_targets.empty()) {
+        if (!converted) {
+            converted = values();
+        }
+        callTargets(*converted);
     }
 }
 

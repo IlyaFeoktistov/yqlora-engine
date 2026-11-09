@@ -97,6 +97,19 @@ public:
         return m_lifecycle.inFrame();
     }
 
+    // Сцена идёт как игра: копия Play в редакторе и сцена собранной игры.
+    // Редактируемая сцена - нет; в ней не работают постоянные подписчики
+    // событий (то, что связано в инспекторе), чтобы правка не запускала игру.
+    bool playing() const
+    {
+        return m_playing;
+    }
+
+    void setPlaying(bool playing)
+    {
+        m_playing = playing;
+    }
+
     // Компоненты в дереве сцены ровно этого типа (без наследников), в порядке
     // попадания в сцену. Так подсистемы находят свои компоненты без обхода дерева.
     template <std::derived_from<Component> T>
@@ -202,6 +215,7 @@ private:
     ComponentLifecycle m_lifecycle{m_services};
     ComponentIndex m_components;
     NodeIndex m_nodes;
+    bool m_playing = false;
     TreeChangeQueue m_treeChanges;
     std::unique_ptr<Node> m_root;
     // Создаются последними: конструктор системы может обратиться к сцене.
