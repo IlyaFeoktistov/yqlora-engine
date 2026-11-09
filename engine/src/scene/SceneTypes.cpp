@@ -5,11 +5,19 @@
 #include "yqlora/scene/LayerSettings.hpp"
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/TimeSettings.hpp"
+#include "yqlora/scene/Timer.hpp"
 #include "yqlora/scene/TimerSystem.hpp"
 #include "yqlora/scene/Transform3D.hpp"
 #include "yqlora/scene/TransformSystem3D.hpp"
 
 namespace yqlora {
+
+namespace {
+
+// Предел ползунка длительности таймера в инспекторе: час; из кода - любая.
+constexpr float kMaxTimerSeconds = 3600.0f;
+
+} // namespace
 
 void registerSceneTypes(TypeRegistry& registry)
 {
@@ -42,6 +50,17 @@ void registerSceneTypes(TypeRegistry& registry)
     registry.registerSystem<SceneSystem>();
     registry.registerSystem<TransformSystem3D>();
     registry.registerSystem<TimerSystem>();
+    registry.registerComponent<Timer>()
+        .property("duration", &Timer::duration)
+        .range(0.0f, kMaxTimerSeconds)
+        .property("repeat", &Timer::repeat)
+        .property("autostart", &Timer::autostart)
+        .property("unscaled", &Timer::unscaled)
+        .event("onTimeout", &Timer::onTimeout)
+        .method("start", &Timer::start)
+        .method("stop", &Timer::stop)
+        .method("running", &Timer::running)
+        .method("remaining", &Timer::remaining);
 
     registry.registerSettings<ExecutionOrderSettings>("execution_order")
         .property("entries", &ExecutionOrderSettings::entries);

@@ -33,6 +33,9 @@
         "SceneSystem": {
             "description": "Base of all scene systems: physics, audio, rendering."
         },
+        "Timer": {
+            "description": "Calls its onTimeout event after a delay, once or repeatedly; set up in the inspector."
+        },
         "TimerSystem": {
             "description": "Timers of the scene: calls after a delay and repeated ones, on game time or real time."
         },
@@ -385,6 +388,11 @@
         "icon": "Icon",
         "active": "Active",
         "enabled": "Enabled",
+        "duration": "Duration, s",
+        "repeat": "Repeat",
+        "autostart": "Start with the game",
+        "unscaled": "Real time",
+        "onTimeout": "On timeout",
         "target": "Target",
         "method": "Method",
         "layer": "Layer",

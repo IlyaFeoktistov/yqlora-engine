@@ -4,8 +4,11 @@
 
 #include <yqlora/core/EngineServices.hpp>
 #include <yqlora/input/Input.hpp>
+#include <yqlora/reflection/ObjectAccess.hpp>
 #include <yqlora/scene/Node3D.hpp>
 #include <yqlora/scene/Scene.hpp>
+#include <yqlora/scene/SceneSerializer.hpp>
+#include <yqlora/scene/Timer.hpp>
 #include <yqlora/scene/TimerSystem.hpp>
 #include <yqlora/scripting/Script.hpp>
 
@@ -28,10 +31,23 @@ struct Clock final : Script {
     using Script::timers;
 };
 
+// Цель onTimeout: считает звонки.
+struct Bell final : Component {
+    YQLORA_TYPE(Bell, Component)
+
+    void ring()
+    {
+        ++rung;
+    }
+
+    int rung = 0;
+};
+
 struct Fixture {
     Fixture()
     {
         registry.registerComponent<Clock>().allowMultiple();
+        registry.registerComponent<Bell>().method("ring", &Bell::ring);
         clock = &scene.createRoot<Node3D>("Root").addComponent<Clock>();
         timers = scene.system<TimerSystem>();
         REQUIRE(timers);
@@ -164,4 +180,70 @@ TEST_CASE_FIXTURE(Fixture, "Timers: order by due time, new ones wait for the nex
     CHECK(calls == std::vector<std::string>{"earlier", "middle", "later"});
     scene.advance(kFrame);
     CHECK(calls.back() == "next frame");
+}
+
+TEST_CASE_FIXTURE(Fixture, "Timer component: autostart in the Play copy, onTimeout calls a method of another node")
+{
+    auto& timer = scene.root()->addChild<Node3D>("Timer").addComponent<Timer>();
+    timer.duration = 0.2f;
+    timer.repeat = true;
+    timer.autostart = true;
+    auto& bell = scene.root()->addChild<Node3D>("Bell").addComponent<Bell>();
+    const ListValue targets{{RecordValue{{ComponentRef<>{bell.owner()->id(), bell.id()}, std::string("ring")}}}};
+    REQUIRE(setProperty(timer, "onTimeout", targets, registry));
+    // Редактируемая сцена не идёт: таймер стоит.
+    CHECK_FALSE(timer.running());
+
+    SceneSerializer serializer(registry);
+    Scene play{services};
+    play.setPlaying(true);
+    REQUIRE(serializer.fromJson(play, serializer.toJson(scene)));
+    Bell* copiedBell = play.root()->findComponentInChildren<Bell>();
+    Timer* copiedTimer = play.root()->findComponentInChildren<Timer>();
+    REQUIRE(copiedBell);
+    REQUIRE(copiedTimer);
+    // Повтор каждые 0.2 с: за 0.5 с игры - два звонка.
+    for (int i = 0; i < 10; ++i) {
+        play.advance(kFrame);
+    }
+    CHECK(copiedBell->rung == 2);
+    CHECK(copiedTimer->running());
+    CHECK(bell.rung == 0);
+}
+
+TEST_CASE_FIXTURE(Fixture, "Timer component: start, stop and remaining, also by name")
+{
+    auto& timer = scene.root()->addChild<Node3D>("Timer").addComponent<Timer>();
+    timer.duration = 1.0f;
+    int fired = 0;
+    timer.onTimeout
+        .connect(
+            *clock,
+            [&] {
+                ++fired;
+            }
+        )
+        .release();
+
+    REQUIRE(callMethod(timer, "start", {}, registry).called);
+    CHECK(timer.running());
+    run(0.5f);
+    const MethodCallResult left = callMethod(timer, "remaining", {}, registry);
+    REQUIRE(left.called);
+    CHECK(std::get<float>(*left.value) == doctest::Approx(0.5f));
+    REQUIRE(callMethod(timer, "stop", {}, registry).called);
+    CHECK_FALSE(timer.running());
+    CHECK(timer.remaining() == 0.0f);
+    run(1.0f);
+    CHECK(fired == 0);
+
+    // Повторный start перезапускает с полной длительностью.
+    timer.start();
+    run(0.5f);
+    timer.start();
+    run(0.6f);
+    CHECK(fired == 0);
+    run(0.5f);
+    CHECK(fired == 1);
+    CHECK_FALSE(timer.running());
 }
