@@ -43,6 +43,11 @@ public:
         return m_id;
     }
 
+    // Метка жизни: гаснет, когда компонент уходит из сцены (и с ним самим).
+    // По ней подписки на события и таймеры знают, что владельца больше нет;
+    // так же её держит отложенный вызов в коде игры.
+    std::weak_ptr<const void> lifetime();
+
     // Узел, к которому подключён компонент; nullptr, пока не подключён.
     Node* owner() const
     {
@@ -128,12 +133,8 @@ private:
     friend class SceneSerializer;
     void setId(ComponentId id);
 
-    // Метка жизни для подписок на события (EventBase): живёт, пока компонент
-    // в сцене. Когда он уходит из сцены, метка гаснет, и его подписки больше
-    // не вызываются.
-    friend class EventBase;
+    // Метку гасит сцена, когда компонент уходит из неё.
     friend class Scene;
-    std::weak_ptr<const void> lifetime();
     void endLifetime();
 
     std::shared_ptr<const void> m_lifetime;

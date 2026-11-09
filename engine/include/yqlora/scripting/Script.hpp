@@ -4,6 +4,7 @@
 #include "yqlora/reflection/Record.hpp"
 #include "yqlora/reflection/TypeName.hpp"
 #include "yqlora/scene/Component.hpp"
+#include "yqlora/scene/TimerSystem.hpp"
 
 #include <string_view>
 #include <tuple>
@@ -66,6 +67,9 @@ protected:
     const GameTime& time() const;
     // Первый узел сцены с таким именем; nullptr, если нет.
     Node* findNode(std::string_view name) const;
+    // Таймеры от имени этого скрипта: timers().after(2.0f, [this] { ... }).
+    // Снимаются, когда скрипт уходит из сцены, и ждут, пока он выключен.
+    Timers timers();
 };
 
 // Доступ к закрытому списку полей скрипта (YQLORA_FIELDS) для регистрации (ModuleRegistrar).

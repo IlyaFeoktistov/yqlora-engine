@@ -42,6 +42,14 @@ const GameTime& Script::time() const
     return scene().time();
 }
 
+Timers Script::timers()
+{
+    TimerSystem* system = scene().system<TimerSystem>();
+    assert(system && "timers: TimerSystem is registered with the engine types");
+
+    return Timers(*system, *this);
+}
+
 Node* Script::findNode(std::string_view name) const
 {
     Node* root = scene().root();

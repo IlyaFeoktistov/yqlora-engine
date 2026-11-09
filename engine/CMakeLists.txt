@@ -128,6 +128,7 @@ add_library(yqlora SHARED
     src/scene/SceneSerializer.cpp
     src/scene/SceneTypes.cpp
     src/scene/TimeSettings.cpp
+    src/scene/TimerSystem.cpp
     src/scene/UnknownProperties.cpp
     src/project/Project.cpp
     src/project/ProjectSettings.cpp

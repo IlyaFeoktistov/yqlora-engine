@@ -5,6 +5,7 @@
 #include "yqlora/scene/LayerSettings.hpp"
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/TimeSettings.hpp"
+#include "yqlora/scene/TimerSystem.hpp"
 #include "yqlora/scene/Transform3D.hpp"
 #include "yqlora/scene/TransformSystem3D.hpp"
 
@@ -40,6 +41,7 @@ void registerSceneTypes(TypeRegistry& registry)
 
     registry.registerSystem<SceneSystem>();
     registry.registerSystem<TransformSystem3D>();
+    registry.registerSystem<TimerSystem>();
 
     registry.registerSettings<ExecutionOrderSettings>("execution_order")
         .property("entries", &ExecutionOrderSettings::entries);

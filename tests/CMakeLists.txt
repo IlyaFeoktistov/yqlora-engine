@@ -15,6 +15,7 @@ add_executable(yqlora_tests
     test_object_ids.cpp
     test_references.cpp
     test_events.cpp
+    test_timers.cpp
     test_script.cpp
     test_reflection.cpp
     test_serializer.cpp
