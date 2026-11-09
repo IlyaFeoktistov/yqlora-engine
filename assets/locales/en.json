@@ -221,6 +221,7 @@
             "name": "Name:",
             "create": "Create",
             "newScene": "New scene",
+            "newPrefab": "Prefab",
             "newFolder": "New folder",
             "refresh": "Refresh",
             "empty": "The project has no files yet",
@@ -323,6 +324,7 @@
             "scene": "Scene",
             "shader": "Shader",
             "model": "Model",
+            "prefab": "Prefab",
             "material": "Material"
         }
     },

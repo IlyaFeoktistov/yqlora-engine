@@ -6,6 +6,7 @@
 
 #include <yqlora/core/EngineServices.hpp>
 #include <yqlora/core/JsonFile.hpp>
+#include <yqlora/core/JsonId.hpp>
 #include <yqlora/editor/EditorSession.hpp>
 #include <yqlora/editor/MaterialEditing.hpp>
 #include <yqlora/editor/MaterialPreview.hpp>
@@ -20,6 +21,7 @@
 #include <yqlora/editor/TextureInspection.hpp>
 #include <yqlora/i18n/Translate.hpp>
 #include <yqlora/import/ModelData.hpp>
+#include <yqlora/import/ModelPrefab.hpp>
 #include <yqlora/input/Input.hpp>
 #include <yqlora/material/MaterialFile.hpp>
 #include <yqlora/math/Ray.hpp>
@@ -34,6 +36,7 @@
 #include <yqlora/resource/ResourceCache.hpp>
 #include <yqlora/resource/ResourceLoader.hpp>
 #include <yqlora/scene/Node3D.hpp>
+#include <yqlora/scene/Prefab.hpp>
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
 #include <yqlora/scripting/GameModule.hpp>
@@ -134,7 +137,7 @@ const MeshRenderer* rendererOf(const Node& node)
 
 TEST_CASE_FIXTURE(Fixture, "instantiateResource: a model becomes its node tree under a node named after the file")
 {
-    const auto branch = instantiateResource(model, session.resources(), session.project()->resources());
+    const auto branch = instantiateResource(model, session.resources(), session.project()->resources(), registry);
     REQUIRE(branch);
     CHECK(branch->name() == "house");
     REQUIRE(branch->children().size() == 1);
@@ -156,7 +159,8 @@ TEST_CASE_FIXTURE(Fixture, "instantiateResource: a model becomes its node tree u
     CHECK(rendererOf(houseNode) == nullptr);
 
     // Меш - один узел с его именем.
-    const auto single = instantiateResource(mesh("mesh:Frame"), session.resources(), session.project()->resources());
+    const auto
+        single = instantiateResource(mesh("mesh:Frame"), session.resources(), session.project()->resources(), registry);
     REQUIRE(single);
     CHECK(single->name() == "Frame");
     CHECK(rendererOf(*single)->mesh().id == mesh("mesh:Frame"));
@@ -164,14 +168,75 @@ TEST_CASE_FIXTURE(Fixture, "instantiateResource: a model becomes its node tree u
     // Сцена - не модель и не меш.
     const ResourceId scene = session.project()->settings().get<GeneralSettings>().startupScene.id;
     REQUIRE(scene != 0);
-    CHECK(instantiateResource(scene, session.resources(), session.project()->resources()) == nullptr);
+    CHECK(instantiateResource(scene, session.resources(), session.project()->resources(), registry) == nullptr);
+}
+
+TEST_CASE_FIXTURE(Fixture, "A model as a prefab: IDs come from node names, the same after a re-export")
+{
+    const auto& resources = session.project()->resources();
+    const auto first = modelBranch(model, session.resources(), &resources, registry);
+    REQUIRE(first);
+    const auto again = modelBranch(model, session.resources(), &resources, registry);
+    REQUIRE(again);
+    // Одно и то же дерево с одними и теми же ID при каждом построении.
+    CHECK(*first == *again);
+    const auto houseNode = (*first)["children"][0];
+    const auto leftDoor = houseNode["children"][0];
+    const auto rightDoor = houseNode["children"][1];
+    CHECK(leftDoor["properties"]["name"] == "LeftDoor");
+    CHECK(leftDoor["id"] != rightDoor["id"]);
+    CHECK(leftDoor["components"][0]["id"] != rightDoor["components"][0]["id"]);
+
+    // Перевыгрузка с теми же именами: те же ID; новое имя - новый ID.
+    GltfBuilder gltf = house();
+    gltf.json["nodes"][2]["name"] = "BackDoor";
+    const fs::path file = modelFile();
+    const auto time = fs::last_write_time(file);
+    gltf.writeGlb(file);
+    test::markRewritten(file, time);
+    session.refreshResources();
+    const auto exported = modelBranch(model, session.resources(), &resources, registry);
+    REQUIRE(exported);
+    const auto newHouse = (*exported)["children"][0];
+    CHECK(newHouse["id"] == houseNode["id"]);
+    CHECK(newHouse["children"][0]["id"] == leftDoor["id"]);
+    CHECK(newHouse["children"][1]["id"] != rightDoor["id"]);
+
+    // Брошенная копия получает новые ID: два броска не совпадают.
+    const auto one = instantiateResource(model, session.resources(), resources, registry);
+    const auto two = instantiateResource(model, session.resources(), resources, registry);
+    CHECK(one->id() != two->id());
+    CHECK(one->children()[0]->id() != idFromJson(houseNode["id"]));
+}
+
+TEST_CASE_FIXTURE(Fixture, "Prefab files: created in Files, offered with models to a prefab field, scenes are not")
+{
+    ProjectFiles files(*session.project());
+    const auto door = files.createPrefab("models", "Door", serializer);
+    REQUIRE(door);
+    CHECK(door->extension() == kPrefabFileExtension);
+    const auto& resources = session.project()->resources();
+    const ResourceId prefab = resources.id(*door);
+    CHECK(session.resources().kindOf(*door) == Prefab::kResourceKind);
+
+    const auto choices = resourceChoices(Prefab::kResourceKind, {}, &resources, session.resources());
+    std::vector<ResourceId> ids;
+    for (const ResourceChoice& choice : choices) {
+        ids.push_back(choice.id);
+    }
+    CHECK(std::ranges::find(ids, prefab) != ids.end());
+    CHECK(std::ranges::find(ids, model) != ids.end());
+    const ResourceId scene = session.project()->settings().get<GeneralSettings>().startupScene.id;
+    CHECK(std::ranges::find(ids, scene) == ids.end());
+    CHECK(resourceForField(Prefab::kResourceKind, {}, model, &resources, session.resources()) == model);
+    CHECK_FALSE(resourceForField(Prefab::kResourceKind, {}, scene, &resources, session.resources()));
 }
 
 TEST_CASE_FIXTURE(Fixture, "instantiateResource: slots of a model mesh get the materials of the file")
 {
     const ResourceId wood = mesh("material:Wood");
     const ResourceId glass = mesh("material:Glass");
-    const auto branch = instantiateResource(model, session.resources(), session.project()->resources());
+    const auto branch = instantiateResource(model, session.resources(), session.project()->resources(), registry);
     REQUIRE(branch);
     const Node& house = *branch->children()[0];
     const MeshRenderer* door = rendererOf(*house.children()[0]);
@@ -185,11 +250,13 @@ TEST_CASE_FIXTURE(Fixture, "instantiateResource: slots of a model mesh get the m
     CHECK(frame->materials()[1].id == glass);
 
     // Один меш модели - те же слоты.
-    const auto single = instantiateResource(mesh("mesh:Frame"), session.resources(), session.project()->resources());
+    const auto
+        single = instantiateResource(mesh("mesh:Frame"), session.resources(), session.project()->resources(), registry);
     REQUIRE(single);
     CHECK(rendererOf(*single)->materials() == frame->materials());
     // Встроенный меш не из модели: слотов нет.
-    const auto cube = instantiateResource(builtin::kCubeMesh, session.resources(), session.project()->resources());
+    const auto
+        cube = instantiateResource(builtin::kCubeMesh, session.resources(), session.project()->resources(), registry);
     REQUIRE(cube);
     CHECK(rendererOf(*cube)->materials().empty());
 }
@@ -342,7 +409,9 @@ TEST_CASE_FIXTURE(Fixture, "Resource inspection: meshes of a model, import setti
     const auto scene = inspectResource(session, session.project()->settings().get<GeneralSettings>().startupScene.id);
     REQUIRE(scene);
     CHECK(scene->kind == SceneSerializer::kResourceKind);
-    CHECK_FALSE(scene->status);
+    // Сцену кэш читает в SceneData, как любой ресурс.
+    REQUIRE(scene->status);
+    CHECK(scene->status->state == ResourceState::Ready);
 
     const auto house = inspectModel(session, model);
     REQUIRE(house);

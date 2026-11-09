@@ -141,8 +141,8 @@ Status marks: see [README](README.md).
 ## Resources in the editor [done]
 
 - **Files** shows every file with the icon of its kind (the kind comes
-  from the loader, `ResourceCache::kindOf`, files are not read; a scene is
-  `SceneSerializer::kResourceKind`, see `fileKind`). Icons by kind are one
+  from the loader, `ResourceCache::kindOf`, files are not read; scenes and
+  prefabs too). Icons by kind are one
   table (`resourceIcon`) shared by Files, the resource field and the
   Create menu. A file whose loader has nested kinds (a model) opens into
   its nested resources (`nestedResources`). Any resource can be dragged.

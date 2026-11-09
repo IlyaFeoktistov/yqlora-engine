@@ -94,8 +94,10 @@ add_library(yqlora SHARED
     src/import/GltfMeshes.cpp
     src/import/GltfNodes.cpp
     src/import/MaterialLoader.cpp
+    src/import/ModelPrefab.cpp
     src/import/OrmPacking.cpp
     src/import/ImageLoader.cpp
+    src/import/SceneFileLoader.cpp
     src/import/ShaderLoader.cpp
     src/import/StbImage.cpp
     src/import/TextureImport.cpp

@@ -1,5 +1,7 @@
 #include "yqlora/scene/SceneSerializer.hpp"
 
+#include "yqlora/scene/SceneBranches.hpp"
+
 #include "yqlora/core/FileFormat.hpp"
 #include "yqlora/core/JsonFile.hpp"
 #include "yqlora/core/JsonId.hpp"
@@ -111,6 +113,9 @@ Json nodeToJson(const TypeRegistry& registry, const Node& node)
 // Чтение и запись сцены. Вложен в SceneSerializer, чтобы вызывать закрытый assignId.
 struct SceneSerializer::Format {
     const TypeRegistry& registry;
+    // ID из файла не берутся, узлы и компоненты получают новые: копия ветки
+    // рядом с оригиналом (модель, брошенная в сцену второй раз).
+    bool freshIds = false;
 
     Json write(const Scene& scene) const;
     bool readScene(Scene& scene, Json json) const;
@@ -137,7 +142,7 @@ struct SceneSerializer::Format {
         }
 
         const auto id = json.contains(kIdKey) ? idFromJson(json[kIdKey]) : std::nullopt;
-        if (id && *id != 0) {
+        if (id && *id != 0 && !freshIds) {
             assignId(*node, *id);
         }
         if (const auto it = json.find(kPropertiesKey); it != json.end()) {
@@ -252,8 +257,11 @@ struct SceneSerializer::Format {
 
     // ID компонента из файла. Без него (файл до ID компонентов) или с ID,
     // уже занятым на этом узле (файл правили руками), остаётся новый.
-    static void readComponentId(const Node& node, Component& component, const Json& json)
+    void readComponentId(const Node& node, Component& component, const Json& json) const
     {
+        if (freshIds) {
+            return;
+        }
         const auto id = json.contains(kIdKey) ? idFromJson(json[kIdKey]) : std::nullopt;
         if (!id || *id == 0) {
             return;
@@ -397,6 +405,26 @@ bool SceneSerializer::load(Scene& scene, const std::filesystem::path& file) cons
     }
 
     return Format{m_registry}.readScene(scene, std::move(*json));
+}
+
+Json SceneBranches::write(const TypeRegistry& registry, const Node& node)
+{
+    return nodeToJson(registry, node);
+}
+
+std::unique_ptr<Node> SceneBranches::read(const TypeRegistry& registry, const Json& node, BranchIds ids)
+{
+    return SceneSerializer::Format{registry, ids == BranchIds::Fresh}.readNode(node);
+}
+
+std::optional<Json> SceneBranches::rootOfFile(Json file)
+{
+    if (!file.is_object() || !kFormat.migrate(file)) {
+        return std::nullopt;
+    }
+    const auto it = file.find(kRootKey);
+
+    return it != file.end() ? std::optional(std::move(*it)) : std::optional(Json(nullptr));
 }
 
 } // namespace yqlora

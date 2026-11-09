@@ -29,7 +29,7 @@ namespace yqlora::editor {
 
 namespace {
 
-// kind - вид ресурса файла (fileKind).
+// kind - вид ресурса файла (ResourceCache::kindOf).
 const char* iconFor(const ProjectFiles::Entry& entry, bool open, std::string_view kind)
 {
     if (entry.directory) {
@@ -257,7 +257,7 @@ void FileSystemPanel::drawEntry(
         ImGui::PushStyleColor(ImGuiCol_Text, toImVec4(colors.selectionOutline));
     }
     const std::string id = toUtf8(entry.path);
-    const std::string_view kind = entry.directory ? std::string_view() : fileKind(entry.path, session.resources());
+    const std::string_view kind = entry.directory ? std::string_view() : session.resources().kindOf(entry.path);
     const ResourceId resource = entry.directory ? 0 : session.project()->resources().id(entry.path);
     // Файл с вложенными ресурсами (модель) раскрывается в них.
     const bool nested = !entry.directory && !session.resources().nestedKindsOf(entry.path).empty();

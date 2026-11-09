@@ -9,6 +9,8 @@
 #include "yqlora/platform/Files.hpp"
 #include "yqlora/project/Project.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
+#include "yqlora/scene/Node3D.hpp"
+#include "yqlora/scene/Prefab.hpp"
 #include "yqlora/scene/Scene.hpp"
 #include "yqlora/scene/SceneSerializer.hpp"
 #include "yqlora/shader/ShaderData.hpp"
@@ -60,6 +62,14 @@ const NewResourceType kNewResourceTypes[] = {
      false,
      [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext& context) {
          return files.createScene(folder, name, context.serializer);
+     }},
+    {Prefab::kResourceKind,
+     "editor.files.newPrefab",
+     "New Prefab",
+     kPrefabFileExtension,
+     false,
+     [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext& context) {
+         return files.createPrefab(folder, name, context.serializer);
      }},
     {kCppScriptKind,
      "editor.files.newCppScript",
@@ -238,6 +248,29 @@ std::optional<fs::path> ProjectFiles::createScene(
     Scene scene(EngineServices::none());
     buildNewScene(scene, std::string(name));
     if (!serializer.save(scene, file)) {
+        return std::nullopt;
+    }
+    m_project.resources().add(relative);
+
+    return relative;
+}
+
+std::optional<fs::path> ProjectFiles::createPrefab(
+    const fs::path& folder,
+    std::string_view name,
+    const SceneSerializer& serializer
+)
+{
+    const NewResourceType& type = *findNewResourceType(Prefab::kResourceKind);
+    const fs::path relative = folder / fromUtf8(occupiedFileName(type, name));
+    std::error_code ec;
+    if (!isValidResourceName(type, name) || !canModify(relative) || fs::exists(m_project.directory() / relative, ec)) {
+        return std::nullopt;
+    }
+    // Префаб - тот же файл, что сцена: дерево с корнем, здесь пустой Node3D.
+    Scene prefab(EngineServices::none());
+    prefab.createRoot<Node3D>(std::string(name));
+    if (!serializer.save(prefab, m_project.directory() / relative)) {
         return std::nullopt;
     }
     m_project.resources().add(relative);

@@ -44,7 +44,10 @@ Node* SceneEditing::addResource(ResourceId resource, Node* parent)
         return nullptr;
     }
 
-    return addBranch(instantiateResource(resource, m_session.resources(), project->resources()), parent);
+    return addBranch(
+        instantiateResource(resource, m_session.resources(), project->resources(), m_session.registry()),
+        parent
+    );
 }
 
 Node* SceneEditing::addResource(ResourceId resource, Node* parent, const Vec3& worldPosition)
@@ -53,7 +56,8 @@ Node* SceneEditing::addResource(ResourceId resource, Node* parent, const Vec3& w
     if (!project) {
         return nullptr;
     }
-    std::unique_ptr<Node> branch = instantiateResource(resource, m_session.resources(), project->resources());
+    std::unique_ptr<Node>
+        branch = instantiateResource(resource, m_session.resources(), project->resources(), m_session.registry());
     // Ветка станет ребёнком parent, а без него - корня; положение задаётся в
     // его координатах. В пустой сцене ветка сама станет корнем.
     const Node* target = parent ? parent : m_session.scene().root();

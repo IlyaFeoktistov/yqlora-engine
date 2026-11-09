@@ -7,6 +7,7 @@
 #include "yqlora/material/MaterialData.hpp"
 #include "yqlora/render/MeshData.hpp"
 #include "yqlora/render/TextureData.hpp"
+#include "yqlora/scene/Prefab.hpp"
 #include "yqlora/scene/SceneSerializer.hpp"
 #include "yqlora/shader/ShaderData.hpp"
 
@@ -21,6 +22,7 @@ constexpr std::pair<std::string_view, const char*> kIcons[] = {
     {kFolderKind, icons::kFolder},
     {kCppScriptKind, icons::kCodeFile},
     {SceneSerializer::kResourceKind, icons::kScene},
+    {Prefab::kResourceKind, icons::kPrefab},
     {ModelData::kResourceKind, icons::kModelFile},
     {MeshData::kResourceKind, icons::kMesh},
     {TextureData::kResourceKind, icons::kImageFile},

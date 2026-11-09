@@ -39,6 +39,7 @@ inline constexpr const char* kFolderOpen = "\uE247";   // folder-open
 inline constexpr const char* kImport = "\uE334";       // folder-input
 inline constexpr const char* kFile = "\uE0C0";         // file
 inline constexpr const char* kScene = "\uE29B";        // clapperboard
+inline constexpr const char* kPrefab = "\uE129";       // package
 inline constexpr const char* kCodeFile = "\uE0C3";     // file-code
 inline constexpr const char* kModelFile = "\uE310";    // file-box
 inline constexpr const char* kImageFile = "\uE31C";    // file-image

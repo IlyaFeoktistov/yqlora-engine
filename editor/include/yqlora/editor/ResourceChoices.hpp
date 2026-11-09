@@ -26,10 +26,6 @@ struct ResourceChoice {
     bool builtin = false;
 };
 
-// Вид ресурса файла path: по загрузчику, а сцена - SceneSerializer::kResourceKind
-// (её загрузчик не читает). Пусто - движок такие файлы не читает.
-std::string_view fileKind(const std::filesystem::path& path, const ResourceCache& cache);
-
 // Вложенные ресурсы файла file (путь path), которые в нём сейчас есть, в
 // порядке файла. Файл читается, только если в таких файлах бывают вложенные
 // ресурсы (ResourceCache::nestedKindsOf).

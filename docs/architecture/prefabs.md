@@ -57,14 +57,19 @@ variants; nothing here is new.
   A variant is a prefab whose root is an instance of another prefab with
   overrides: it falls out of nesting, the editor only adds "Create variant".
   A prefab that contains itself, directly or through others, is an error
-  of loading and is refused by the editor when dropped.
+  of expanding and is refused by the editor when dropped.
 - **Prefab data is a resource**: the loader of `.yprefab` and `.yscene`
-  gives `SceneData`
-  (the parsed tree with its IDs, not a `Scene`), kept in `ResourceCache`
-  with a revision like any resource; nested prefabs are dependencies. A
-  model gives the same shape from `ModelData`: the source ID of a model
-  node is derived from its key in the file (`node:LeftDoor`), so a
-  re-export with the same names keeps the overrides.
+  gives `PrefabData` and `SceneData` (the parsed tree in the format of the
+  file, with its IDs, not a `Scene`), kept in `ResourceCache` with a
+  revision like any resource. A nested prefab stays an entry of the outer
+  one and is expanded from its own current data when the outer one is, so
+  a change of the inner prefab reaches every outer one without making it a
+  dependency of the file. A branch is written and read by the code of
+  scene files (`SceneBranches`), so a prefab and a scene have one format.
+  A model gives the same shape (`modelBranch`): the source ID of a model
+  node is derived from its key in the file (`node:LeftDoor`), of a
+  component from the node and its type, so a re-export with the same names
+  keeps the overrides.
 - **A changed prefab** (saved, changed on disk, a model exported again):
   every instance in an open scene is rebuilt, its overrides computed
   against the old data, then expanded from the new data with the overrides
@@ -134,21 +139,28 @@ never the derived ones: they stay the same in every instance.
 
 ### PF.2 Prefab data
 
-- `SceneData` (the parsed tree with node and component IDs, instance
-  entries kept as entries) and its loader for `.yprefab` and `.yscene` in
-  `ResourceCache`; the prefab kind in Files, Create and the icons;
-  nested prefabs as dependencies; a cycle is the error of the resource.
-- `ModelData` gives `SceneData` with source IDs from node keys.
-- Tests: a prefab and a scene load as data with their IDs; a scene is not
-  a prefab for a prefab field or a drop; a prefab inside a prefab
-  is a dependency, its change reloads the outer one; a cycle of two files
-  is an error, not a hang; a model gives the same tree a drop gives now.
+- `PrefabData` and `SceneData` (the parsed tree with node and component
+  IDs, instance entries kept as entries), one loader for `.yprefab` and
+  `.yscene` in `ResourceCache`; `SceneBranches` (a branch written and read
+  by the scene file code, with its IDs or new ones); the prefab kind in
+  Files, Create and the icons; a field of `Ref<Prefab>` takes prefabs and
+  models (`kinds::fitsKind`).
+- `modelBranch`: the tree of a model or one of its meshes with IDs from
+  node keys; the editor drop reads it with new IDs.
+- Tests: a prefab and a scene load as data with their IDs, a file of a
+  newer version is refused; a scene is not a prefab for a prefab field; a
+  branch keeps its IDs or gets new ones; a model gives the same IDs on
+  every build and after a re-export with the same names, a renamed node a
+  new one.
 
 ### PF.3 Expanding and overrides
 
 - `PrefabLink` on nodes, `expandPrefab` (derived IDs, mapped `NodeRef`,
-  nested levels), `computeOverrides` and `applyOverrides`; the serializer
-  writes an instance as its link and overrides and reads it back.
+  nested levels from the current data of each prefab, a cycle detected by
+  the chain of prefabs being expanded), `computeOverrides` and
+  `applyOverrides`; the serializer writes an instance as its link and
+  overrides and reads it back. Tests also: a cycle of two files is an
+  error, not a hang; a changed inner prefab reaches an outer instance.
 - Tests: save and load keep an instance as a link; each kind of override
   round-trips; an override of a nested prefab node; a reference from
   outside into an instance survives a change of the prefab; a property

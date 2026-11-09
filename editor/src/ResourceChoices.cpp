@@ -41,11 +41,6 @@ std::vector<ResourceId> nestedOfKind(
 
 } // namespace
 
-std::string_view fileKind(const std::filesystem::path& path, const ResourceCache& cache)
-{
-    return ProjectFiles::isScene(path) ? SceneSerializer::kResourceKind : cache.kindOf(path);
-}
-
 std::vector<ResourceId> nestedResources(ResourceId file, const std::filesystem::path& path, ResourceCache& cache)
 {
     std::vector<ResourceId> nested;
@@ -78,7 +73,7 @@ std::vector<ResourceChoice> resourceChoices(
         return choices;
     }
     for (const auto& [file, path] : resources->paths()) {
-        if (fileKind(path, cache) == kind && fitsResourceUse(use, file, cache)) {
+        if (kinds::fitsKind(cache.kindOf(path), kind) && fitsResourceUse(use, file, cache)) {
             choices.push_back({file, toGenericUtf8(path), {}, false});
         }
         for (const ResourceId id : nestedOfKind(kind, use, file, path, cache)) {
@@ -109,7 +104,7 @@ std::optional<ResourceId> resourceForField(
     if (!resources->key(id).empty()) {
         return cache.loadedKind(id) == kind && fitsResourceUse(use, id, cache) ? std::optional(id) : std::nullopt;
     }
-    if (fileKind(*path, cache) == kind) {
+    if (kinds::fitsKind(cache.kindOf(*path), kind)) {
         return fitsResourceUse(use, id, cache) ? std::optional(id) : std::nullopt;
     }
     const auto nested = nestedOfKind(kind, use, id, *path, cache);

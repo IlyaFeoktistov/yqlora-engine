@@ -21,7 +21,7 @@ struct ResourceInspection {
     std::filesystem::path path;
     // Ключ вложенного ресурса без вида ("Bark"); пусто - ресурс сам файл.
     std::string nestedKey;
-    // Вид ресурса (у файла fileKind); пусто - движок такие файлы не читает.
+    // Вид ресурса (у файла - ResourceCache::kindOf); пусто - движок такие файлы не читает.
     std::string_view kind;
     // nullopt - файл не читается загрузчиком.
     std::optional<ResourceStatus> status;

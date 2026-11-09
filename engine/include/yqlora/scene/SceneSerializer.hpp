@@ -18,8 +18,9 @@ class TypeRegistry;
 // по именам типов из реестра, значения читаются и пишутся через их свойства.
 class YQLORA_API SceneSerializer {
 public:
-    // Вид ресурса файла сцены для ссылок на него. Кэш ресурсов сцены не
-    // читает: их загружает SceneSerializer.
+    // Вид ресурса файла сцены для ссылок на него. Кэш ресурсов читает файл
+    // сцены в SceneData (для сборки игры и префабов), а сцену из него строит
+    // SceneSerializer.
     static constexpr std::string_view kResourceKind = kinds::kScene;
 
     // Расширение файлов сцен.
@@ -50,6 +51,8 @@ public:
 
 private:
     struct Format;
+    // Ветка в формате файла для префабов, во внутреннем API (SceneBranches.hpp).
+    friend struct SceneBranches;
 
     // ID узла и компонента из файла: их setId закрыт для всех, кроме сериализатора.
     static void assignId(Node& node, NodeId id);

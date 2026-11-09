@@ -115,6 +115,15 @@ public:
         const SceneSerializer& serializer
     );
 
+    // Новый префаб name.yprefab в папке folder: тот же формат, что у сцены,
+    // корень - пустой Node3D с именем префаба. nullopt, если имя не годится
+    // или занято.
+    std::optional<std::filesystem::path> createPrefab(
+        const std::filesystem::path& folder,
+        std::string_view name,
+        const SceneSerializer& serializer
+    );
+
     // Новая папка name в папке folder. nullopt, если имя не годится или занято.
     std::optional<std::filesystem::path> createFolder(const std::filesystem::path& folder, std::string_view name);
 

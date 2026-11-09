@@ -19,7 +19,7 @@ std::optional<ResourceInspection> inspectResource(EditorSession& session, Resour
         .id = id,
         .path = *path,
         .nestedKey = std::string(subresourceLocalKey(key)),
-        .kind = key.empty() ? fileKind(*path, cache) : cache.loadedKind(id),
+        .kind = key.empty() ? cache.kindOf(*path) : cache.loadedKind(id),
         .status = std::nullopt,
     };
     if (cache.kindOf(*path).empty()) {
