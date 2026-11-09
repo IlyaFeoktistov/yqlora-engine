@@ -116,7 +116,9 @@ engine library are in [materials](materials.md#shader-files-done).
         "type": "Node3D",
         "id": "da9dc314563ffd36",
         "properties": {"name": "Root", "active": true},
-        "components": [{"type": "Transform3D", "properties": {"position": [0.0, 0.0, 0.0]}}],
+        "components": [
+            {"type": "Transform3D", "id": "07b3c2e9d14a6f58", "properties": {"position": [0.0, 0.0, 0.0]}}
+        ],
         "children": []
     },
     "version": 1
@@ -132,7 +134,10 @@ engine library are in [materials](materials.md#shader-files-done).
   neither breaks nor loses saved data (see [scripts](scripting.md)). Unknown
   properties of nodes are skipped: node types belong to the engine, and its
   format changes go through migrations.
-- 64-bit IDs (nodes, resources) are written as strings of 16 hex digits:
+- A component has its own ID (unique among the components of its node),
+  so references to a component and overrides of prefabs find it; a file
+  without one, or with an ID repeated on the node, gets a new one on load.
+- 64-bit IDs (nodes, components, resources) are written as strings of 16 hex digits:
   many tools read JSON numbers only up to 2^53 and would spoil them silently.
 - Enumerations are written by name, so the order of values in C++ can change.
 - A binary scene format for the built game comes with step 9; JSON stays the

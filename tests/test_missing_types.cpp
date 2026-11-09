@@ -3,6 +3,7 @@
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineServices.hpp>
+#include <yqlora/core/JsonId.hpp>
 #include <yqlora/scene/MissingComponent.hpp>
 #include <yqlora/scene/Node3D.hpp>
 #include <yqlora/scene/Scene.hpp>
@@ -85,7 +86,12 @@ TEST_CASE_FIXTURE(Fixture, "Missing type: the component is kept as read and writ
     // В списках сцены заглушка не выдаёт себя за пропавший тип.
     CHECK(scene.componentsOfType("Spinner").empty());
 
-    CHECK(componentJson(saved(), kSpinnerLoaded) == componentJson(kScene, kSpinnerInFile));
+    // В файле ID не было: заглушка получила новый и пишет его, остальное как было.
+    Json written = componentJson(saved(), kSpinnerLoaded);
+    REQUIRE(written.contains("id"));
+    CHECK(written["id"] == idToJson(missing->id()));
+    written.erase("id");
+    CHECK(written == componentJson(kScene, kSpinnerInFile));
 }
 
 TEST_CASE_FIXTURE(Fixture, "Missing type: properties a known type does not have are kept and written back")

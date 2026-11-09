@@ -3,6 +3,7 @@
 #include "yqlora/core/Export.hpp"
 
 #include "yqlora/reflection/TypeName.hpp"
+#include "yqlora/scene/ObjectId.hpp"
 
 #include <string>
 #include <string_view>
@@ -15,7 +16,7 @@ class Node;
 // компонентами; компонент хранит невладеющий указатель на узел.
 class YQLORA_API Component {
 public:
-    Component() = default;
+    Component();
     virtual ~Component();
 
     Component(const Component&) = delete;
@@ -32,6 +33,14 @@ public:
     }
 
     virtual std::string_view typeName() const = 0;
+
+    // Уникален среди компонентов узла и не меняется за жизнь компонента: по
+    // нему (вместе с ID узла) на компонент ссылаются сцены и переопределения
+    // префабов. Выдаётся случайно при создании, из файла - загрузчиком.
+    ComponentId id() const
+    {
+        return m_id;
+    }
 
     // Узел, к которому подключён компонент; nullptr, пока не подключён.
     Node* owner() const
@@ -114,7 +123,11 @@ private:
     // Для регистрации самого Component: его фазы защищённые.
     friend struct PhaseDetector;
     friend struct UnknownProperties;
+    // ID из файла сцены выставляет только загрузчик.
+    friend class SceneSerializer;
+    void setId(ComponentId id);
 
+    ComponentId m_id;
     Node* m_owner = nullptr;
     bool m_builtin = false;
     bool m_enabled = true;

@@ -51,8 +51,9 @@ public:
 private:
     struct Format;
 
-    // ID узла из файла: Node::setId закрыт для всех, кроме сериализатора.
+    // ID узла и компонента из файла: их setId закрыт для всех, кроме сериализатора.
     static void assignId(Node& node, NodeId id);
+    static void assignId(Component& component, ComponentId id);
 
     const TypeRegistry& m_registry;
 };

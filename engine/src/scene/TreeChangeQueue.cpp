@@ -18,7 +18,7 @@ void TreeChangeQueue::destroy(const Node& node)
 
 void TreeChangeQueue::destroy(const Component& component)
 {
-    m_changes.push_back({.node = component.owner()->id(), .component = &component});
+    m_changes.push_back({.node = component.owner()->id(), .component = component.id()});
 }
 
 void TreeChangeQueue::setParent(const Node& node, const Node& parent, KeepWorld keepWorld)
@@ -37,7 +37,9 @@ void TreeChangeQueue::apply(Scene& scene)
         }
         if (change.component) {
             const auto components = node->components();
-            const auto found = std::ranges::find(components, change.component, &std::unique_ptr<Component>::get);
+            const auto found = std::ranges::find_if(components, [&](const auto& component) {
+                return component->id() == change.component;
+            });
             // Уничтожен раньше, второй раз ничего не делает.
             if (found != components.end()) {
                 scene.destroy(**found);

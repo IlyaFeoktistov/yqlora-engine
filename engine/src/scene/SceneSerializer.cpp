@@ -43,7 +43,11 @@ constexpr const char* kChildrenKey = "children";
 Json componentToJson(const TypeRegistry& registry, const Component& component)
 {
     if (const auto* missing = dynamic_cast<const MissingComponent*>(&component)) {
-        return missing->data();
+        // Данные заглушки - как в файле, ID - её действующий.
+        Json data = missing->data();
+        data[kIdKey] = idToJson(missing->id());
+
+        return data;
     }
     const TypeInfo* type = registry.find(component.typeName());
     if (!type) {
@@ -62,6 +66,7 @@ Json componentToJson(const TypeRegistry& registry, const Component& component)
 
     return {
         {kTypeKey, type->name()},
+        {kIdKey, idToJson(component.id())},
         {kPropertiesKey, std::move(properties)},
     };
 }
@@ -171,7 +176,8 @@ struct SceneSerializer::Format {
         const TypeInfo* type = registry.find(typeName);
         if (!type || type->kind() != TypeKind::Component) {
             log::warn("Scene: unknown component type '{}' on node '{}', kept as missing", typeName, node.name());
-            node.addComponent(std::make_unique<MissingComponent>(json));
+            Component& missing = node.addComponent(std::make_unique<MissingComponent>(json));
+            readComponentId(node, missing, json);
 
             return;
         }
@@ -203,6 +209,7 @@ struct SceneSerializer::Format {
 
             return;
         }
+        readComponentId(node, *component, json);
         readProperties(*type, *component, json);
     }
 
@@ -226,8 +233,10 @@ struct SceneSerializer::Format {
                 continue;
             }
             const Json data = missing->data();
+            const ComponentId id = missing->id();
             node.removeComponent(*node.components()[index]);
             Component& component = node.insertComponent(index, type->createComponent());
+            assignId(component, id);
             readProperties(*type, component, data);
             ++revived;
         }
@@ -239,6 +248,25 @@ struct SceneSerializer::Format {
         }
 
         return revived;
+    }
+
+    // ID компонента из файла. Без него (файл до ID компонентов) или с ID,
+    // уже занятым на этом узле (файл правили руками), остаётся новый.
+    static void readComponentId(const Node& node, Component& component, const Json& json)
+    {
+        const auto id = json.contains(kIdKey) ? idFromJson(json[kIdKey]) : std::nullopt;
+        if (!id || *id == 0) {
+            return;
+        }
+        const auto taken = std::ranges::any_of(node.components(), [&](const auto& other) {
+            return other.get() != &component && other->id() == *id;
+        });
+        if (taken) {
+            log::warn("Scene: component ID repeats on node '{}', the component gets a new one", node.name());
+
+            return;
+        }
+        assignId(component, *id);
     }
 
     // Файл правили руками или правила типа поменялись: обязательного компонента
@@ -283,6 +311,11 @@ SceneSerializer::SceneSerializer(const TypeRegistry& registry)
 void SceneSerializer::assignId(Node& node, NodeId id)
 {
     node.setId(id);
+}
+
+void SceneSerializer::assignId(Component& component, ComponentId id)
+{
+    component.setId(id);
 }
 
 Json SceneSerializer::Format::write(const Scene& scene) const

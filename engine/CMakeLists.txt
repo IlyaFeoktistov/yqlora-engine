@@ -114,6 +114,7 @@ add_library(yqlora SHARED
     src/scene/Component.cpp
     src/scene/ComponentIndex.cpp
     src/scene/NodeIndex.cpp
+    src/scene/ObjectId.cpp
     src/scene/ComponentLifecycle.cpp
     src/scene/Transform3D.cpp
     src/scene/Node3D.cpp

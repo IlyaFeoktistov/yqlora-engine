@@ -7,7 +7,18 @@
 
 namespace yqlora {
 
+Component::Component()
+    : m_id(newObjectId())
+{
+}
+
 Component::~Component() = default;
+
+void Component::setId(ComponentId id)
+{
+    assert(id != 0 && "setId: 0 means no component");
+    m_id = id;
+}
 
 void Component::setEnabled(bool enabled)
 {

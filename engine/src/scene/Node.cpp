@@ -3,33 +3,17 @@
 #include "yqlora/core/Log.hpp"
 #include "yqlora/reflection/ComponentRules.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
+#include "yqlora/scene/ObjectId.hpp"
 #include "yqlora/scene/Scene.hpp"
 
 #include <algorithm>
 #include <cassert>
-#include <random>
 #include <utility>
 
 namespace yqlora {
 
-namespace {
-
-NodeId generateId()
-{
-    // 64 случайных бита: совпадение ID у узлов из разных сцен практически исключено.
-    thread_local std::mt19937_64 engine{std::random_device{}()};
-    NodeId id = 0;
-    while (id == 0) {
-        id = engine();
-    }
-
-    return id;
-}
-
-} // namespace
-
 Node::Node(std::string name)
-    : m_id(generateId())
+    : m_id(newObjectId())
     , m_name(std::move(name))
 {
 }

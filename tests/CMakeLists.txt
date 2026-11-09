@@ -12,6 +12,7 @@ add_executable(yqlora_tests
     test_shadows.cpp
     test_scene.cpp
     test_scene_access.cpp
+    test_object_ids.cpp
     test_script.cpp
     test_reflection.cpp
     test_serializer.cpp
