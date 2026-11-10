@@ -4,6 +4,7 @@
 #include "yqlora/reflection/ComponentRules.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/scene/ObjectId.hpp"
+#include "yqlora/scene/PrefabInstance.hpp"
 #include "yqlora/scene/Scene.hpp"
 
 #include <algorithm>
@@ -27,6 +28,16 @@ void Node::setId(NodeId id)
     if (m_scene) {
         m_scene->nodeIdChanged(*this, previous);
     }
+}
+
+void Node::setPrefabLink(PrefabLink link)
+{
+    m_prefabLink = link;
+}
+
+void Node::setPrefabInstance(std::unique_ptr<PrefabInstance> instance)
+{
+    m_prefabInstance = std::move(instance);
 }
 
 Node& Node::addChild(std::unique_ptr<Node> child)

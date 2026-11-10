@@ -12,7 +12,10 @@
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/scene/MissingComponent.hpp"
 #include "yqlora/scene/NodeTree.hpp"
+#include "yqlora/scene/PrefabExpansion.hpp"
+#include "yqlora/scene/PrefabInstance.hpp"
 #include "yqlora/scene/Scene.hpp"
+#include "yqlora/scene/SceneFileKeys.hpp"
 #include "yqlora/scene/UnknownProperties.hpp"
 
 #include <nlohmann/json.hpp>
@@ -20,6 +23,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -34,20 +38,19 @@ constexpr int kFirstFormatVersion = 1;
 constexpr std::array<Migration, 0> kMigrations{};
 constexpr FileFormat kFormat{"Scene", kFirstFormatVersion, kMigrations};
 
-// Ключи текущего формата.
-constexpr const char* kRootKey = "root";
-constexpr const char* kTypeKey = "type";
-constexpr const char* kIdKey = "id";
-constexpr const char* kPropertiesKey = "properties";
-constexpr const char* kComponentsKey = "components";
-constexpr const char* kChildrenKey = "children";
+using scene_keys::kChildren;
+using scene_keys::kComponents;
+using scene_keys::kId;
+using scene_keys::kProperties;
+using scene_keys::kRoot;
+using scene_keys::kType;
 
 Json componentToJson(const TypeRegistry& registry, const Component& component)
 {
     if (const auto* missing = dynamic_cast<const MissingComponent*>(&component)) {
         // Данные заглушки - как в файле, ID - её действующий.
         Json data = missing->data();
-        data[kIdKey] = idToJson(missing->id());
+        data[kId] = idToJson(missing->id());
 
         return data;
     }
@@ -67,13 +70,18 @@ Json componentToJson(const TypeRegistry& registry, const Component& component)
     }
 
     return {
-        {kTypeKey, type->name()},
-        {kIdKey, idToJson(component.id())},
-        {kPropertiesKey, std::move(properties)},
+        {kType, type->name()},
+        {kId, idToJson(component.id())},
+        {kProperties, std::move(properties)},
     };
 }
 
-Json nodeToJson(const TypeRegistry& registry, const Node& node)
+Json nodeToJson(const TypeRegistry& registry, const Node& node);
+
+// Узел как есть. instance - экземпляр, внутри которого он (0 - вне
+// экземпляров): его дети из того же экземпляра пишутся так же, остальные -
+// своими записями, если они экземпляры.
+Json plainNodeToJson(const TypeRegistry& registry, const Node& node, NodeId instance)
 {
     const TypeInfo* type = registry.find(node.typeName());
     if (!type) {
@@ -83,9 +91,9 @@ Json nodeToJson(const TypeRegistry& registry, const Node& node)
     }
 
     Json result;
-    result[kTypeKey] = type->name();
-    result[kIdKey] = idToJson(node.id());
-    result[kPropertiesKey] = propertiesToJson(registry, *type, node);
+    result[kType] = type->name();
+    result[kId] = idToJson(node.id());
+    result[kProperties] = propertiesToJson(registry, *type, node);
 
     Json components = Json::array();
     for (const auto& component : node.components()) {
@@ -94,18 +102,40 @@ Json nodeToJson(const TypeRegistry& registry, const Node& node)
             components.push_back(std::move(componentJson));
         }
     }
-    result[kComponentsKey] = std::move(components);
+    result[kComponents] = std::move(components);
 
     Json children = Json::array();
     for (const auto& child : node.children()) {
-        Json childJson = nodeToJson(registry, *child);
+        const bool inside = instance != 0 && child->prefabLink().instance == instance;
+        Json childJson = inside ? plainNodeToJson(registry, *child, instance) : nodeToJson(registry, *child);
         if (!childJson.is_null()) {
             children.push_back(std::move(childJson));
         }
     }
-    result[kChildrenKey] = std::move(children);
+    result[kChildren] = std::move(children);
 
     return result;
+}
+
+// Корень экземпляра пишется записью: префаб, ID экземпляра, переопределения.
+Json nodeToJson(const TypeRegistry& registry, const Node& node)
+{
+    const PrefabInstance* instance = node.prefabInstance();
+    if (!instance) {
+        return plainNodeToJson(registry, node, 0);
+    }
+    if (!instance->base) {
+        return instance->unused;
+    }
+
+    return computeOverrides(
+        *instance->base,
+        plainNodeToJson(registry, node, instance->id),
+        instance->prefab,
+        instance->id,
+        instance->unused,
+        registry
+    );
 }
 
 } // namespace
@@ -116,18 +146,24 @@ struct SceneSerializer::Format {
     // ID из файла не берутся, узлы и компоненты получают новые: копия ветки
     // рядом с оригиналом (модель, брошенная в сцену второй раз).
     bool freshIds = false;
+    // Откуда брать префабы экземпляров; nullptr - неоткуда, экземпляр
+    // остаётся узлом-заменой со своей записью.
+    const PrefabSources* sources = nullptr;
 
     Json write(const Scene& scene) const;
     bool readScene(Scene& scene, Json json) const;
 
     std::unique_ptr<Node> readNode(const Json& json) const
     {
-        if (!json.is_object() || !json.contains(kTypeKey) || !json[kTypeKey].is_string()) {
+        if (isPrefabRecord(json)) {
+            return readInstance(json);
+        }
+        if (!json.is_object() || !json.contains(kType) || !json[kType].is_string()) {
             log::error("Scene: node without a type");
 
             return nullptr;
         }
-        const std::string typeName = json[kTypeKey].get<std::string>();
+        const std::string typeName = json[kType].get<std::string>();
         const TypeInfo* type = registry.find(typeName);
         if (!type || type->kind() != TypeKind::Node) {
             log::error("Scene: unknown node type '{}'", typeName);
@@ -141,20 +177,20 @@ struct SceneSerializer::Format {
             return nullptr;
         }
 
-        const auto id = json.contains(kIdKey) ? idFromJson(json[kIdKey]) : std::nullopt;
+        const auto id = json.contains(kId) ? idFromJson(json[kId]) : std::nullopt;
         if (id && *id != 0 && !freshIds) {
             assignId(*node, *id);
         }
-        if (const auto it = json.find(kPropertiesKey); it != json.end()) {
+        if (const auto it = json.find(kProperties); it != json.end()) {
             propertiesFromJson(registry, *type, *node, *it);
         }
-        if (const auto it = json.find(kComponentsKey); it != json.end() && it->is_array()) {
+        if (const auto it = json.find(kComponents); it != json.end() && it->is_array()) {
             for (const Json& componentJson : *it) {
                 readComponent(*node, componentJson);
             }
         }
         addMissingRequirements(*node);
-        if (const auto it = json.find(kChildrenKey); it != json.end() && it->is_array()) {
+        if (const auto it = json.find(kChildren); it != json.end() && it->is_array()) {
             for (const Json& childJson : *it) {
                 std::unique_ptr<Node> child = readNode(childJson);
                 if (!child) {
@@ -167,17 +203,95 @@ struct SceneSerializer::Format {
         return node;
     }
 
+    // Экземпляр префаба: узлы префаба с выведенными ID и применёнными
+    // переопределениями. Префаб не развернулся (нет файла, цикл) - на месте
+    // экземпляра узел-замена, который пишет запись обратно как была.
+    std::unique_ptr<Node> readInstance(const Json& json) const
+    {
+        Json record = json;
+        if (freshIds) {
+            freshenRecord(record);
+        }
+        const ResourceId prefab = recordPrefab(record);
+        const NodeId instance = recordInstance(record);
+        const auto base = prefab != 0 && instance != 0 ? instanceBase(prefab) : nullptr;
+        if (!base) {
+            return placeholder(std::move(record));
+        }
+        ExpandedPrefab expanded = expandPrefab(*base, record, instance, registry);
+        // Новые ID записи уже даны, выведенные ID берутся как есть.
+        std::unique_ptr<Node> root = Format{registry, false, sources}.readNode(expanded.tree);
+        if (!root) {
+            return nullptr;
+        }
+        const auto links = instanceSources(*base, instance);
+        forEachNode(*root, [&](Node& node) {
+            const auto it = links.find(node.id());
+            if (it != links.end() && !node.prefabLink()) {
+                node.setPrefabLink({instance, it->second});
+            }
+        });
+        root->setPrefabInstance(
+            std::make_unique<PrefabInstance>(PrefabInstance{prefab, instance, base, std::move(expanded.unused)})
+        );
+
+        return root;
+    }
+
+    // Дерево префаба, из которого разворачивается экземпляр: вложенные
+    // префабы развёрнуты, значения - как их пишет сцена, чтобы сравнение с
+    // экземпляром не видело разницы там, где её нет (свойства по умолчанию,
+    // которых нет в файле, прежние имена свойств).
+    std::shared_ptr<const Json> instanceBase(ResourceId prefab) const
+    {
+        const auto tree = sources ? prefabTree(prefab, *sources, registry) : nullptr;
+        if (!tree) {
+            return nullptr;
+        }
+        std::vector<ResourceId> chain{prefab};
+        const auto resolved = resolvePrefabs(*tree, *sources, registry, chain);
+        const auto nodes = resolved ? Format{registry}.readNode(*resolved) : nullptr;
+        if (!nodes) {
+            return nullptr;
+        }
+
+        return std::make_shared<const Json>(plainNodeToJson(registry, *nodes, 0));
+    }
+
+    std::unique_ptr<Node> placeholder(Json record) const
+    {
+        log::error("Scene: prefab {:016x} is not expanded, its instance is kept as is", recordPrefab(record));
+        auto node = std::make_unique<Node>(recordName(record).value_or(std::string(Node::staticTypeName())));
+        const NodeId instance = recordInstance(record);
+        if (instance != 0) {
+            assignId(*node, instance);
+        }
+        node->setPrefabInstance(
+            std::make_unique<PrefabInstance>(PrefabInstance{recordPrefab(record), instance, nullptr, std::move(record)})
+        );
+
+        return node;
+    }
+
+    static void forEachNode(Node& node, const std::function<void(Node&)>& visit)
+    {
+        visit(node);
+        for (const auto& child : node.children()) {
+            forEachNode(*child, visit);
+        }
+    }
+
     // Компонент неизвестного типа становится заглушкой со своими данными, а не
     // роняет сцену и не теряется: так сцена откроется и сохранится, даже если
     // модуль игры не собран или скрипт удалили.
     void readComponent(Node& node, const Json& json) const
     {
-        if (!json.is_object() || !json.contains(kTypeKey) || !json[kTypeKey].is_string()) {
+        if (!json.is_object() || !json.contains(kType) || !json[kType].is_string()) {
             log::warn("Scene: component without a type on node '{}', skipped", node.name());
 
             return;
         }
-        const std::string typeName = json[kTypeKey].get<std::string>();
+        const std::string typeName = json[kType].get<std::string>();
         const TypeInfo* type = registry.find(typeName);
         if (!type || type->kind() != TypeKind::Component) {
             log::warn("Scene: unknown component type '{}' on node '{}', kept as missing", typeName, node.name());
@@ -220,7 +334,7 @@ struct SceneSerializer::Format {
 
     void readProperties(const TypeInfo& type, Component& component, const Json& json) const
     {
-        if (const auto it = json.find(kPropertiesKey); it != json.end()) {
+        if (const auto it = json.find(kProperties); it != json.end()) {
             propertiesFromJson(registry, type, component, *it);
             UnknownProperties::set(component, unknownPropertiesJson(registry, type, *it));
         }
@@ -262,7 +376,7 @@ struct SceneSerializer::Format {
         if (freshIds) {
             return;
         }
-        const auto id = json.contains(kIdKey) ? idFromJson(json[kIdKey]) : std::nullopt;
+        const auto id = json.contains(kId) ? idFromJson(json[kId]) : std::nullopt;
         if (!id || *id == 0) {
             return;
         }
@@ -330,7 +444,7 @@ Json SceneSerializer::Format::write(const Scene& scene) const
 {
     Json json;
     kFormat.stamp(json);
-    json[kRootKey] = scene.root() ? nodeToJson(registry, *scene.root()) : Json(nullptr);
+    json[kRoot] = scene.root() ? nodeToJson(registry, *scene.root()) : Json(nullptr);
 
     return json;
 }
@@ -348,7 +462,7 @@ bool SceneSerializer::Format::readScene(Scene& scene, Json json) const
 
     // Дерево собираем отдельно и отдаём сцене, только если всё прочиталось.
     std::unique_ptr<Node> root;
-    if (const auto it = json.find(kRootKey); it != json.end() && !it->is_null()) {
+    if (const auto it = json.find(kRoot); it != json.end() && !it->is_null()) {
         root = readNode(*it);
         if (!root) {
             return false;
@@ -374,7 +488,9 @@ bool SceneSerializer::fromJson(Scene& scene, std::string_view text) const
         return false;
     }
 
-    return Format{m_registry}.readScene(scene, std::move(json));
+    const PrefabSources sources = PrefabSources::of(scene.services());
+
+    return Format{m_registry, false, &sources}.readScene(scene, std::move(json));
 }
 
 bool SceneSerializer::save(const Scene& scene, const std::filesystem::path& file) const
@@ -404,7 +520,9 @@ bool SceneSerializer::load(Scene& scene, const std::filesystem::path& file) cons
         return false;
     }
 
-    return Format{m_registry}.readScene(scene, std::move(*json));
+    const PrefabSources sources = PrefabSources::of(scene.services());
+
+    return Format{m_registry, false, &sources}.readScene(scene, std::move(*json));
 }
 
 Json SceneBranches::write(const TypeRegistry& registry, const Node& node)
@@ -412,9 +530,14 @@ Json SceneBranches::write(const TypeRegistry& registry, const Node& node)
     return nodeToJson(registry, node);
 }
 
-std::unique_ptr<Node> SceneBranches::read(const TypeRegistry& registry, const Json& node, BranchIds ids)
+std::unique_ptr<Node> SceneBranches::read(
+    const TypeRegistry& registry,
+    const Json& node,
+    BranchIds ids,
+    const PrefabSources* sources
+)
 {
-    return SceneSerializer::Format{registry, ids == BranchIds::Fresh}.readNode(node);
+    return SceneSerializer::Format{registry, ids == BranchIds::Fresh, sources}.readNode(node);
 }
 
 std::optional<Json> SceneBranches::rootOfFile(Json file)
@@ -422,7 +545,7 @@ std::optional<Json> SceneBranches::rootOfFile(Json file)
     if (!file.is_object() || !kFormat.migrate(file)) {
         return std::nullopt;
     }
-    const auto it = file.find(kRootKey);
+    const auto it = file.find(kRoot);
 
     return it != file.end() ? std::optional(std::move(*it)) : std::optional(Json(nullptr));
 }

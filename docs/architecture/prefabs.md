@@ -47,12 +47,19 @@ variants; nothing here is new.
   - a removed node or component of the prefab.
 
   The position, rotation, scale, name and parent of the instance root are
-  always its own. Overrides are computed when the scene is saved, by
-  comparing the instance with the prefab data it was expanded from, and
-  applied when it is loaded.
+  always its own: the name and the values of the root's built-in components
+  are always written as overrides, even when they match the prefab. An added
+  node becomes the last child; a prefab node is never moved to another
+  parent inside the instance. Overrides are computed when the scene is
+  saved, by comparing the instance with the prefab data it was expanded
+  from, and applied when it is loaded.
 - **An override whose target is gone** (the prefab lost that node) is kept
   in the file and shown in the inspector as unused, with "Remove unused
   overrides"; it is never applied to another node.
+- **A prefab that does not expand** (no file, not a prefab, a cycle): a
+  placeholder node named after the root in the record stands in place of the
+  instance, and the record is written back as it was, so the scene loses
+  nothing. Such an instance inside a prefab is dropped with an error in the log.
 - **Nesting and variants**: a prefab may hold instances of other prefabs.
   A variant is a prefab whose root is an instance of another prefab with
   overrides: it falls out of nesting, the editor only adds "Create variant".
@@ -82,6 +89,12 @@ variants; nothing here is new.
   of a new instance (a new random instance ID); the nodes take part from
   the next frame, like other nodes created during a frame. The same call
   makes the tree that a drop into the editor makes.
+- **A prefab pool** is a separate path for objects that come and go often
+  (bullets, shells, hit effects): instances are made ahead, disabled, and
+  the pool hands out a ready one and takes it back by disabling it, with no
+  expanding or destroying on the fly. `instantiate` is for the rare (a wave
+  enemy, an item), the pool for the frequent; the difference is visible in
+  the game code, the engine never silently turns one into the other.
 - **Models in the scene become instances.** A model dropped into a scene is
   an instance of the model, not a copy of its nodes as now: an exported
   model updates every scene, and material slots filled from the file are
@@ -95,19 +108,27 @@ A scene holds an instance in place of a node:
 {
     "prefab": "4c1e07a95b3d2f60",
     "id": "da9dc314563ffd36",
-    "properties": {"name": "Door", "position": [2.0, 0.0, 0.0]},
     "overrides": [
+        {"node": "8749596cb9467fd1", "property": "name", "value": "Door"},
+        {"node": "8749596cb9467fd1", "component": "2ec4daa1615cfd6c",
+         "property": "position", "value": [2.0, 0.0, 0.0]},
         {"node": "e51d90c4b7a2f386", "component": "07b3c2e9d14a6f58",
          "property": "materials", "value": ["9bf87a121dc2ad5c"]}
     ],
-    "added": [{"parent": "e51d90c4b7a2f386", "node": {"type": "PointLight3D"}}],
-    "addedComponents": [{"node": "e51d90c4b7a2f386", "component": {"type": "Rotator"}}],
-    "removed": ["a3f0c2d1e4b59687"]
+    "added": [{"parent": "e51d90c4b7a2f386", "node": {"type": "PointLight3D", "id": "..."}}],
+    "addedComponents": [{"node": "e51d90c4b7a2f386", "component": {"type": "Rotator", "id": "..."}}],
+    "removed": ["a3f0c2d1e4b59687"],
+    "removedComponents": [{"node": "e51d90c4b7a2f386", "component": "5b2e81c0d97a4f13"}]
 }
 ```
 
-`node` and `component` are IDs in the space of the prefab (the source),
-never the derived ones: they stay the same in every instance.
+`id` is the instance ID; a prefab node or component in the instance has
+the ID `deriveId(id, ID in the prefab)`. `node`, `component` and `parent`
+are IDs in the space of the prefab (the source), never the derived ones:
+they stay the same in every instance. Added nodes and components are
+written whole, as in a scene, with their own IDs; references in values to
+nodes of the instance are in the prefab space too. Empty kinds of
+overrides are not written.
 
 ## Editor
 
@@ -175,6 +196,20 @@ never the derived ones: they stay the same in every instance.
   100 instances of one prefab have distinct IDs and share mesh resources;
   a prefab and a model both instantiate, a scene is refused; hot reload keeps the
   overrides.
+- The expanded prefab tree (`PrefabInstance::base`) is cached by the prefab
+  and the revisions of its file and nested files: a repeated `instantiate`
+  neither parses nor compares the tree again.
+- A prefab pool: a `PrefabPool` component (prefab, initial size, grow when
+  empty or refuse) and the methods `acquire(parent)` and `release(node)`;
+  instances are made when the pool enters the scene, disabled, a handed out
+  one is enabled, a returned one is disabled and goes back under the pool.
+  Properties changed during an object's life are reset to the prefab values
+  on return, so a handed out object is as new; `onEnable` and `onDisable`
+  arrive as for any enabling. The same from code and from the inspector.
+- Pool tests: acquiring and releasing neither create nor destroy nodes; an
+  acquired instance has the prefab values after the changes of its past
+  life; an empty pool grows or refuses as set; a node not from the pool is
+  refused.
 
 ### PF.5 Editor
 

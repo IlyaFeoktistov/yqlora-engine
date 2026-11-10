@@ -122,6 +122,7 @@ add_library(yqlora SHARED
     src/scene/Transform3D.cpp
     src/scene/Node3D.cpp
     src/scene/PhaseList.cpp
+    src/scene/PrefabExpansion.cpp
     src/scene/Scene.cpp
     src/scene/SceneSystem.cpp
     src/scene/SceneSystems.cpp

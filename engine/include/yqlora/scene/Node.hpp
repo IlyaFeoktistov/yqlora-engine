@@ -4,6 +4,7 @@
 #include "yqlora/scene/Component.hpp"
 #include "yqlora/scene/Layers.hpp"
 #include "yqlora/scene/NodeId.hpp"
+#include "yqlora/scene/PrefabLink.hpp"
 
 #include <concepts>
 #include <cstddef>
@@ -18,6 +19,7 @@
 namespace yqlora {
 
 class Scene;
+struct PrefabInstance;
 
 // Сохранять ли положение узла в мире, когда он переходит к другому родителю.
 // No - значения относительно родителя те же, узел прыгает вместе с ними
@@ -60,6 +62,20 @@ public:
     NodeId id() const
     {
         return m_id;
+    }
+
+    // Узел экземпляра префаба: из какого экземпляра и узла префаба он
+    // взялся. Пусто у узлов не из префаба и у добавленных в экземпляр.
+    const PrefabLink& prefabLink() const
+    {
+        return m_prefabLink;
+    }
+
+    // Корень экземпляра префаба: префаб, ID экземпляра и его переопределения
+    // (PrefabInstance.hpp). nullptr у других узлов.
+    const PrefabInstance* prefabInstance() const
+    {
+        return m_prefabInstance.get();
     }
 
     const std::string& name() const
@@ -268,9 +284,11 @@ protected:
     }
 
 private:
-    // ID из файла сцены выставляет только загрузчик.
+    // ID из файла сцены и связь с префабом выставляет только загрузчик.
     friend class SceneSerializer;
     void setId(NodeId id);
+    void setPrefabLink(PrefabLink link);
+    void setPrefabInstance(std::unique_ptr<PrefabInstance> instance);
 
     // Вход в сцену и выход и остановку вызывает сама сцена для корня,
     // остальное - узлы по дереву. Кадр игры идёт не по дереву, а по спискам
@@ -294,6 +312,8 @@ private:
     void addRequiredComponents(const Component& component);
 
     NodeId m_id;
+    PrefabLink m_prefabLink;
+    std::unique_ptr<PrefabInstance> m_prefabInstance;
     std::string m_name;
     Node* m_parent = nullptr;
     Scene* m_scene = nullptr;

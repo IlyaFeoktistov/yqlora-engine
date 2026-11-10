@@ -102,6 +102,15 @@ public:
         return get<T>(id).data;
     }
 
+    // Данные с долей во владении: живут, пока их держат, и после перезагрузки
+    // файла. Для тех, кто помнит, из каких данных что-то построил (экземпляр
+    // префаба); остальные берут данные заново через get.
+    template <typename T>
+    std::shared_ptr<const T> share(ResourceId id)
+    {
+        return std::static_pointer_cast<const T>(shareData(id, T::kResourceKind));
+    }
+
     // Заменяет данные загруженного ресурса id в памяти с новой ревизией:
     // правка материала в инспекторе, изменение материала из скрипта. Файл не
     // пишется, его перечитывание вернёт данные с диска. false, если ресурс
@@ -173,7 +182,10 @@ private:
 
     static FileStamp stampOf(const std::filesystem::path& full);
 
+    // Запись ресурса id; ресурса нет - запись Missing с причиной в логе. nullptr для id 0.
+    const Entry* entryOf(ResourceId id);
     Found getData(ResourceId id, std::string_view kind);
+    std::shared_ptr<const void> shareData(ResourceId id, std::string_view kind);
     bool replaceData(ResourceId id, std::string_view kind, std::shared_ptr<const void> data);
     // Запись ресурса id: встроенный делается, файл читается. nullptr - ресурса нет.
     const Entry* lookup(ResourceId id);

@@ -4,6 +4,7 @@
 #include "yqlora/scene/ExecutionOrderSettings.hpp"
 #include "yqlora/scene/LayerSettings.hpp"
 #include "yqlora/scene/Node3D.hpp"
+#include "yqlora/scene/SceneFileKeys.hpp"
 #include "yqlora/scene/TimeSettings.hpp"
 #include "yqlora/scene/Timer.hpp"
 #include "yqlora/scene/TimerSystem.hpp"
@@ -22,7 +23,7 @@ constexpr float kMaxTimerSeconds = 3600.0f;
 void registerSceneTypes(TypeRegistry& registry)
 {
     registry.registerNode<Node>()
-        .property("name", &Node::name, &Node::setName)
+        .property(scene_keys::kNameProperty, &Node::name, &Node::setName)
         .property("active", &Node::active, &Node::setActive)
         .property("layer", &Node::layer, &Node::setLayer, PropertyHint::Layer)
         .property("groups", &Node::groups, &Node::setGroups)

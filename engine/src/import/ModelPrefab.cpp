@@ -12,6 +12,7 @@
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/ObjectId.hpp"
 #include "yqlora/scene/SceneBranches.hpp"
+#include "yqlora/scene/SceneFileKeys.hpp"
 
 #include <map>
 #include <memory>
@@ -30,11 +31,10 @@ constexpr const char* kUnnamedMesh = "Mesh";
 // Ключ корня модели: узла файла с таким ключом нет (у них вид "node:").
 constexpr const char* kRootKey = "root";
 constexpr std::string_view kNodeKind = "node";
-// Ключи ветки в формате файла сцены (SceneSerializer).
-constexpr const char* kIdKey = "id";
-constexpr const char* kTypeKey = "type";
-constexpr const char* kComponentsKey = "components";
-constexpr const char* kChildrenKey = "children";
+using scene_keys::kChildren;
+using scene_keys::kComponents;
+using scene_keys::kId;
+using scene_keys::kType;
 
 // Слоты меша mesh модели model: подмеш получает вложенный материал, которым
 // он покрашен в файле. Без материала или без его ID в .meta (проект только для
@@ -125,13 +125,13 @@ void assignStableIds(Json& node, const std::vector<std::string>& keys, std::size
 {
     const std::uint64_t id = next < keys.size() ? stableHash(keys[next]) : newObjectId();
     ++next;
-    node[kIdKey] = idToJson(id != 0 ? id : 1);
-    if (const auto components = node.find(kComponentsKey); components != node.end()) {
+    node[kId] = idToJson(id != 0 ? id : 1);
+    if (const auto components = node.find(kComponents); components != node.end()) {
         for (Json& component : *components) {
-            component[kIdKey] = idToJson(deriveId(id, stableHash(component.value(kTypeKey, ""))));
+            component[kId] = idToJson(deriveId(id, stableHash(component.value(kType, ""))));
         }
     }
-    if (const auto children = node.find(kChildrenKey); children != node.end()) {
+    if (const auto children = node.find(kChildren); children != node.end()) {
         for (Json& child : *children) {
             assignStableIds(child, keys, next);
         }

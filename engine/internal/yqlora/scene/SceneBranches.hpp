@@ -13,6 +13,7 @@ namespace yqlora {
 
 class Node;
 class TypeRegistry;
+struct PrefabSources;
 
 // Брать ли ID узлов и компонентов из ветки или дать новые.
 enum class BranchIds {
@@ -27,8 +28,15 @@ enum class BranchIds {
 struct YQLORA_API SceneBranches {
     static nlohmann::json write(const TypeRegistry& registry, const Node& node);
 
-    // nullptr с сообщением в лог, если ветка не читается.
-    static std::unique_ptr<Node> read(const TypeRegistry& registry, const nlohmann::json& node, BranchIds ids);
+    // nullptr с сообщением в лог, если ветка не читается. Экземпляры
+    // префабов в ветке разворачиваются из sources; без них остаются
+    // узлами-заменами со своими записями.
+    static std::unique_ptr<Node> read(
+        const TypeRegistry& registry,
+        const nlohmann::json& node,
+        BranchIds ids,
+        const PrefabSources* sources = nullptr
+    );
 
     // Корень дерева из документа файла сцены или префаба, переведённого на
     // текущую версию формата; null-корень у пустой сцены. nullopt - документ

@@ -130,10 +130,10 @@ std::size_t ResourceCache::reloadChanged()
     return reloaded;
 }
 
-ResourceCache::Found ResourceCache::getData(ResourceId id, std::string_view kind)
+const ResourceCache::Entry* ResourceCache::entryOf(ResourceId id)
 {
     if (id == 0) {
-        return {nullptr, 0};
+        return nullptr;
     }
     const Entry* found = lookup(id);
     if (!found) {
@@ -141,10 +141,26 @@ ResourceCache::Found ResourceCache::getData(ResourceId id, std::string_view kind
         setEntry(id, {{}, nullptr, {ResourceState::Missing, 0, "The resource is not in the project"}});
         found = &m_entries.at(id);
     }
-    const Entry& entry = *found;
-    const bool fits = entry.data && entry.kind == kind;
 
-    return {fits ? entry.data.get() : nullptr, entry.status.revision};
+    return found;
+}
+
+ResourceCache::Found ResourceCache::getData(ResourceId id, std::string_view kind)
+{
+    const Entry* entry = entryOf(id);
+    if (!entry) {
+        return {nullptr, 0};
+    }
+    const bool fits = entry->data && entry->kind == kind;
+
+    return {fits ? entry->data.get() : nullptr, entry->status.revision};
+}
+
+std::shared_ptr<const void> ResourceCache::shareData(ResourceId id, std::string_view kind)
+{
+    const Entry* entry = entryOf(id);
+
+    return entry && entry->kind == kind ? entry->data : nullptr;
 }
 
 bool ResourceCache::replaceData(ResourceId id, std::string_view kind, std::shared_ptr<const void> data)
