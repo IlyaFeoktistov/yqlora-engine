@@ -13,8 +13,10 @@ Status marks: see [README](README.md).
 - `EditorApp` assembles the editor: theme, settings, actions, panels.
 - `EditorSession` holds the open project, the scene document, Play, the
   selection, the edit history (undo and redo of the scene and of the project
-  settings), `SceneEditing` and `SettingsEditing`.
-- `SceneDocument` is the edited scene and its file.
+  settings), `SceneEditing`, `SettingsEditing` and `PrefabEditing` (prefab
+  instances: revert, apply, unpack, rebuild, see
+  [prefabs](prefabs.md#editor-done)).
+- `SceneDocument` is the edited scene or prefab and its file.
 - **Unsaved changes** follow one rule for the scene and the project
   settings: a thing is unsaved while it differs from its file, however it
   was changed, through the history or not. The scene document keeps the
@@ -170,13 +172,14 @@ Status marks: see [README](README.md).
   there and written to `.meta` by "Apply" (`applyModelImport`,
   `applyTextureImport`): the file is read again with a new revision. This is not in the edit
   history: the file and its `.meta` are not the scene.
-- **Into the scene**: a model or a mesh dropped onto a node of the scene
-  tree becomes its child, onto the empty place under the tree - a child of
-  the root, into the viewport - at the point on the ground under the cursor
-  (`placementPoint`). A model becomes a `Node3D` named after the file with
-  the nodes of the model under it, a mesh - a `Node3D` with a
-  `MeshRenderer` (`instantiateResource`); the slots of a mesh of a model
-  get the materials of its file. One undo step
+- **Into the scene**: a prefab, a model or a mesh dropped onto a node of
+  the scene tree becomes its child, onto the empty place under the tree - a
+  child of the root, into the viewport - at the point on the ground under
+  the cursor (`placementPoint`). It is an instance
+  (`SceneBranches::instantiate`, see [prefabs](prefabs.md#editor-done)): a
+  model is a `Node3D` named after the file with the nodes of the model
+  under it, a mesh a `Node3D` with a `MeshRenderer`; the slots of a mesh of
+  a model get the materials of its file. One undo step
   (`SceneEditing::addResource`, `AddBranchCommand`).
 - **A resource field** (`resourceField`): an icon and the name
   of the resource or "None (Mesh)"; clicking the field or the button on its

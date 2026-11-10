@@ -108,7 +108,10 @@ the format and the rules of values are in
 `*.yshader`: one GLSL 450 file with both stages; the annotations and the
 engine library are in [materials](materials.md#shader-files-done).
 
-`*.yscene`: the root node with its properties, components and children.
+`*.yscene` and `*.yprefab` (a scene and a prefab, one format): the root
+node with its properties, components and children. A prefab instance stands
+in place of a node as a record: the prefab, the instance ID and the
+overrides (the format is in [prefabs](prefabs.md#format)).
 
 ```json
 {

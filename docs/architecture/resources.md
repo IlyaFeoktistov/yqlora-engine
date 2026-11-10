@@ -119,7 +119,13 @@ own `ResourceId`, so a `ResourceRef` stays a single 64-bit number.
   log gets one message per resource, the inspector shows the state.
 - Data handed out by the cache is not kept across frames by its users:
   `FrameData` and picking take it anew every frame, so a reload never leaves
-  a dangling pointer.
+  a dangling pointer. Whoever builds something from data and remembers what
+  from (a prefab instance) takes it with a share of ownership
+  (`ResourceCache::share`): after a reload the old data lives while it is
+  held.
+- Scenes and prefabs are cache resources too: `SceneData` and `PrefabData`
+  (the parsed tree in the file format); nodes are built from them by whoever
+  places them (see [prefabs](prefabs.md#prefab-data-done)).
 
 ### Meshes
 

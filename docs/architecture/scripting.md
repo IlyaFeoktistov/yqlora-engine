@@ -243,8 +243,9 @@ bindings without extra work.
 - **Timers and delayed actions**: see "Timers" below.
 - **Events** (a timer ran out, a button was pressed), from code and wired
   in the inspector: see [events](events.md).
-- **Creating objects in a game**: `scene().instantiate(prefab, parent)`
-  for a prefab or a model, see [prefabs](prefabs.md).
+- **Creating objects in a game** **[done]**: `scene().instantiate(prefab,
+  parent)` for a prefab or a model and the `PrefabPool` for what comes
+  often, see [prefabs](prefabs.md#in-a-game-done).
 - **Rays and overlaps** (step 6): `physics().raycast`, `sphereCast`,
   `overlap` in the physics world, with layers. Picking of the editor stays
   in the editor.

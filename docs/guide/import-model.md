@@ -43,6 +43,10 @@ the nodes with a mesh, its slots filled with the materials of the file.
 Doors with one mesh refer to one resource, the
 geometry is not copied. Ctrl+Z removes the whole model.
 
+It is an instance of the model as a prefab: a re-exported model updates
+every scene, and what is changed in the scene (a material in a slot, an
+added node) stays with that instance, see [prefabs](prefabs.md).
+
 A single mesh is dragged the same way, from the opened model or from the
 mesh table in the inspector, and also onto the Mesh field of a
 `MeshRenderer`. The same mesh is chosen in the list of the field too: it

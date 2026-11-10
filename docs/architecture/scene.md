@@ -31,7 +31,7 @@ Status marks: see [README](README.md).
 |---|---|---|---|
 | **Node** | An object of the scene with its own role, one row in the scene tree | engine only | `Node`, `Node3D`, `Camera3D`, lights, UI controls |
 | **Component** | An ability or behaviour attached to a node | engine and game | `MeshRenderer`, `RigidBody`, `BoxCollider`, `AudioSource`, scripts |
-| **Resource** | A project file with a stable ID | engine (formats) | mesh, material, shader, texture, sound, scene, script source |
+| **Resource** | A project file with a stable ID | engine (formats) | mesh, material, shader, texture, sound, scene, prefab, script source |
 
 How to choose:
 
@@ -260,6 +260,12 @@ it owns. Its public interface stays as it is.
   Play copy and hot reload go through serialization, so only properties
   survive them. That is the contract for scripts: whatever must survive a
   reload is a property.
+- **A prefab instance** in the tree is ordinary nodes: each has a link to
+  the prefab (`Node::prefabLink()`), the root has the instance data
+  (`Node::prefabInstance()`). The IDs of its nodes and components are
+  derived from the instance ID and the IDs in the prefab, references inside
+  are translated; the file holds the instance as a reference to the prefab
+  and overrides (see [prefabs](prefabs.md)) **[done]**.
 - Serialization restores state, it does not manage lifetimes: subscriptions,
   system registrations and resources are released in `onStop` /
   `onExitScene` before a module is unloaded.
