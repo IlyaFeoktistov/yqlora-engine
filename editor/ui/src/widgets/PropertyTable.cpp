@@ -1,5 +1,6 @@
 #include "yqlora/editor/ui/widgets/PropertyTable.hpp"
 
+#include "yqlora/editor/PropertyValues.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 
@@ -52,8 +53,8 @@ bool drawTable(
 )
 {
     std::vector<const Property*> properties = registry.properties(type);
-    std::erase_if(properties, [](const Property* property) {
-        return !property->attributes().shown;
+    std::erase_if(properties, [&](const Property* property) {
+        return !propertyShown(registry, type, object, *property);
     });
     if (properties.empty() || !ImGui::BeginTable("properties", kColumnCount)) {
         return false;

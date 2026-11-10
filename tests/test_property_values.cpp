@@ -5,6 +5,7 @@
 #include <yqlora/editor/PropertyValues.hpp>
 #include <yqlora/reflection/TypeRegistry.hpp>
 #include <yqlora/render/Camera3D.hpp>
+#include <yqlora/render/Environment.hpp>
 #include <yqlora/scene/TimeSettings.hpp>
 
 #include <algorithm>
@@ -80,4 +81,25 @@ TEST_CASE("PropertyValues: one number of a vector is copied and pasted alone")
 
     PropertyValue flag{true};
     CHECK(vectorComponents(flag).empty());
+}
+
+TEST_CASE("Ambient colours are shown only for the ambient source that uses them")
+{
+    test::EngineRegistry registry;
+    const TypeInfo& type = *registry.find("Environment");
+    const auto shown = [&](const Environment& environment, std::string_view name) {
+        return propertyShown(registry, type, environment, propertyOf(registry, type, name));
+    };
+    Environment environment;
+    CHECK_FALSE(shown(environment, "skyColor"));
+    CHECK_FALSE(shown(environment, "ambientColor"));
+    CHECK(shown(environment, "ambientIntensity"));
+    environment.ambientSource = AmbientSource::Gradient;
+    CHECK(shown(environment, "skyColor"));
+    CHECK(shown(environment, "gradientLuminance"));
+    CHECK_FALSE(shown(environment, "ambientColor"));
+    environment.ambientSource = AmbientSource::Color;
+    CHECK_FALSE(shown(environment, "groundColor"));
+    CHECK(shown(environment, "ambientColor"));
+    CHECK(shown(environment, "gradientLuminance"));
 }

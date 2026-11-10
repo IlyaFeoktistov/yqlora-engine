@@ -333,6 +333,14 @@ enum class PropertyHint {
 
 // Как свойство показывается и сохраняется. Общее для всех языков, на которых
 // описан тип (C++, Luau, графы): инспектор и файлы не знают, откуда поле.
+// Свойство видно в инспекторе, только когда свойство-перечисление property
+// того же объекта равно одному из values (имена значений): цвета градиента
+// - при источнике Gradient. Значение при этом читается и пишется как всегда.
+struct ShownWhen {
+    std::string property;
+    std::vector<std::string> values;
+};
+
 struct PropertyAttributes {
     // Пределы чисел в инспекторе (int, float, числа векторов); nullopt - без предела.
     std::optional<float> min;
@@ -347,6 +355,8 @@ struct PropertyAttributes {
     bool saved = true;
     // Видно в инспекторе. false - только для кода и файла.
     bool shown = true;
+    // Видно только при значении другого свойства; nullopt - всегда.
+    std::optional<ShownWhen> shownWhen;
     // Прежние имена: файл с таким именем читается, пишется уже новое.
     std::vector<std::string> formerly;
     // Вид ресурса, на который ведёт ссылка (у списка ссылок - его элементы):
@@ -414,6 +424,14 @@ public:
     Self& notShown()
     {
         edit().shown = false;
+
+        return self();
+    }
+
+    // .shownWhen("ambientSource", {"Gradient"}), см. ShownWhen.
+    Self& shownWhen(std::string property, std::vector<std::string> values)
+    {
+        edit().shownWhen = ShownWhen{std::move(property), std::move(values)};
 
         return self();
     }

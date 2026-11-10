@@ -11,6 +11,7 @@ namespace yqlora {
 class Component;
 class Node;
 class SettingsSection;
+class TypeInfo;
 class TypeRegistry;
 } // namespace yqlora
 
@@ -28,6 +29,23 @@ std::optional<PropertyValue> defaultValue(
 );
 std::optional<PropertyValue> defaultValue(
     const TypeRegistry& registry,
+    const SettingsSection& section,
+    const Property& property
+);
+
+// Свойство видно в инспекторе у этого объекта: shown и условие shownWhen
+// по значению другого его свойства. Условие с неизвестным свойством или не
+// перечислением не скрывает.
+bool propertyShown(const TypeRegistry& registry, const TypeInfo& type, const Node& node, const Property& property);
+bool propertyShown(
+    const TypeRegistry& registry,
+    const TypeInfo& type,
+    const Component& component,
+    const Property& property
+);
+bool propertyShown(
+    const TypeRegistry& registry,
+    const TypeInfo& type,
     const SettingsSection& section,
     const Property& property
 );

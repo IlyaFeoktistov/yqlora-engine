@@ -29,6 +29,7 @@
 #include <imgui_stdlib.h>
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include <span>
 #include <string>
@@ -58,12 +59,18 @@ constexpr float kLabeledListLabelWeight = 0.4f;
 constexpr float kAngleDragSpeed = 0.5f;
 constexpr float kFloatDragSpeed = 0.05f;
 constexpr float kVectorDragSpeed = 0.02f;
+// Одиночное число тянется не медленнее этой доли своей величины за точку:
+// освещённость солнца (100 000 лк) меняется так же заметно, как множитель 0.5.
+constexpr float kRelativeDragStep = 0.01f;
 
-float dragSpeed(const Property& property)
+// value - текущее значение: шаг растёт вместе с ним.
+float dragSpeed(const Property& property, float value)
 {
     switch (property.hint()) {
     case PropertyHint::Angle: return kAngleDragSpeed;
-    default: return property.type() == PropertyType::Float ? kFloatDragSpeed : kVectorDragSpeed;
+    default:
+        return property.type() == PropertyType::Float ? std::max(kFloatDragSpeed, std::abs(value) * kRelativeDragStep)
+                                                      : kVectorDragSpeed;
     }
 }
 
@@ -80,7 +87,7 @@ void rowLabel(const Property& property, PropertyValue& value, PropertyResult& re
             label.c_str(),
             ImGui::GetStyleColorVec4(ImGuiCol_Text),
             std::get<float>(value),
-            dragSpeed(property),
+            dragSpeed(property, std::get<float>(value)),
             result
         );
     } else {
@@ -283,7 +290,8 @@ void valueField(
     PropertyResult& result
 )
 {
-    const float speed = dragSpeed(property);
+    // Числа векторов - с постоянным шагом: у положения величина не мера шага.
+    const float speed = dragSpeed(property, 0.0f);
     switch (type) {
     case PropertyType::Bool:
         result.changed = checkbox("##value", &std::get<bool>(value), context.metrics.checkboxPadding) || result.changed;

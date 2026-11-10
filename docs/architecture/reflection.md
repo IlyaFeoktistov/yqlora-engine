@@ -45,7 +45,10 @@ types (`PropertyAttributes`): `range(min, max)` limits numbers in the
 inspector (also the numbers of vectors and lists), `displayName` and
 `tooltip` (a translation key or the text itself), `group` puts it under a
 heading, `notSaved` keeps it out of files, `notShown` out of the inspector,
-`formerly("oldName")` reads files written under an old name,
+`shownWhen("mode", {"A", "B"})` shows it only while the enum property
+`mode` of the same object has one of the values (gradient colours with the
+`Gradient` source), `formerly("oldName")` reads files written under an old
+name,
 `resource(kind)` tells which resources a reference (or a list of them) takes
 (`T::kResourceKind`, the inspector offers only those). They chain after
 `property(...)` in a type builder and after `field(...)` in records and

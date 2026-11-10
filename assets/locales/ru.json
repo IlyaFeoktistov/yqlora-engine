@@ -444,17 +444,17 @@
         "range": "Дальность",
         "innerAngle": "Внутренний угол",
         "outerAngle": "Внешний угол",
-        "ambientColor": "Цвет окружающего света",
+        "ambientColor": "Цвет",
         "ambientIntensity": "Интенсивность окружающего света",
         "aerialPerspective": "Воздушная перспектива",
         "ambientSource": "Источник окружающего света",
         "atmosphere": "Атмосфера",
         "atmosphereHeight": "Высота атмосферы, км",
-        "equatorColor": "Цвет горизонта",
+        "equatorColor": "Горизонт",
         "exposure": "Экспозиция, EV100",
         "gradientLuminance": "Яркость окружающего света, нит",
         "groundAlbedo": "Альбедо земли",
-        "groundColor": "Цвет земли",
+        "groundColor": "Земля",
         "materials": "Материалы",
         "mieAbsorption": "Поглощение Ми, на Мм",
         "mieAnisotropy": "Анизотропия Ми",
@@ -465,7 +465,7 @@
         "rayleighHeight": "Высота Рэлея, км",
         "rayleighScattering": "Рассеяние Рэлея, на Мм",
         "sky": "Небо",
-        "skyColor": "Цвет неба",
+        "skyColor": "Зенит",
         "sun": "Солнце",
         "toneMapping": "Тональная компрессия",
         "angularDiameter": "Угловой диаметр",
@@ -514,5 +514,8 @@
     "group": {
         "ambientLight": "Окружающий свет",
         "shadows": "Тени"
+    },
+    "tooltip": {
+        "ambientColors": "Цвета окружающего света, которым освещены объекты. Видимое небо рисует материал неба (поле \"Небо\"): для неба нужного цвета выберите материал Gradient Sky и задайте его цвета."
     }
 }

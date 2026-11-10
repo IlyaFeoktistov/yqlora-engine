@@ -310,7 +310,9 @@ are undone like any other.
     multiplier (1 is physical); they light the scene (see "Ambient light and reflections");
   - for `Gradient`: `skyColor`, `equatorColor`, `groundColor` (sRGB) and
     `gradientLuminance` in nits; for `Color`: `ambientColor` and the same
-    luminance;
+    luminance. These colour only the ambient light (the inspector shows them
+    for their source); the visible sky is drawn by the `sky` material, a
+    sky of colours is the `Gradient Sky` material;
   - `atmosphere`, a record (`Atmosphere`, shown as a nested table):
     `enabled`, `groundAlbedo`, `planetRadius` and `atmosphereHeight` in km,
     `rayleighScattering` (per megametre, RGB) and `rayleighHeight` (km),

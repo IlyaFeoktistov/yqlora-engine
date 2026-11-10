@@ -311,7 +311,9 @@ renderer.overrides(0).clearAll();
     множитель (1 - физически); освещают сцену (см. "Окружающий свет и отражения");
   - для `Gradient`: `skyColor`, `equatorColor`, `groundColor` (sRGB) и
     `gradientLuminance` в нитах; для `Color`: `ambientColor` и та же
-    яркость;
+    яркость. Это цвета только окружающего света (в инспекторе видны при
+    своём источнике); видимое небо рисует материал `sky`, небо из цветов -
+    материал `Gradient Sky`;
   - `atmosphere` - запись (`Atmosphere`, в инспекторе вложенной
     таблицей): `enabled`, `groundAlbedo`, `planetRadius` и
     `atmosphereHeight` в км, `rayleighScattering` (на мегаметр, RGB) и

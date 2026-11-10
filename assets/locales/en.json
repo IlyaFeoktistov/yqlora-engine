@@ -444,17 +444,17 @@
         "range": "Range",
         "innerAngle": "Inner angle",
         "outerAngle": "Outer angle",
-        "ambientColor": "Ambient colour",
+        "ambientColor": "Colour",
         "ambientIntensity": "Ambient intensity",
         "aerialPerspective": "Aerial perspective",
         "ambientSource": "Ambient source",
         "atmosphere": "Atmosphere",
         "atmosphereHeight": "Atmosphere height, km",
-        "equatorColor": "Horizon colour",
+        "equatorColor": "Horizon",
         "exposure": "Exposure, EV100",
         "gradientLuminance": "Ambient luminance, nits",
         "groundAlbedo": "Ground albedo",
-        "groundColor": "Ground colour",
+        "groundColor": "Ground",
         "materials": "Materials",
         "mieAbsorption": "Mie absorption, per Mm",
         "mieAnisotropy": "Mie anisotropy",
@@ -465,7 +465,7 @@
         "rayleighHeight": "Rayleigh height, km",
         "rayleighScattering": "Rayleigh scattering, per Mm",
         "sky": "Sky",
-        "skyColor": "Sky colour",
+        "skyColor": "Zenith",
         "sun": "Sun",
         "toneMapping": "Tone mapping",
         "angularDiameter": "Angular diameter",
@@ -514,5 +514,8 @@
     "group": {
         "ambientLight": "Ambient light",
         "shadows": "Shadows"
+    },
+    "tooltip": {
+        "ambientColors": "Colours of the ambient light that lights objects. The visible sky is drawn by the sky material (the Sky field): for a sky of these colours choose the Gradient Sky material and set its colours."
     }
 }

@@ -10,6 +10,61 @@
 
 namespace yqlora::editor {
 
+namespace {
+
+template <typename Object>
+bool shownOn(const TypeRegistry& registry, const TypeInfo& type, const Object& object, const Property& property)
+{
+    const PropertyAttributes& attributes = property.attributes();
+    if (!attributes.shown) {
+        return false;
+    }
+    if (!attributes.shownWhen) {
+        return true;
+    }
+    const auto properties = registry.properties(type);
+    const auto it = std::ranges::find(properties, attributes.shownWhen->property, &Property::name);
+    if (it == properties.end() || (*it)->type() != PropertyType::Enum) {
+        return true;
+    }
+    const PropertyValue value = (*it)->get(object);
+    const auto* chosen = std::get_if<EnumValue>(&value);
+    const auto& names = (*it)->enumNames();
+    if (!chosen || chosen->value < 0 || static_cast<std::size_t>(chosen->value) >= names.size()) {
+        return true;
+    }
+
+    return std::ranges::find(attributes.shownWhen->values, names[static_cast<std::size_t>(chosen->value)])
+           != attributes.shownWhen->values.end();
+}
+
+} // namespace
+
+bool propertyShown(const TypeRegistry& registry, const TypeInfo& type, const Node& node, const Property& property)
+{
+    return shownOn(registry, type, node, property);
+}
+
+bool propertyShown(
+    const TypeRegistry& registry,
+    const TypeInfo& type,
+    const Component& component,
+    const Property& property
+)
+{
+    return shownOn(registry, type, component, property);
+}
+
+bool propertyShown(
+    const TypeRegistry& registry,
+    const TypeInfo& type,
+    const SettingsSection& section,
+    const Property& property
+)
+{
+    return shownOn(registry, type, section, property);
+}
+
 std::optional<PropertyValue> defaultValue(const TypeRegistry& registry, const Node& node, const Property& property)
 {
     const TypeInfo* type = registry.find(node.typeName());
