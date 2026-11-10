@@ -133,17 +133,32 @@ overrides are not written.
 ## Editor
 
 - A model or a prefab dropped from Files into the tree or the viewport is
-  an instance; a scene is not taken. Instance nodes have their own colour in the tree; their inner
-  nodes can be selected and edited.
+  an instance; a scene is not taken, and an open prefab does not take a
+  prefab that contains it. Instance nodes have their own colour in the
+  tree, the root has the prefab icon; inner nodes can be selected and
+  edited, but not moved to another parent.
 - The inspector marks overridden properties; a property, a component or
-  the whole instance has "Revert" and "Apply to prefab". Applying writes
-  the prefab file and rebuilds every instance.
+  the whole instance has "Revert" and "Apply to prefab"; added nodes and
+  components are marked. The root's own values (name, position) are neither
+  reverted nor applied. Applying writes the prefab file and rebuilds every
+  instance; a model cannot be applied to, it is read-only. Unused overrides
+  are shown as a count with "Remove unused".
 - "Open prefab" (or a double click in Files) opens the prefab for editing
   in the scene window, as a scene is opened; "Save branch as prefab"
   (the context menu of a node, or a node dragged into Files) writes the
   branch into a `.yprefab` through the create window and puts an instance
-  in its place, one undo step. Create in Files offers "Prefab" (an empty
-  `Node3D`) and, on a prefab, "Create variant"; "Unpack" on an instance.
+  in its place, one undo step; references of the scene to the branch nodes
+  move to the instance nodes, and the file stays after undo, like any
+  created one. Create in Files offers "Prefab" (an empty `Node3D`) and, on
+  a prefab or a model, "Create variant"; "Unpack" on an instance.
+- A prefab changed (the file was reloaded, the open prefab was saved, the
+  types changed): instances in the open scene are rebuilt; if the prefab
+  file is gone, the instance stays as it was and is saved by its record.
+- An open prefab without its own sky and sun is lit in the scene window by
+  preview lighting: the sun and environment of a new scene from a hidden
+  editor scene (`extractFrame` with a fallback lighting scene); the
+  prefab's own lights stay. Nothing goes into the prefab file, and a button
+  on the scene window bar turns it off.
 - Every action is one undo step; the history keeps IDs, so it works across
   rebuilds.
 

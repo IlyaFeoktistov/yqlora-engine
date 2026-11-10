@@ -3,12 +3,18 @@
 #include "yqlora/editor/Command.hpp"
 #include "yqlora/editor/Selection.hpp"
 #include "yqlora/reflection/Property.hpp"
+#include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/scene/Node.hpp"
 #include "yqlora/scene/Transform3D.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <cstddef>
+#include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace yqlora {
@@ -170,8 +176,42 @@ private:
     std::optional<TransformValues> m_previousValues;
 };
 
-// Можно ли перенести node под parent: не корень, не в свою же ветку и не к
-// тому же родителю.
+// Файл префаба, который правка переписывает (применение переопределений к
+// префабу): отмена возвращает прежнее содержимое.
+struct PrefabFileChange {
+    ResourceId prefab = 0;
+    // Полный путь к файлу.
+    std::filesystem::path file;
+    nlohmann::json after;
+};
+
+// Правка, которую проще описать действием, чем обратимыми шагами
+// (экземпляры префабов: вернуть, применить, распаковать): сцена до и после
+// неё запоминается целиком, отмена и повтор ставят нужную. Узлы находятся
+// по ID, поэтому остальная история работает и через неё. Если задан файл
+// префаба, он пишется до правки и возвращается при отмене, а кэш ресурсов
+// перечитывает его.
+class SceneChangeCommand final : public Command {
+public:
+    // Делает правку в первый раз; false - не вышло, сцена возвращается.
+    using Change = std::function<bool(EditorSession&)>;
+
+    explicit SceneChangeCommand(Change change, std::optional<PrefabFileChange> file = std::nullopt);
+
+    bool apply(EditorSession& session) override;
+    void revert(EditorSession& session) override;
+
+private:
+    Change m_change;
+    std::optional<PrefabFileChange> m_file;
+    nlohmann::json m_fileBefore;
+    std::string m_before;
+    std::string m_after;
+    bool m_done = false;
+};
+
+// Можно ли перенести node под parent: не корень, не в свою же ветку, не к
+// тому же родителю и не узел префаба внутри экземпляра.
 bool canMoveUnder(const Node& node, const Node& parent);
 
 } // namespace yqlora::editor

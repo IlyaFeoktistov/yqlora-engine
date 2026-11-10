@@ -1,5 +1,9 @@
 #pragma once
 
+#include "yqlora/resource/ResourceId.hpp"
+
+#include <nlohmann/json.hpp>
+
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -92,6 +96,9 @@ public:
 
     static bool isScene(const std::filesystem::path& path);
 
+    // Файл открывается в окне сцены: сцена или префаб.
+    static bool opensAsScene(const std::filesystem::path& path);
+
     // Дерево файлов: папки первыми, внутри по алфавиту. Файл проекта, файлы
     // .meta и скрытые файлы (имя с точки) не показываются.
     Entry scan() const;
@@ -122,6 +129,22 @@ public:
         const std::filesystem::path& folder,
         std::string_view name,
         const SceneSerializer& serializer
+    );
+
+    // Новый префаб name.yprefab в папке folder с корнем root - веткой в
+    // формате сцены (SceneBranches). nullopt, если имя не годится или занято.
+    std::optional<std::filesystem::path> createPrefab(
+        const std::filesystem::path& folder,
+        std::string_view name,
+        const nlohmann::json& root
+    );
+
+    // Вариант префаба или модели base: новый префаб name.yprefab в папке
+    // folder, корень которого - экземпляр base без переопределений.
+    std::optional<std::filesystem::path> createVariant(
+        const std::filesystem::path& folder,
+        std::string_view name,
+        ResourceId base
     );
 
     // Новая папка name в папке folder. nullopt, если имя не годится или занято.

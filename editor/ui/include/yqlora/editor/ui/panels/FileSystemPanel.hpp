@@ -6,6 +6,7 @@
 
 #include "yqlora/editor/ProjectFiles.hpp"
 #include "yqlora/resource/ResourceId.hpp"
+#include "yqlora/scene/NodeId.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -74,6 +75,12 @@ private:
     void clearSelection(EditorSession& session);
     void drawCreateDialog(EditorSession& session, const SceneSerializer& serializer, const EditorColors& colors);
     void drawRenameDialog(EditorSession& session, const EditorColors& colors);
+    // Вариант префаба или модели и префаб из узла, брошенного на папку: оба
+    // через окно с именем.
+    void drawVariantDialog(EditorSession& session, const EditorColors& colors);
+    void drawBranchDialog(EditorSession& session, const EditorColors& colors);
+    // Узел из дерева сцены отпущен над папкой folder: окно имени префаба.
+    void acceptBranchDrop(EditorSession& session, const std::filesystem::path& folder);
     void drawDeleteDialog(EditorSession& session);
     // Папка, куда класть новые файлы: выбранная папка или папка выбранного файла.
     std::filesystem::path targetFolder() const;
@@ -97,6 +104,12 @@ private:
 
     std::filesystem::path m_renaming;
     NameDialog m_renameDialog;
+    ResourceId m_variantBase = 0;
+    std::filesystem::path m_variantFolder;
+    NameDialog m_variantDialog;
+    NodeId m_branchNode = 0;
+    std::filesystem::path m_branchFolder;
+    NameDialog m_branchDialog;
     // Что создаёт открытое окно создания; nullptr - окно ещё не открывали.
     const NewResourceType* m_createType = nullptr;
     std::filesystem::path m_createFolder;

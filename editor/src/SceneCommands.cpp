@@ -1,10 +1,15 @@
 #include "yqlora/editor/SceneCommands.hpp"
 
+#include "yqlora/core/JsonFile.hpp"
+#include "yqlora/core/Log.hpp"
+#include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
+#include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/NodeTree.hpp"
 #include "yqlora/scene/Scene.hpp"
+#include "yqlora/scene/SceneSerializer.hpp"
 
 #include <algorithm>
 #include <string>
@@ -412,7 +417,84 @@ void SetParentCommand::revert(EditorSession& session)
 
 bool canMoveUnder(const Node& node, const Node& parent)
 {
-    return node.parent() && node.parent() != &parent && !isInBranch(node, parent);
+    // Узел префаба внутри экземпляра стоит, где стоит в префабе: перенос
+    // переопределением не бывает. Корень экземпляра переносится.
+    const bool prefabNode = node.prefabLink() && !node.prefabInstance();
+
+    return node.parent() && node.parent() != &parent && !isInBranch(node, parent) && !prefabNode;
+}
+
+SceneChangeCommand::SceneChangeCommand(Change change, std::optional<PrefabFileChange> file)
+    : m_change(std::move(change))
+    , m_file(std::move(file))
+{
+}
+
+namespace {
+
+// Сцена из её записи; выделение - на узлах, которые в ней есть.
+void restoreScene(EditorSession& session, const std::string& text)
+{
+    if (!session.serializer().fromJson(session.scene(), text)) {
+        log::error("Editor: the scene is not restored");
+    }
+    session.selection().keepNodes([&](NodeId id) {
+        return session.findNode(id) != nullptr;
+    });
+}
+
+bool writePrefabFile(EditorSession& session, const PrefabFileChange& file, const nlohmann::json& content)
+{
+    if (!writeJsonFile(file.file, content)) {
+        log::error("Editor: cannot write prefab '{}'", toUtf8(file.file));
+
+        return false;
+    }
+    session.resources().reload(file.prefab);
+
+    return true;
+}
+
+} // namespace
+
+bool SceneChangeCommand::apply(EditorSession& session)
+{
+    if (m_done) {
+        if (m_file && !writePrefabFile(session, *m_file, m_file->after)) {
+            return false;
+        }
+        restoreScene(session, m_after);
+
+        return true;
+    }
+    m_before = session.serializer().toJson(session.scene());
+    if (m_file) {
+        auto before = readJsonFile(m_file->file);
+        if (!before || !writePrefabFile(session, *m_file, m_file->after)) {
+            return false;
+        }
+        m_fileBefore = std::move(*before);
+    }
+    if (!m_change(session)) {
+        if (m_file) {
+            writePrefabFile(session, *m_file, m_fileBefore);
+        }
+        restoreScene(session, m_before);
+
+        return false;
+    }
+    m_after = session.serializer().toJson(session.scene());
+    m_done = true;
+
+    return true;
+}
+
+void SceneChangeCommand::revert(EditorSession& session)
+{
+    if (m_file) {
+        writePrefabFile(session, *m_file, m_fileBefore);
+    }
+    restoreScene(session, m_before);
 }
 
 } // namespace yqlora::editor

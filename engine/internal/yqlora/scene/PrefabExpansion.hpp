@@ -1,20 +1,27 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/reflection/Property.hpp"
 #include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/scene/NodeId.hpp"
+#include "yqlora/scene/ObjectId.hpp"
 
 #include <nlohmann/json.hpp>
 
+#include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace yqlora {
 
 class EngineServices;
+class Node;
 class PrefabBases;
 class ResourceCache;
 class ResourceDatabase;
@@ -108,6 +115,47 @@ YQLORA_API nlohmann::json computeOverrides(
     NodeId instance,
     const nlohmann::json& unused,
     const TypeRegistry& registry
+);
+
+// Перевод ID узлов и компонентов между пространствами префаба и экземпляра.
+// ID, которых нет в таблице (добавленные объекты, ссылки наружу), не меняются.
+struct YQLORA_API PrefabIdMapping {
+    std::unordered_map<NodeId, NodeId> nodes;
+    // Ключ - узел и компонент до перевода: ID компонента уникален только в узле.
+    std::map<std::pair<NodeId, ComponentId>, ComponentId> components;
+
+    NodeId node(NodeId id) const;
+    ComponentId component(NodeId node, ComponentId id) const;
+
+    // Объекты base из пространства префаба в экземпляр instance (inverse - обратно).
+    static PrefabIdMapping of(const nlohmann::json& base, NodeId instance, bool inverse);
+};
+
+// Ссылки на узлы и компоненты в значении (и в элементах списков и записей);
+// true, если что-то поменялось.
+YQLORA_API bool remapReferences(PropertyValue& value, const PrefabIdMapping& ids);
+
+// Ссылки в свойствах узлов и компонентов ветки.
+YQLORA_API void remapReferences(Node& branch, const PrefabIdMapping& ids, const TypeRegistry& registry);
+
+// Префаб prefab - это target или содержит его экземпляр, прямо или через
+// другие префабы: экземпляр prefab внутри target был бы циклом.
+YQLORA_API bool prefabContains(ResourceId prefab, ResourceId target, const PrefabSources& sources);
+
+// Префабы записей экземпляров в ветке, вместе с записями среди добавленных
+// в экземпляры узлов.
+YQLORA_API std::vector<ResourceId> recordPrefabs(const nlohmann::json& branch);
+
+// ID в префабе компонента live узла sourceNode экземпляра instance,
+// развёрнутого из base; 0 - компонент не из префаба (добавлен).
+YQLORA_API ComponentId
+sourceComponent(const nlohmann::json& base, NodeId instance, NodeId sourceNode, ComponentId live);
+
+// Запись с теми переопределениями, для которых keep(вид, переопределение)
+// вернул true; вид - ключ записи ("overrides", "added", ...).
+YQLORA_API nlohmann::json filterRecord(
+    const nlohmann::json& record,
+    const std::function<bool(std::string_view kind, const nlohmann::json& entry)>& keep
 );
 
 // Узлы экземпляра instance, развёрнутого из base: ID в сцене -> ID в префабе.

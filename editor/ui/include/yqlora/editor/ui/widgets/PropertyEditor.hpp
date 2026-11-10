@@ -68,8 +68,30 @@ struct PropertyEditorContext {
     Pings* pings = nullptr;
 };
 
-PropertyResult drawProperty(const Property& property, Node& node, const PropertyEditorContext& context);
-PropertyResult drawProperty(const Property& property, Component& component, const PropertyEditorContext& context);
+// Свойства объекта экземпляра префаба: переопределённые отмечены цветом
+// подписи, а в меню строки есть "Вернуть к префабу" и "Применить к
+// префабу". Действия только просят: экземпляр перестраивается, поэтому
+// выполняет их панель после кадра.
+struct PropertyOverrides {
+    std::function<bool(const Property&)> overridden;
+    std::function<void(const Property&)> revert;
+    // Пусто - префаб только для чтения (модель).
+    std::function<void(const Property&)> apply;
+};
+
+// overrides - nullptr у объектов не из экземпляров.
+PropertyResult drawProperty(
+    const Property& property,
+    Node& node,
+    const PropertyEditorContext& context,
+    const PropertyOverrides* overrides = nullptr
+);
+PropertyResult drawProperty(
+    const Property& property,
+    Component& component,
+    const PropertyEditorContext& context,
+    const PropertyOverrides* overrides = nullptr
+);
 PropertyResult drawProperty(const Property& property, SettingsSection& section, const PropertyEditorContext& context);
 
 // Подпись свойства: его displayName, иначе перевод ключа property.<имя>,

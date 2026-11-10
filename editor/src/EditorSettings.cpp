@@ -14,6 +14,7 @@ namespace {
 constexpr const char* kCameraPreviewKey = "cameraPreview";
 constexpr const char* kViewportSkyKey = "viewportSky";
 constexpr const char* kViewportShadowCascadesKey = "viewportShadowCascades";
+constexpr const char* kViewportPreviewLightingKey = "viewportPreviewLighting";
 constexpr const char* kReparentKeepWorldKey = "reparentKeepWorld";
 constexpr const char* kSnapKey = "snap";
 constexpr const char* kSnapGridKey = "grid";
@@ -67,6 +68,9 @@ void EditorSettings::load()
     if (const auto it = json->find(kViewportSkyKey); it != json->end() && it->is_boolean()) {
         viewportSky = it->get<bool>();
     }
+    if (const auto it = json->find(kViewportPreviewLightingKey); it != json->end() && it->is_boolean()) {
+        viewportPreviewLighting = it->get<bool>();
+    }
     if (const auto it = json->find(kViewportShadowCascadesKey); it != json->end() && it->is_boolean()) {
         viewportShadowCascades = it->get<bool>();
     }
@@ -115,6 +119,7 @@ bool EditorSettings::save() const
     nlohmann::json json{
         {kCameraPreviewKey, cameraPreview},
         {kViewportSkyKey, viewportSky},
+        {kViewportPreviewLightingKey, viewportPreviewLighting},
         {kViewportShadowCascadesKey, viewportShadowCascades},
         {kSnapKey, snapJson},
         {kToolchainKey, overrides},

@@ -6,6 +6,7 @@
 
 #include "yqlora/editor/ui/core/EditorPanel.hpp"
 #include "yqlora/editor/ui/dialogs/AddNodeDialog.hpp"
+#include "yqlora/editor/ui/widgets/NameDialog.hpp"
 #include "yqlora/editor/ui/widgets/ReleaseClick.hpp"
 
 #include "yqlora/scene/Node.hpp"
@@ -32,7 +33,12 @@ public:
     void draw(EditorContext& context) override;
 
 private:
-    void drawNode(const Node& node, Selection& selection);
+    void drawNode(const Node& node, Selection& selection, const EditorColors& colors);
+    // Пункты меню узла для префабов: сохранить ветку префабом, у корня
+    // экземпляра - открыть его префаб и распаковать.
+    void drawPrefabItems(const Node& node);
+    void handlePrefabAction(EditorContext& context);
+    void drawSaveAsPrefabDialog(EditorContext& context);
     // Перенос, отпущенный в этом кадре: сразу по запомненному выбору или
     // через окно с вопросом.
     void handleMove(EditorContext& context);
@@ -70,6 +76,20 @@ private:
     std::optional<Move> m_asking;
     bool m_askRequested = false;
     bool m_rememberChoice = false;
+    // Действие с префабом из меню узла, после обхода дерева.
+    enum class PrefabAction {
+        SaveAs,
+        Open,
+        Unpack,
+    };
+    struct PrefabRequest {
+        PrefabAction action = PrefabAction::SaveAs;
+        NodeId node = 0;
+    };
+    std::optional<PrefabRequest> m_prefabRequest;
+    // Ветка, которую сохраняют префабом через окно с именем.
+    NodeId m_savingNode = 0;
+    NameDialog m_saveAsPrefab;
 };
 
 } // namespace yqlora::editor

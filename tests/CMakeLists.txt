@@ -18,6 +18,7 @@ add_executable(yqlora_tests
     test_timers.cpp
     test_prefabs.cpp
     test_prefab_instances.cpp
+    test_prefab_editor.cpp
     test_script.cpp
     test_reflection.cpp
     test_serializer.cpp

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace yqlora::editor {
@@ -46,7 +47,8 @@ bool drawTable(
     const PropertyEditorContext& widgets,
     const TypeInfo& type,
     Object& object,
-    const PropertyChanged& changed
+    const PropertyChanged& changed,
+    const PropertyOverrides* overrides
 )
 {
     std::vector<const Property*> properties = registry.properties(type);
@@ -79,7 +81,12 @@ bool drawTable(
             ImGui::Separator();
         }
         group = &propertyGroup;
-        const PropertyResult result = drawProperty(*property, object, widgets);
+        PropertyResult result;
+        if constexpr (std::is_same_v<Object, SettingsSection>) {
+            result = drawProperty(*property, object, widgets);
+        } else {
+            result = drawProperty(*property, object, widgets, overrides);
+        }
         if (result.changed) {
             changed(*property, result.value);
         }
@@ -97,10 +104,11 @@ bool drawPropertyTable(
     const PropertyEditorContext& widgets,
     const TypeInfo& type,
     Node& node,
-    const PropertyChanged& changed
+    const PropertyChanged& changed,
+    const PropertyOverrides* overrides
 )
 {
-    return drawTable(registry, widgets, type, node, changed);
+    return drawTable(registry, widgets, type, node, changed, overrides);
 }
 
 bool drawPropertyTable(
@@ -108,10 +116,11 @@ bool drawPropertyTable(
     const PropertyEditorContext& widgets,
     const TypeInfo& type,
     Component& component,
-    const PropertyChanged& changed
+    const PropertyChanged& changed,
+    const PropertyOverrides* overrides
 )
 {
-    return drawTable(registry, widgets, type, component, changed);
+    return drawTable(registry, widgets, type, component, changed, overrides);
 }
 
 bool drawPropertyTable(
@@ -122,7 +131,7 @@ bool drawPropertyTable(
     const PropertyChanged& changed
 )
 {
-    return drawTable(registry, widgets, type, section, changed);
+    return drawTable(registry, widgets, type, section, changed, nullptr);
 }
 
 } // namespace yqlora::editor

@@ -16,7 +16,6 @@
 #include <yqlora/editor/ProjectSetup.hpp>
 #include <yqlora/editor/ResourceChoices.hpp>
 #include <yqlora/editor/ResourceInspection.hpp>
-#include <yqlora/editor/ResourceInstance.hpp>
 #include <yqlora/editor/ResourceLabel.hpp>
 #include <yqlora/editor/TextureInspection.hpp>
 #include <yqlora/i18n/Translate.hpp>
@@ -37,7 +36,9 @@
 #include <yqlora/resource/ResourceLoader.hpp>
 #include <yqlora/scene/Node3D.hpp>
 #include <yqlora/scene/Prefab.hpp>
+#include <yqlora/scene/PrefabExpansion.hpp>
 #include <yqlora/scene/Scene.hpp>
+#include <yqlora/scene/SceneBranches.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
 #include <yqlora/scripting/GameModule.hpp>
 #include <yqlora/shader/BuiltinShaders.hpp>
@@ -113,6 +114,12 @@ struct Fixture {
         return session.project()->resources().subresources(model).at(key);
     }
 
+    // Экземпляр префаба или модели, как его ставит бросок.
+    std::unique_ptr<Node> instance(ResourceId resource) const
+    {
+        return SceneBranches::instantiate(registry, resource, PrefabSources::of(services));
+    }
+
     fs::path modelFile() const
     {
         return directory / "models" / "house.glb";
@@ -135,9 +142,9 @@ const MeshRenderer* rendererOf(const Node& node)
 
 } // namespace
 
-TEST_CASE_FIXTURE(Fixture, "instantiateResource: a model becomes its node tree under a node named after the file")
+TEST_CASE_FIXTURE(Fixture, "A dropped model is an instance: its node tree under a node named after the file")
 {
-    const auto branch = instantiateResource(model, session.resources(), session.project()->resources(), registry);
+    const auto branch = instance(model);
     REQUIRE(branch);
     CHECK(branch->name() == "house");
     REQUIRE(branch->children().size() == 1);
@@ -159,16 +166,15 @@ TEST_CASE_FIXTURE(Fixture, "instantiateResource: a model becomes its node tree u
     CHECK(rendererOf(houseNode) == nullptr);
 
     // Меш - один узел с его именем.
-    const auto
-        single = instantiateResource(mesh("mesh:Frame"), session.resources(), session.project()->resources(), registry);
+    const auto single = instance(mesh("mesh:Frame"));
     REQUIRE(single);
     CHECK(single->name() == "Frame");
     CHECK(rendererOf(*single)->mesh().id == mesh("mesh:Frame"));
 
-    // Сцена - не модель и не меш.
+    // Сцена - не префаб и не модель.
     const ResourceId scene = session.project()->settings().get<GeneralSettings>().startupScene.id;
     REQUIRE(scene != 0);
-    CHECK(instantiateResource(scene, session.resources(), session.project()->resources(), registry) == nullptr);
+    CHECK(instance(scene) == nullptr);
 }
 
 TEST_CASE_FIXTURE(Fixture, "A model as a prefab: IDs come from node names, the same after a re-export")
@@ -202,9 +208,9 @@ TEST_CASE_FIXTURE(Fixture, "A model as a prefab: IDs come from node names, the s
     CHECK(newHouse["children"][0]["id"] == leftDoor["id"]);
     CHECK(newHouse["children"][1]["id"] != rightDoor["id"]);
 
-    // Брошенная копия получает новые ID: два броска не совпадают.
-    const auto one = instantiateResource(model, session.resources(), resources, registry);
-    const auto two = instantiateResource(model, session.resources(), resources, registry);
+    // Брошенный экземпляр получает новый ID: два броска не совпадают.
+    const auto one = instance(model);
+    const auto two = instance(model);
     CHECK(one->id() != two->id());
     CHECK(one->children()[0]->id() != idFromJson(houseNode["id"]));
 }
@@ -232,11 +238,11 @@ TEST_CASE_FIXTURE(Fixture, "Prefab files: created in Files, offered with models 
     CHECK_FALSE(resourceForField(Prefab::kResourceKind, {}, scene, &resources, session.resources()));
 }
 
-TEST_CASE_FIXTURE(Fixture, "instantiateResource: slots of a model mesh get the materials of the file")
+TEST_CASE_FIXTURE(Fixture, "A model instance: slots of a model mesh get the materials of the file")
 {
     const ResourceId wood = mesh("material:Wood");
     const ResourceId glass = mesh("material:Glass");
-    const auto branch = instantiateResource(model, session.resources(), session.project()->resources(), registry);
+    const auto branch = instance(model);
     REQUIRE(branch);
     const Node& house = *branch->children()[0];
     const MeshRenderer* door = rendererOf(*house.children()[0]);
@@ -250,13 +256,11 @@ TEST_CASE_FIXTURE(Fixture, "instantiateResource: slots of a model mesh get the m
     CHECK(frame->materials()[1].id == glass);
 
     // Один меш модели - те же слоты.
-    const auto
-        single = instantiateResource(mesh("mesh:Frame"), session.resources(), session.project()->resources(), registry);
+    const auto single = instance(mesh("mesh:Frame"));
     REQUIRE(single);
     CHECK(rendererOf(*single)->materials() == frame->materials());
     // Встроенный меш не из модели: слотов нет.
-    const auto
-        cube = instantiateResource(builtin::kCubeMesh, session.resources(), session.project()->resources(), registry);
+    const auto cube = instance(builtin::kCubeMesh);
     REQUIRE(cube);
     CHECK(rendererOf(*cube)->materials().empty());
 }
@@ -362,8 +366,9 @@ TEST_CASE_FIXTURE(Fixture, "Scene with a model mesh is saved and reopened with t
 TEST_CASE_FIXTURE(Fixture, "Re-export keeps references; a deleted file leaves them missing, and they come back")
 {
     const ResourceId door = mesh("mesh:Door");
-    Node* doorNode = session.editing().addResource(door, nullptr);
-    REQUIRE(doorNode);
+    const Node* added = session.editing().addResource(door, nullptr);
+    REQUIRE(added);
+    const NodeId doorId = added->id();
 
     // Перевыгрузка: другой порядок мешей, тот же Door.
     GltfBuilder gltf = house();
@@ -380,6 +385,9 @@ TEST_CASE_FIXTURE(Fixture, "Re-export keeps references; a deleted file leaves th
     fs::remove(file);
     session.refreshResources();
     CHECK(session.resources().find<MeshData>(door) == nullptr);
+    // Экземпляр, чей префаб пропал, остаётся, каким был.
+    const Node* doorNode = session.findNode(doorId);
+    REQUIRE(doorNode);
     CHECK(rendererOf(*doorNode)->mesh().id == door);
     CHECK(resourceLabel(ResourceRef{door}, &session.project()->resources()) == tr("editor.inspector.missing"));
 

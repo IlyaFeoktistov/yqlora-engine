@@ -1,4 +1,5 @@
 #include "yqlora/editor/EditorSession.hpp"
+#include "yqlora/scene/Prefab.hpp"
 
 #include "yqlora/editor/SceneCommands.hpp"
 
@@ -140,6 +141,7 @@ void EditorSession::refreshResources()
     }
     m_project->scanResources();
     m_services.resources().reloadChanged();
+    m_prefabEditing.rebuildChanged();
     // Выбранного файла могло не стать.
     if (m_selection.resource() != 0 && !m_project->resources().path(m_selection.resource())) {
         m_selection.selectResource(0);
@@ -149,6 +151,16 @@ void EditorSession::refreshResources()
 std::filesystem::path EditorSession::scenePath() const
 {
     return m_project ? m_document.path(*m_project) : std::filesystem::path();
+}
+
+bool EditorSession::editingPrefab() const
+{
+    return scenePath().extension() == kPrefabFileExtension;
+}
+
+const Scene* EditorSession::prefabLighting()
+{
+    return editingPrefab() ? &m_previewLighting.scene() : nullptr;
 }
 
 bool EditorSession::openScene(const std::filesystem::path& path)
@@ -174,6 +186,8 @@ bool EditorSession::save()
     if (!m_project || playing() || !m_document.save(*m_project)) {
         return false;
     }
+    // Открытый префаб записан: его экземпляры развернутся из нового файла.
+    m_services.resources().reload(m_document.id());
 
     return m_project->settings().saveModified();
 }

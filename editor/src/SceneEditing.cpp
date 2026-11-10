@@ -2,7 +2,6 @@
 
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/editor/Picking.hpp"
-#include "yqlora/editor/ResourceInstance.hpp"
 #include "yqlora/editor/SceneCommands.hpp"
 #include "yqlora/reflection/ComponentRules.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
@@ -13,7 +12,9 @@
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/NodeTree.hpp"
+#include "yqlora/scene/PrefabExpansion.hpp"
 #include "yqlora/scene/Scene.hpp"
+#include "yqlora/scene/SceneBranches.hpp"
 
 #include <algorithm>
 #include <optional>
@@ -37,27 +38,29 @@ Node* SceneEditing::createNode(const TypeInfo& type, Node* parent)
     return addBranch(std::move(node), parent);
 }
 
-Node* SceneEditing::addResource(ResourceId resource, Node* parent)
+namespace {
+
+// Экземпляр префаба или модели для броска в документ сессии; nullptr - не
+// префаб, нет проекта или в открытом префабе это был бы цикл.
+std::unique_ptr<Node> instanceForDrop(EditorSession& session, ResourceId resource)
 {
-    const auto& project = m_session.project();
-    if (!project) {
+    if (!session.project() || !session.prefabEditing().canInstantiate(resource)) {
         return nullptr;
     }
 
-    return addBranch(
-        instantiateResource(resource, m_session.resources(), project->resources(), m_session.registry()),
-        parent
-    );
+    return SceneBranches::instantiate(session.registry(), resource, PrefabSources::of(session.services()));
+}
+
+} // namespace
+
+Node* SceneEditing::addResource(ResourceId resource, Node* parent)
+{
+    return addBranch(instanceForDrop(m_session, resource), parent);
 }
 
 Node* SceneEditing::addResource(ResourceId resource, Node* parent, const Vec3& worldPosition)
 {
-    const auto& project = m_session.project();
-    if (!project) {
-        return nullptr;
-    }
-    std::unique_ptr<Node>
-        branch = instantiateResource(resource, m_session.resources(), project->resources(), m_session.registry());
+    std::unique_ptr<Node> branch = instanceForDrop(m_session, resource);
     // Ветка станет ребёнком parent, а без него - корня; положение задаётся в
     // его координатах. В пустой сцене ветка сама станет корнем.
     const Node* target = parent ? parent : m_session.scene().root();

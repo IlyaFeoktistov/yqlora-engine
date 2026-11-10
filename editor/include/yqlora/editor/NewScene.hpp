@@ -6,6 +6,7 @@
 
 namespace yqlora {
 
+class Node;
 class Scene;
 
 } // namespace yqlora
@@ -19,5 +20,9 @@ inline constexpr Vec3 kNewSceneFocus{0.0f, 0.5f, 0.0f};
 // с флажком sun) и окружения (небо, окружающий свет, атмосфера): новый
 // объект сразу и виден, и освещён.
 void buildNewScene(Scene& scene, std::string rootName);
+
+// Солнце и окружение новой сцены детьми root: их же берёт свет
+// предпросмотра префабов (PreviewLighting).
+void addDefaultLighting(Node& root);
 
 } // namespace yqlora::editor

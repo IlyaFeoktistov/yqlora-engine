@@ -89,7 +89,9 @@
         "axisX": "#E5534B",
         "axisY": "#6FBF5A",
         "axisZ": "#4C8DF6",
-        "axisW": "#9A9EA6"
+        "axisW": "#9A9EA6",
+        "prefabInstance": "#6CB5ED",
+        "prefabOverride": "#F0B85A"
     },
     "editorStyle": {
         "checkboxPadding": 2

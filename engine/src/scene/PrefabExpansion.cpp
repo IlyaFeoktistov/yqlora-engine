@@ -8,11 +8,14 @@
 #include "yqlora/reflection/PropertyJson.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
+#include "yqlora/scene/MissingComponent.hpp"
+#include "yqlora/scene/Node.hpp"
 #include "yqlora/scene/ObjectId.hpp"
 #include "yqlora/scene/SceneBranches.hpp"
 #include "yqlora/scene/SceneFileKeys.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <map>
 #include <set>
 #include <type_traits>
@@ -70,52 +73,20 @@ const Json& propertiesOf(const Json& object)
     return it != object.end() && it->is_object() ? *it : kEmpty;
 }
 
-// Перевод ID объектов между пространствами префаба и экземпляра. ID, которых
-// нет в таблице (добавленные объекты, ссылки наружу), не меняются.
-struct IdMapping {
-    std::unordered_map<NodeId, NodeId> nodes;
-    // Ключ - узел и компонент до перевода: ID компонента уникален только в узле.
-    std::map<std::pair<NodeId, ComponentId>, ComponentId> components;
-
-    NodeId node(NodeId id) const
-    {
-        const auto it = nodes.find(id);
-
-        return it != nodes.end() ? it->second : id;
+void addMapping(PrefabIdMapping& mapping, const Json& node, NodeId instance, bool inverse)
+{
+    const NodeId source = idAt(node, keys::kId);
+    const NodeId derived = deriveId(instance, source);
+    mapping.nodes[inverse ? derived : source] = inverse ? source : derived;
+    for (const Json& component : componentsOf(node)) {
+        const ComponentId id = idAt(component, keys::kId);
+        const ComponentId derivedId = deriveId(instance, id);
+        mapping.components[inverse ? std::pair(derived, derivedId) : std::pair(source, id)] = inverse ? id : derivedId;
     }
-
-    ComponentId component(NodeId node, ComponentId id) const
-    {
-        const auto it = components.find({node, id});
-
-        return it != components.end() ? it->second : id;
+    for (const Json& child : childrenOf(node)) {
+        addMapping(mapping, child, instance, inverse);
     }
-
-    // Из пространства префаба в экземпляр instance (inverse - обратно).
-    static IdMapping of(const Json& base, NodeId instance, bool inverse)
-    {
-        IdMapping mapping;
-        mapping.add(base, instance, inverse);
-
-        return mapping;
-    }
-
-private:
-    void add(const Json& node, NodeId instance, bool inverse)
-    {
-        const NodeId source = idAt(node, keys::kId);
-        const NodeId derived = deriveId(instance, source);
-        nodes[inverse ? derived : source] = inverse ? source : derived;
-        for (const Json& component : componentsOf(node)) {
-            const ComponentId id = idAt(component, keys::kId);
-            const ComponentId derivedId = deriveId(instance, id);
-            components[inverse ? std::pair(derived, derivedId) : std::pair(source, id)] = inverse ? id : derivedId;
-        }
-        for (const Json& child : childrenOf(node)) {
-            add(child, instance, inverse);
-        }
-    }
-};
+}
 
 // Свойство может держать ссылки на узлы и компоненты.
 bool mayHoldReferences(const Property& property)
@@ -129,7 +100,7 @@ bool mayHoldReferences(const Property& property)
     }
 }
 
-bool remapValue(PropertyValue& value, const IdMapping& ids)
+bool remapValueIn(PropertyValue& value, const PrefabIdMapping& ids)
 {
     return std::visit(
         [&](auto& held) {
@@ -152,7 +123,7 @@ bool remapValue(PropertyValue& value, const IdMapping& ids)
                     }
                 }();
                 for (PropertyValue& item : items) {
-                    changed = remapValue(item, ids) || changed;
+                    changed = remapValueIn(item, ids) || changed;
                 }
 
                 return changed;
@@ -166,7 +137,7 @@ bool remapValue(PropertyValue& value, const IdMapping& ids)
 
 // Ссылки в свойствах объекта типа typeName. Свойства неизвестного типа
 // (компонент-заглушка) не трогаются: их значений не прочитать.
-void remapProperties(Json& object, const TypeRegistry& registry, const IdMapping& ids)
+void remapProperties(Json& object, const TypeRegistry& registry, const PrefabIdMapping& ids)
 {
     const auto type = object.find(keys::kType);
     const TypeInfo* info = type != object.end() && type->is_string() ? registry.find(type->get<std::string>())
@@ -182,7 +153,7 @@ void remapProperties(Json& object, const TypeRegistry& registry, const IdMapping
         // Значение лежит в нашем изменяемом объекте, findPropertyJson лишь находит его.
         auto* found = const_cast<Json*>(findPropertyJson(*properties, *property));
         auto value = found ? valueFromJson(*found, *property) : std::nullopt;
-        if (value && remapValue(*value, ids)) {
+        if (value && remapValueIn(*value, ids)) {
             *found = valueToJson(*property, *value);
         }
     }
@@ -190,7 +161,7 @@ void remapProperties(Json& object, const TypeRegistry& registry, const IdMapping
 
 // ID и ссылки ветки в другое пространство. Записи экземпляров не трогаются:
 // их ID и переопределения - в своих пространствах.
-void translateBranch(Json& node, const IdMapping& ids, const TypeRegistry& registry)
+void translateBranch(Json& node, const PrefabIdMapping& ids, const TypeRegistry& registry)
 {
     if (isPrefabRecord(node)) {
         return;
@@ -381,6 +352,25 @@ struct OverrideDiff {
     }
 };
 
+// Префабы записей экземпляров в ветке: записей узлов и записей среди
+// добавленных в экземпляры узлов.
+void collectRecords(const Json& node, std::vector<ResourceId>& prefabs)
+{
+    if (isPrefabRecord(node)) {
+        prefabs.push_back(recordPrefab(node));
+        for (const Json& entry : arrayAt(node, keys::kAdded)) {
+            if (const auto added = entry.find(keys::kNode); added != entry.end()) {
+                collectRecords(*added, prefabs);
+            }
+        }
+
+        return;
+    }
+    for (const Json& child : childrenOf(node)) {
+        collectRecords(child, prefabs);
+    }
+}
+
 void freshenNode(Json& node)
 {
     if (isPrefabRecord(node)) {
@@ -402,6 +392,127 @@ void freshenNode(Json& node)
 }
 
 } // namespace
+
+NodeId PrefabIdMapping::node(NodeId id) const
+{
+    const auto it = nodes.find(id);
+
+    return it != nodes.end() ? it->second : id;
+}
+
+ComponentId PrefabIdMapping::component(NodeId node, ComponentId id) const
+{
+    const auto it = components.find({node, id});
+
+    return it != components.end() ? it->second : id;
+}
+
+PrefabIdMapping PrefabIdMapping::of(const Json& base, NodeId instance, bool inverse)
+{
+    PrefabIdMapping mapping;
+    addMapping(mapping, base, instance, inverse);
+
+    return mapping;
+}
+
+bool remapReferences(PropertyValue& value, const PrefabIdMapping& ids)
+{
+    return remapValueIn(value, ids);
+}
+
+void remapReferences(Node& branch, const PrefabIdMapping& ids, const TypeRegistry& registry)
+{
+    const auto remapObject = [&](auto& object) {
+        const TypeInfo* type = registry.find(object.typeName());
+        if (!type) {
+            return;
+        }
+        for (const Property* property : registry.properties(*type)) {
+            if (!mayHoldReferences(*property)) {
+                continue;
+            }
+            PropertyValue value = property->get(object);
+            if (remapValueIn(value, ids)) {
+                property->set(object, value);
+            }
+        }
+    };
+    remapObject(branch);
+    for (const auto& component : branch.components()) {
+        if (!dynamic_cast<const MissingComponent*>(component.get())) {
+            remapObject(*component);
+        }
+    }
+    for (const auto& child : branch.children()) {
+        remapReferences(*child, ids, registry);
+    }
+}
+
+bool prefabContains(ResourceId prefab, ResourceId target, const PrefabSources& sources)
+{
+    std::vector<ResourceId> visited;
+    const std::function<bool(ResourceId)> contains = [&](ResourceId current) {
+        if (current == target) {
+            return true;
+        }
+        if (std::ranges::find(visited, current) != visited.end()) {
+            return false;
+        }
+        visited.push_back(current);
+        const auto tree = sources.cache.share<PrefabData>(current);
+        if (!tree) {
+            // Модель экземпляров не содержит, не префаб - тем более.
+            return false;
+        }
+        std::vector<ResourceId> records;
+        collectRecords(tree->root, records);
+
+        return std::ranges::any_of(records, contains);
+    };
+
+    return contains(prefab);
+}
+
+std::vector<ResourceId> recordPrefabs(const Json& branch)
+{
+    std::vector<ResourceId> prefabs;
+    collectRecords(branch, prefabs);
+
+    return prefabs;
+}
+
+ComponentId sourceComponent(const Json& base, NodeId instance, NodeId sourceNode, ComponentId live)
+{
+    std::unordered_map<NodeId, const Json*> nodes;
+    indexNodes(base, nodes);
+    const auto it = nodes.find(sourceNode);
+    if (it == nodes.end()) {
+        return 0;
+    }
+    for (const Json& component : componentsOf(*it->second)) {
+        const ComponentId id = idAt(component, keys::kId);
+        if (deriveId(instance, id) == live) {
+            return id;
+        }
+    }
+
+    return 0;
+}
+
+Json filterRecord(const Json& record, const std::function<bool(std::string_view kind, const Json& entry)>& keep)
+{
+    Json result = record;
+    for (const char* kind : kOverrideKinds) {
+        result.erase(kind);
+        for (const Json& entry : arrayAt(record, kind)) {
+            if (keep(kind, entry)) {
+                addUnused(result, kind, entry);
+            }
+        }
+    }
+
+    return result;
+}
 
 PrefabSources PrefabSources::of(const EngineServices& services)
 {
@@ -586,7 +697,7 @@ ExpandedPrefab expandPrefab(const Json& base, const Json& record, NodeId instanc
 {
     ExpandedPrefab expanded{base, Json::object()};
     expanded.unused = applyOverrides(expanded.tree, record);
-    translateBranch(expanded.tree, IdMapping::of(base, instance, false), registry);
+    translateBranch(expanded.tree, PrefabIdMapping::of(base, instance, false), registry);
 
     return expanded;
 }
@@ -600,7 +711,7 @@ Json computeOverrides(
     const TypeRegistry& registry
 )
 {
-    translateBranch(live, IdMapping::of(base, instance, true), registry);
+    translateBranch(live, PrefabIdMapping::of(base, instance, true), registry);
     std::unordered_map<NodeId, const Json*> baseNodes;
     indexNodes(base, baseNodes);
 
@@ -619,7 +730,7 @@ Json computeOverrides(
 
 std::unordered_map<NodeId, NodeId> instanceSources(const Json& base, NodeId instance)
 {
-    return IdMapping::of(base, instance, true).nodes;
+    return PrefabIdMapping::of(base, instance, true).nodes;
 }
 
 void freshenRecord(Json& record)

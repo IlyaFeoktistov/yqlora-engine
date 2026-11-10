@@ -24,7 +24,11 @@ void buildNewScene(Scene& scene, std::string rootName)
     auto& camera = root.addChild<Camera3D>("Camera");
     camera.transform().setPosition(kCameraPosition);
     camera.transform().lookAt(kNewSceneFocus);
+    addDefaultLighting(root);
+}
 
+void addDefaultLighting(Node& root)
+{
     auto& light = root.addChild<DirectionalLight3D>("Sun");
     light.transform().setPosition(kLightPosition);
     light.transform().setRotationDegrees(kLightRotationDegrees);

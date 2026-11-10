@@ -225,3 +225,40 @@ TEST_CASE_FIXTURE(Fixture, "New scene: a camera with the sky, the sun and an env
     CHECK(frame.environment.sky);
     CHECK(frame.environment.atmosphere.enabled);
 }
+
+TEST_CASE_FIXTURE(Fixture, "Extract: a scene without its sky and sun takes them from the lighting scene")
+{
+    Scene lighting{services};
+    editor::addDefaultLighting(lighting.createRoot<Node3D>("Lighting"));
+    lighting.updateTransforms();
+
+    // Префаб с лампой: своего неба и солнца нет.
+    auto& root = scene.createRoot<Node3D>("Lamp");
+    root.addChild<PointLight3D>("Bulb");
+    FrameData frame = extractFrame(scene, kAspect, &lighting);
+    REQUIRE(frame.lights.size() == 2);
+    CHECK(frame.lights[0].kind == LightKind::Directional);
+    CHECK(frame.lights[0].sun);
+    CHECK(frame.lights[1].kind == LightKind::Point);
+    REQUIRE(frame.environment.sky);
+    CHECK(frame.materials[*frame.environment.sky].id == builtin::kDefaultSkyMaterial);
+    // Без сцены света - только своё.
+    CHECK(extractFrame(scene, kAspect).lights.size() == 1);
+    CHECK_FALSE(extractFrame(scene, kAspect).environment.sky);
+
+    // Своё солнце и своё окружение важнее запасных.
+    root.addChild<DirectionalLight3D>("OwnSun").setIntensity(1.0f);
+    auto& own = root.addChild<Environment>("Own");
+    own.atmosphere.mieAnisotropy = 0.25f;
+    frame = extractFrame(scene, kAspect, &lighting);
+    CHECK(
+        std::ranges::count_if(
+            frame.lights,
+            [](const LightData& light) {
+                return light.kind == LightKind::Directional;
+            }
+        )
+        == 1
+    );
+    CHECK(frame.environment.atmosphere.mieAnisotropy == 0.25f);
+}

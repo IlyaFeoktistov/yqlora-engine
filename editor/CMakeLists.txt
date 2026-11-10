@@ -47,7 +47,8 @@ add_library(yqlora_editor STATIC
     src/ResourceInspection.cpp
     src/TextureInspection.cpp
     src/ViewportProjection.cpp
-    src/ResourceInstance.cpp
+    src/PrefabEditing.cpp
+    src/PreviewLighting.cpp
     src/ResourceLabel.cpp
     src/SceneDocument.cpp
     src/SceneEditing.cpp

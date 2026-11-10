@@ -180,6 +180,8 @@ void applyEditorColors(const Json& json, EditorColors& colors)
     read("axisY", colors.axisY);
     read("axisZ", colors.axisZ);
     read("axisW", colors.axisW);
+    read("prefabInstance", colors.prefabInstance);
+    read("prefabOverride", colors.prefabOverride);
 }
 
 void applyEditorMetrics(const Json& json, EditorMetrics& metrics)

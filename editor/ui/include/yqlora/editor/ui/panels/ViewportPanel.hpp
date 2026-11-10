@@ -14,6 +14,7 @@
 namespace yqlora {
 
 class Camera3D;
+class Scene;
 
 } // namespace yqlora
 
@@ -65,6 +66,8 @@ private:
     // Рисует кадр через камеру редактора, с гизмо.
     void renderScene(EditorContext& context, float aspect, const GizmoContext& gizmoContext);
     void setFlying(bool flying);
+    // Свет предпросмотра открытого префаба, если он включён; иначе nullptr.
+    static const Scene* previewLighting(EditorContext& context);
 
     // Камера для превью: выбранная, если превью включено.
     static const Camera3D* previewedCamera(EditorContext& context);

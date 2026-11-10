@@ -11,7 +11,12 @@ class Scene;
 // Extract: снимок сцены для рендерера на текущий кадр. Виды всех активных
 // камер в порядке отрисовки (см. RenderSystem) и всё, что рисовать. После
 // него рендерер сцену не читает.
-YQLORA_API FrameData extractFrame(const Scene& scene, float aspect);
+//
+// lighting - сцена с запасным светом (предпросмотр префаба в редакторе, где
+// своего света нет): её окружение берётся, если у scene окружения нет, а её
+// направленный свет - если у scene нет направленного. Свой свет scene
+// остаётся в любом случае.
+YQLORA_API FrameData extractFrame(const Scene& scene, float aspect, const Scene* lighting = nullptr);
 
 // Вид через одну камеру, например для превью камеры в редакторе.
 YQLORA_API ViewData cameraView(const Camera3D& camera, float aspect);

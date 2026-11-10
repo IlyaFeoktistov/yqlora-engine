@@ -162,7 +162,8 @@
         "viewport": {
             "cameraPreview": "Preview of the selected camera",
             "sky": "Scene sky behind objects",
-            "shadowCascades": "Sun shadow cascades in colour"
+            "shadowCascades": "Sun shadow cascades in colour",
+            "previewLighting": "Preview lighting: a prefab without its own sky and sun is lit by the sun and sky of a new scene"
         },
         "layers": {
             "everything": "Everything",
@@ -239,7 +240,9 @@
                 "name": "This name is not allowed: empty or contains / \\ : * ? \" < > |",
                 "scriptName": "Not a C++ class name",
                 "exists": "Could not create: this name is already taken"
-            }
+            },
+            "createVariant": "Create variant...",
+            "variantSuffix": "Variant"
         },
         "play": {
             "play": "Play",
@@ -329,6 +332,23 @@
             "model": "Model",
             "prefab": "Prefab",
             "material": "Material"
+        },
+        "prefab": {
+            "revert": "Revert to prefab",
+            "apply": "Apply to prefab",
+            "overridden": "Changed in this instance",
+            "addedComponent": "Added to this instance, not in the prefab",
+            "addedNode": "Added to the prefab instance",
+            "notExpanded": "The prefab of this instance is not expanded: it is kept as saved",
+            "open": "Open prefab",
+            "revertAll": "Revert all",
+            "applyAll": "Apply all",
+            "readOnly": "The prefab is read-only (a model)",
+            "unpack": "Unpack",
+            "unused": "Unused overrides",
+            "removeUnused": "Remove unused",
+            "saveAs": "Save branch as prefab...",
+            "saveAsTitle": "Save branch as prefab"
         }
     },
     "projects": {

@@ -1,6 +1,8 @@
 #include "yqlora/editor/ProjectFiles.hpp"
 
 #include "yqlora/core/EngineServices.hpp"
+#include "yqlora/core/JsonFile.hpp"
+#include "yqlora/core/JsonId.hpp"
 #include "yqlora/core/Log.hpp"
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/editor/NewScene.hpp"
@@ -10,8 +12,11 @@
 #include "yqlora/project/Project.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
 #include "yqlora/scene/Node3D.hpp"
+#include "yqlora/scene/ObjectId.hpp"
 #include "yqlora/scene/Prefab.hpp"
 #include "yqlora/scene/Scene.hpp"
+#include "yqlora/scene/SceneBranches.hpp"
+#include "yqlora/scene/SceneFileKeys.hpp"
 #include "yqlora/scene/SceneSerializer.hpp"
 #include "yqlora/shader/ShaderData.hpp"
 
@@ -196,6 +201,11 @@ bool ProjectFiles::isScene(const fs::path& path)
     return path.extension() == SceneSerializer::fileExtension();
 }
 
+bool ProjectFiles::opensAsScene(const fs::path& path)
+{
+    return isScene(path) || path.extension() == kPrefabFileExtension;
+}
+
 bool ProjectFiles::canModify(const fs::path& path) const
 {
     const fs::path normal = path.lexically_normal();
@@ -261,21 +271,40 @@ std::optional<fs::path> ProjectFiles::createPrefab(
     const SceneSerializer& serializer
 )
 {
+    // Префаб - тот же файл, что сцена: дерево с корнем, здесь пустой Node3D.
+    const Node3D root{std::string(name)};
+
+    return createPrefab(folder, name, SceneBranches::write(serializer.registry(), root));
+}
+
+std::optional<fs::path> ProjectFiles::createPrefab(
+    const fs::path& folder,
+    std::string_view name,
+    const nlohmann::json& root
+)
+{
     const NewResourceType& type = *findNewResourceType(Prefab::kResourceKind);
     const fs::path relative = folder / fromUtf8(occupiedFileName(type, name));
     std::error_code ec;
     if (!isValidResourceName(type, name) || !canModify(relative) || fs::exists(m_project.directory() / relative, ec)) {
         return std::nullopt;
     }
-    // Префаб - тот же файл, что сцена: дерево с корнем, здесь пустой Node3D.
-    Scene prefab(EngineServices::none());
-    prefab.createRoot<Node3D>(std::string(name));
-    if (!serializer.save(prefab, m_project.directory() / relative)) {
+    if (!writeJsonFile(m_project.directory() / relative, SceneBranches::fileOf(root))) {
         return std::nullopt;
     }
     m_project.resources().add(relative);
 
     return relative;
+}
+
+std::optional<fs::path> ProjectFiles::createVariant(const fs::path& folder, std::string_view name, ResourceId base)
+{
+    const nlohmann::json record{
+        {scene_keys::kPrefab, idToJson(base)},
+        {scene_keys::kId, idToJson(newObjectId())},
+    };
+
+    return createPrefab(folder, name, record);
 }
 
 std::optional<fs::path> ProjectFiles::createFolder(const fs::path& folder, std::string_view name)

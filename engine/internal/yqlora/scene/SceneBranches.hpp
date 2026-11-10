@@ -29,6 +29,11 @@ enum class BranchIds {
 struct YQLORA_API SceneBranches {
     static nlohmann::json write(const TypeRegistry& registry, const Node& node);
 
+    // Корень экземпляра - обычными узлами с теми же ID, как после
+    // "Распаковать": связи с префабом в ветке нет. Экземпляры, добавленные в
+    // него, остаются экземплярами.
+    static nlohmann::json writeUnpacked(const TypeRegistry& registry, const Node& node);
+
     // nullptr с сообщением в лог, если ветка не читается. Экземпляры
     // префабов в ветке разворачиваются из sources; без них остаются
     // узлами-заменами со своими записями.
@@ -47,6 +52,10 @@ struct YQLORA_API SceneBranches {
         ResourceId prefab,
         const PrefabSources& sources
     );
+
+    // Документ файла сцены или префаба текущей версии с корнем root: обратное
+    // к rootOfFile.
+    static nlohmann::json fileOf(nlohmann::json root);
 
     // Корень дерева из документа файла сцены или префаба, переведённого на
     // текущую версию формата; null-корень у пустой сцены. nullopt - документ

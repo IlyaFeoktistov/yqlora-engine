@@ -6,6 +6,8 @@
 #include "yqlora/editor/MaterialEditing.hpp"
 #include "yqlora/editor/Pings.hpp"
 #include "yqlora/editor/PlayMode.hpp"
+#include "yqlora/editor/PrefabEditing.hpp"
+#include "yqlora/editor/PreviewLighting.hpp"
 #include "yqlora/editor/SceneDocument.hpp"
 #include "yqlora/editor/SceneEditing.hpp"
 #include "yqlora/editor/Selection.hpp"
@@ -100,6 +102,12 @@ public:
         return m_editing;
     }
 
+    // Экземпляры префабов: вернуть, применить, распаковать, перестроить.
+    PrefabEditing& prefabEditing()
+    {
+        return m_prefabEditing;
+    }
+
     // Правка настроек проекта командами с отменой.
     SettingsEditing& settingsEditing()
     {
@@ -186,11 +194,19 @@ public:
     const std::filesystem::path& gameLibrary() const;
 
     // Файлы проекта могли поменять мимо редактора (вернулись из другой
-    // программы): обходит папку проекта и перечитывает изменённые ресурсы.
+    // программы): обходит папку проекта и перечитывает изменённые ресурсы;
+    // экземпляры изменившихся префабов перестраиваются.
     void refreshResources();
 
     // Путь к открытой сцене от папки проекта. Пусто, если сцены нет.
     std::filesystem::path scenePath() const;
+
+    // Открыт префаб, а не сцена.
+    bool editingPrefab() const;
+
+    // Свет, которым окно сцены освещает открытый префаб (PreviewLighting);
+    // nullptr, если открыт не префаб.
+    const Scene* prefabLighting();
 
     // Открывает другую сцену проекта. Если файл не читается, остаётся прежняя.
     bool openScene(const std::filesystem::path& path);
@@ -239,6 +255,7 @@ private:
     // Правка сцены и настроек идёт через общую историю.
     friend class SceneEditing;
     friend class SettingsEditing;
+    friend class PrefabEditing;
 
     // Во время игры правка сцены в историю не попадает: по Stop сцена вернётся
     // как была. Правка настроек попадает всегда, она переживает Stop.
@@ -262,6 +279,8 @@ private:
     EditHistory m_history;
     float m_sinceModifiedCheck = 0.0f;
     SceneEditing m_editing{*this};
+    PrefabEditing m_prefabEditing{*this};
+    PreviewLighting m_previewLighting{m_services};
     MaterialEditing m_materialEditing{*this};
     Pings m_pings;
     SettingsEditing m_settingsEditing{*this};

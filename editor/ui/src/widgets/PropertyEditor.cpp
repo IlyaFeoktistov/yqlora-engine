@@ -400,7 +400,8 @@ void rowMenu(
     float rowTop,
     float rowBottom,
     PropertyResult& result,
-    const std::function<std::optional<PropertyValue>()>& defaults
+    const std::function<std::optional<PropertyValue>()>& defaults,
+    const PropertyOverrides* overrides
 )
 {
     ImGuiStorage& storage = *ImGui::GetStateStorage();
@@ -436,8 +437,47 @@ void rowMenu(
         value = *pasted;
         result.changed = true;
     }
+    if (overrides && overrides->overridden(property)) {
+        ImGui::Separator();
+        if (ImGui::MenuItem(tr("editor.prefab.revert").c_str())) {
+            overrides->revert(property);
+        }
+        if (ImGui::MenuItem(tr("editor.prefab.apply").c_str(), nullptr, false, bool(overrides->apply))) {
+            overrides->apply(property);
+        }
+    }
     ImGui::EndPopup();
 }
+
+// Подпись переопределённого свойства - цветом переопределения.
+class OverrideMark {
+public:
+    OverrideMark(const Property& property, const PropertyOverrides* overrides, const PropertyEditorContext& context)
+        : m_marked(overrides && overrides->overridden(property))
+    {
+        if (m_marked) {
+            ImGui::PushStyleColor(ImGuiCol_Text, toImVec4(context.colors.prefabOverride));
+        }
+    }
+
+    ~OverrideMark()
+    {
+        end();
+    }
+
+    OverrideMark(const OverrideMark&) = delete;
+    OverrideMark& operator=(const OverrideMark&) = delete;
+
+    void end()
+    {
+        if (std::exchange(m_marked, false)) {
+            ImGui::PopStyleColor();
+        }
+    }
+
+private:
+    bool m_marked;
+};
 
 // Запись одним свойством (не элемент списка): раскрываемый узел в колонке
 // подписей, а её поля - строками той же таблицы с отступом, на всю ширину
@@ -472,7 +512,12 @@ void recordRows(
 }
 
 template <typename Object>
-PropertyResult drawPropertyRow(const Property& property, Object& object, const PropertyEditorContext& context)
+PropertyResult drawPropertyRow(
+    const Property& property,
+    Object& object,
+    const PropertyEditorContext& context,
+    const PropertyOverrides* overrides
+)
 {
     PropertyResult result;
     PropertyValue value = property.get(object);
@@ -481,17 +526,28 @@ PropertyResult drawPropertyRow(const Property& property, Object& object, const P
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
     const float rowTop = ImGui::GetCursorScreenPos().y;
+    OverrideMark mark(property, overrides, context);
     if (property.type() == PropertyType::Record) {
         recordRows(property, std::get<RecordValue>(value), context, result);
-        rowMenu(property, value, rowTop, ImGui::GetItemRectMax().y, result, [&] {
-            return defaultValue(context.registry, object, property);
-        });
+        mark.end();
+        rowMenu(
+            property,
+            value,
+            rowTop,
+            ImGui::GetItemRectMax().y,
+            result,
+            [&] {
+                return defaultValue(context.registry, object, property);
+            },
+            overrides
+        );
         ImGui::PopID();
         result.value = std::move(value);
 
         return result;
     }
     rowLabel(property, value, result);
+    mark.end();
     ImGui::TableNextColumn();
     std::vector<std::string> labels;
     if constexpr (std::is_same_v<Object, Component>) {
@@ -511,9 +567,17 @@ PropertyResult drawPropertyRow(const Property& property, Object& object, const P
         valueField(property, property.type(), value, context, result);
     }
     const float rowBottom = ImGui::GetItemRectMax().y;
-    rowMenu(property, value, rowTop, rowBottom, result, [&] {
-        return defaultValue(context.registry, object, property);
-    });
+    rowMenu(
+        property,
+        value,
+        rowTop,
+        rowBottom,
+        result,
+        [&] {
+            return defaultValue(context.registry, object, property);
+        },
+        overrides
+    );
     // Подпись числа тянут мимо поля значения: пределы и для неё.
     if (result.changed) {
         clampToRange(property, value);
@@ -527,19 +591,29 @@ PropertyResult drawPropertyRow(const Property& property, Object& object, const P
 
 } // namespace
 
-PropertyResult drawProperty(const Property& property, Node& node, const PropertyEditorContext& context)
+PropertyResult drawProperty(
+    const Property& property,
+    Node& node,
+    const PropertyEditorContext& context,
+    const PropertyOverrides* overrides
+)
 {
-    return drawPropertyRow(property, node, context);
+    return drawPropertyRow(property, node, context, overrides);
 }
 
-PropertyResult drawProperty(const Property& property, Component& component, const PropertyEditorContext& context)
+PropertyResult drawProperty(
+    const Property& property,
+    Component& component,
+    const PropertyEditorContext& context,
+    const PropertyOverrides* overrides
+)
 {
-    return drawPropertyRow(property, component, context);
+    return drawPropertyRow(property, component, context, overrides);
 }
 
 PropertyResult drawProperty(const Property& property, SettingsSection& section, const PropertyEditorContext& context)
 {
-    return drawPropertyRow(property, section, context);
+    return drawPropertyRow(property, section, context, nullptr);
 }
 
 std::string propertyLabel(const Property& property)

@@ -172,7 +172,7 @@ void ViewportPanel::renderScene(EditorContext& context, float aspect, const Gizm
 {
     const EditorHost& host = context.host;
     const Scene& scene = context.session.scene();
-    FrameData frame = extractFrame(scene, aspect);
+    FrameData frame = extractFrame(scene, aspect, previewLighting(context));
     // Окно сцены показывает кадр с экспозицией главной камеры: как в игре.
     const RenderSystem* render = scene.system<RenderSystem>();
     frame.views = {{
@@ -238,6 +238,16 @@ bool ViewportPanel::drawToggles(EditorContext& context, const ImVec2& origin, co
     );
     const bool
         overSky = drawToggle(context, icons::kEnvironment, settings.viewportSky, "editor.viewport.sky", right, top);
+    // Кнопка света предпросмотра - только у открытого префаба: у сцены свой свет.
+    const bool overLighting = context.session.editingPrefab()
+                              && drawToggle(
+                                  context,
+                                  icons::kDirectionalLight3D,
+                                  settings.viewportPreviewLighting,
+                                  "editor.viewport.previewLighting",
+                                  right,
+                                  top
+                              );
     const bool overCascades = drawToggle(
         context,
         icons::kShadowCascades,
@@ -247,7 +257,7 @@ bool ViewportPanel::drawToggles(EditorContext& context, const ImVec2& origin, co
         top
     );
 
-    return overPreview || overSky || overCascades;
+    return overPreview || overSky || overLighting || overCascades;
 }
 
 void ViewportPanel::drawCameraPreview(EditorContext& context, const Camera3D& camera, const Rect& rect)
@@ -268,9 +278,14 @@ void ViewportPanel::drawCameraPreview(EditorContext& context, const Camera3D& ca
 
     // Только эта камера, как её увидит игра: без гизмо и без остальных камер.
     const float aspect = rect.size.x / rect.size.y;
-    FrameData frame = extractFrame(context.session.scene(), aspect);
+    FrameData frame = extractFrame(context.session.scene(), aspect, previewLighting(context));
     frame.views = {cameraView(camera, aspect)};
     m_preview.render(host.renderer(), frame);
+}
+
+const Scene* ViewportPanel::previewLighting(EditorContext& context)
+{
+    return context.settings.viewportPreviewLighting ? context.session.prefabLighting() : nullptr;
 }
 
 void ViewportPanel::setFlying(bool flying)

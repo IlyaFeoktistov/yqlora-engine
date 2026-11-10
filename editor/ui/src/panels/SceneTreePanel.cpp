@@ -3,15 +3,20 @@
 #include "yqlora/editor/ui/core/EditorContext.hpp"
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/NodeIcons.hpp"
+#include "yqlora/editor/ui/style/Theme.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
 #include "yqlora/editor/ui/widgets/PingFlash.hpp"
 
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/editor/EditorSettings.hpp"
+#include "yqlora/editor/PrefabEditing.hpp"
+#include "yqlora/editor/ProjectFiles.hpp"
 #include "yqlora/editor/SceneCommands.hpp"
 #include "yqlora/editor/SceneEditing.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/scene/NodeTree.hpp"
+#include "yqlora/scene/Prefab.hpp"
+#include "yqlora/scene/PrefabInstance.hpp"
 #include "yqlora/scene/Scene.hpp"
 
 #include <imgui.h>
@@ -24,6 +29,12 @@
 namespace yqlora::editor {
 
 namespace {
+
+// Узел экземпляра префаба: корень или узел из префаба (добавленные - нет).
+bool fromPrefab(const Node& node)
+{
+    return bool(node.prefabLink());
+}
 
 } // namespace
 
@@ -47,7 +58,7 @@ void SceneTreePanel::draw(EditorContext& context)
         ImGui::Separator();
 
         if (const Node* root = scene.root()) {
-            drawNode(*root, selection);
+            drawNode(*root, selection, context.theme.colors());
         } else {
             ImGui::TextDisabled("%s", tr("editor.scene.empty").c_str());
         }
@@ -83,10 +94,12 @@ void SceneTreePanel::draw(EditorContext& context)
 
         m_addNode.draw(session, context.registry);
         drawKeepWorldDialog(context);
+        drawSaveAsPrefabDialog(context);
     }
     ImGui::End();
 
     handleMove(context);
+    handlePrefabAction(context);
     if (m_drop) {
         session.editing().addResource(m_drop->resource, session.findNode(m_drop->parent));
         m_drop.reset();
@@ -100,7 +113,7 @@ void SceneTreePanel::draw(EditorContext& context)
     m_lastSelected = selection.selected();
 }
 
-void SceneTreePanel::drawNode(const Node& node, Selection& selection)
+void SceneTreePanel::drawNode(const Node& node, Selection& selection, const EditorColors& colors)
 {
     const bool selected = selection.isSelected(node.id());
 
@@ -120,13 +133,19 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection)
     }
 
     const auto id = reinterpret_cast<void*>(static_cast<std::uintptr_t>(node.id()));
-    // Неактивные узлы бледные.
+    // Неактивные узлы бледные, узлы экземпляров префабов - своим цветом.
     const bool inactive = !node.activeInHierarchy();
-    if (inactive) {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    const bool prefab = fromPrefab(node);
+    if (inactive || prefab) {
+        const ImVec4 color = prefab ? toImVec4(colors.prefabInstance) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        ImGui::PushStyleColor(
+            ImGuiCol_Text,
+            inactive ? ImVec4(color.x, color.y, color.z, ImGui::GetStyle().DisabledAlpha) : color
+        );
     }
-    const bool open = ImGui::TreeNodeEx(id, flags, "%s  %s", nodeIcon(node.typeName()), node.name().c_str());
-    if (inactive) {
+    const char* icon = node.prefabInstance() ? icons::kPrefab : nodeIcon(node.typeName());
+    const bool open = ImGui::TreeNodeEx(id, flags, "%s  %s", icon, node.name().c_str());
+    if (inactive || prefab) {
         ImGui::PopStyleColor();
     }
     ImGui::SetItemTooltip("%s", std::string(node.typeName()).c_str());
@@ -182,6 +201,7 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection)
         if (ImGui::MenuItem(tr("editor.tree.delete").c_str(), "Delete")) {
             m_deleteRequested = true;
         }
+        drawPrefabItems(node);
         ImGui::EndPopup();
     }
     if (selected && m_reveal) {
@@ -190,10 +210,77 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection)
 
     if (open) {
         for (const auto& child : node.children()) {
-            drawNode(*child, selection);
+            drawNode(*child, selection, colors);
         }
         ImGui::TreePop();
     }
+}
+
+void SceneTreePanel::drawPrefabItems(const Node& node)
+{
+    ImGui::Separator();
+    if (ImGui::MenuItem(tr("editor.prefab.saveAs").c_str())) {
+        m_prefabRequest = PrefabRequest{PrefabAction::SaveAs, node.id()};
+    }
+    if (node.prefabInstance()) {
+        if (ImGui::MenuItem(tr("editor.prefab.open").c_str())) {
+            m_prefabRequest = PrefabRequest{PrefabAction::Open, node.id()};
+        }
+        if (ImGui::MenuItem(tr("editor.prefab.unpack").c_str())) {
+            m_prefabRequest = PrefabRequest{PrefabAction::Unpack, node.id()};
+        }
+    }
+}
+
+void SceneTreePanel::handlePrefabAction(EditorContext& context)
+{
+    if (!m_prefabRequest) {
+        return;
+    }
+    const PrefabRequest request = *std::exchange(m_prefabRequest, std::nullopt);
+    EditorSession& session = context.session;
+    Node* node = session.findNode(request.node);
+    if (!node || session.playing()) {
+        return;
+    }
+    switch (request.action) {
+    case PrefabAction::SaveAs:
+        m_savingNode = node->id();
+        m_saveAsPrefab.open(node->name());
+        break;
+    case PrefabAction::Open: {
+        const auto path = session.project() ? session.project()->resources().path(node->prefabInstance()->prefab)
+                                            : std::nullopt;
+        if (path && ProjectFiles::opensAsScene(*path)) {
+            context.openScene(*path);
+        }
+        break;
+    }
+    case PrefabAction::Unpack: session.prefabEditing().unpack(*node); break;
+    }
+}
+
+void SceneTreePanel::drawSaveAsPrefabDialog(EditorContext& context)
+{
+    EditorSession& session = context.session;
+    const NewResourceType& type = *findNewResourceType(Prefab::kResourceKind);
+    const NameDialog::Text text{
+        .title = tr("editor.prefab.saveAsTitle") + "###SaveAsPrefab",
+        .label = tr("editor.files.name"),
+        .confirm = tr("editor.files.create"),
+        .invalid = tr("editor.files.error.name"),
+        .failed = tr("editor.files.error.exists"),
+    };
+    const auto valid = [&](std::string_view name) {
+        return isValidResourceName(type, name);
+    };
+    // Префаб ложится рядом с открытой сценой.
+    const auto save = [&](const std::string& name) {
+        Node* node = session.findNode(m_savingNode);
+
+        return node && session.prefabEditing().saveAsPrefab(*node, session.scenePath().parent_path(), name);
+    };
+    m_saveAsPrefab.draw(text, valid, save, context.theme.colors());
 }
 
 void SceneTreePanel::handleMove(EditorContext& context)

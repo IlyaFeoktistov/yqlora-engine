@@ -10,13 +10,16 @@
 #include "yqlora/core/AppPaths.hpp"
 #include "yqlora/core/Utf8Path.hpp"
 #include "yqlora/editor/EditorSession.hpp"
+#include "yqlora/editor/PrefabEditing.hpp"
 #include "yqlora/editor/ResourceChoices.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/platform/Platform.hpp"
 #include "yqlora/project/Project.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
+#include "yqlora/resource/ResourceKinds.hpp"
 #include "yqlora/resource/ResourceLoader.hpp"
+#include "yqlora/scene/Prefab.hpp"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -111,6 +114,12 @@ void FileSystemPanel::draw(EditorContext& context)
         if (m_root.children.empty()) {
             ImGui::TextDisabled("%s", tr("editor.files.empty").c_str());
         }
+        // Узел из дерева, отпущенный под файлами, - префаб в корне проекта.
+        const ImVec2 rest = ImGui::GetContentRegionAvail();
+        if (ImGui::GetDragDropPayload() && rest.x > 0.0f && rest.y > 0.0f) {
+            ImGui::InvisibleButton("##dropArea", rest);
+            acceptBranchDrop(session, {});
+        }
         // Щелчок мимо файлов снимает выделение: новый ресурс тогда создаётся
         // в корне проекта. Правый щелчок там же открывает меню создания.
         const bool emptyClicked = ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered();
@@ -130,6 +139,8 @@ void FileSystemPanel::draw(EditorContext& context)
 
     drawCreateDialog(session, serializer, context.theme.colors());
     drawRenameDialog(session, context.theme.colors());
+    drawVariantDialog(session, context.theme.colors());
+    drawBranchDialog(session, context.theme.colors());
     drawDeleteDialog(session);
     ImGui::End();
 
@@ -280,6 +291,9 @@ void FileSystemPanel::drawEntry(
     if (openScene) {
         ImGui::PopStyleColor();
     }
+    if (entry.directory) {
+        acceptBranchDrop(session, entry.path);
+    }
 
     // Левой кнопкой - по отпусканию без перетаскивания, правой (меню) - сразу.
     if (m_release.released(rowKey(entry.path)) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
@@ -301,7 +315,7 @@ void FileSystemPanel::drawEntry(
     dragResource(resource, std::string(icon) + "  " + entry.name);
     // Файл с вложенными ресурсами по двойному щелчку раскрывается, как папка.
     if (!entry.directory && !nested && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-        if (ProjectFiles::isScene(entry.path)) {
+        if (ProjectFiles::opensAsScene(entry.path)) {
             m_openRequest = entry.path;
         } else {
             platform::openWithSystem(session.project()->directory() / entry.path);
@@ -353,6 +367,24 @@ void FileSystemPanel::drawContextMenu(const ProjectFiles::Entry& entry, EditorSe
         if (entry.path != mainScene && item(icons::kMainScene, "editor.files.setMain")) {
             session.settingsEditing().setStartupScene(entry.path);
         }
+        ImGui::Separator();
+    } else if (ProjectFiles::opensAsScene(entry.path)) {
+        if (item(icons::kPrefab, "editor.files.open")) {
+            m_openRequest = entry.path;
+        }
+    }
+    // Вариант - у префаба и у модели: их экземпляры ставятся в сцены.
+    const std::string_view kind = entry.directory ? std::string_view() : session.resources().kindOf(entry.path);
+    if (kinds::fitsKind(kind, Prefab::kResourceKind) && item(icons::kPrefab, "editor.files.createVariant")) {
+        m_variantBase = session.project()->resources().id(entry.path);
+        m_variantFolder = entry.path.parent_path();
+        m_variantDialog.open(files.suggestName(
+            *findNewResourceType(Prefab::kResourceKind),
+            m_variantFolder,
+            toUtf8(entry.path.stem()) + " " + tr("editor.files.variantSuffix")
+        ));
+    }
+    if (!kind.empty() && kinds::fitsKind(kind, Prefab::kResourceKind)) {
         ImGui::Separator();
     }
     if (item(icons::kRename, "editor.files.rename")) {
@@ -450,6 +482,71 @@ void FileSystemPanel::drawRenameDialog(EditorSession& session, const EditorColor
         return true;
     };
     m_renameDialog.draw(text, valid, rename, colors);
+}
+
+void FileSystemPanel::acceptBranchDrop(EditorSession& session, const std::filesystem::path& folder)
+{
+    const auto node = acceptNodeDrop();
+    const Node* found = node ? session.findNode(*node) : nullptr;
+    if (!found || session.playing()) {
+        return;
+    }
+    m_branchNode = found->id();
+    m_branchFolder = folder;
+    ProjectFiles files(*session.project());
+    m_branchDialog.open(files.suggestName(*findNewResourceType(Prefab::kResourceKind), folder, found->name()));
+}
+
+void FileSystemPanel::drawBranchDialog(EditorSession& session, const EditorColors& colors)
+{
+    const NewResourceType& type = *findNewResourceType(Prefab::kResourceKind);
+    const NameDialog::Text text{
+        .title = tr("editor.prefab.saveAsTitle") + "###BranchPrefab",
+        .label = tr("editor.files.name"),
+        .confirm = tr("editor.files.create"),
+        .invalid = tr("editor.files.error.name"),
+        .failed = tr("editor.files.error.exists"),
+    };
+    const auto valid = [&](std::string_view name) {
+        return isValidResourceName(type, name);
+    };
+    const auto save = [&](const std::string& name) {
+        Node* node = session.findNode(m_branchNode);
+        if (!node || !session.prefabEditing().saveAsPrefab(*node, m_branchFolder, name)) {
+            return false;
+        }
+        m_dirty = true;
+
+        return true;
+    };
+    m_branchDialog.draw(text, valid, save, colors);
+}
+
+void FileSystemPanel::drawVariantDialog(EditorSession& session, const EditorColors& colors)
+{
+    const NewResourceType& type = *findNewResourceType(Prefab::kResourceKind);
+    const NameDialog::Text text{
+        .title = tr("editor.files.createVariant") + "###PrefabVariant",
+        .label = tr("editor.files.name"),
+        .confirm = tr("editor.files.create"),
+        .invalid = tr("editor.files.error.name"),
+        .failed = tr("editor.files.error.exists"),
+    };
+    const auto valid = [&](std::string_view name) {
+        return isValidResourceName(type, name);
+    };
+    const auto create = [&](const std::string& name) {
+        const auto created = ProjectFiles(*session.project()).createVariant(m_variantFolder, name, m_variantBase);
+        if (!created) {
+            return false;
+        }
+        m_selected = *created;
+        m_selectedIsDirectory = false;
+        m_dirty = true;
+
+        return true;
+    };
+    m_variantDialog.draw(text, valid, create, colors);
 }
 
 void FileSystemPanel::drawDeleteDialog(EditorSession& session)

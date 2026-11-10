@@ -544,6 +544,11 @@ Json SceneBranches::write(const TypeRegistry& registry, const Node& node)
     return nodeToJson(registry, node);
 }
 
+Json SceneBranches::writeUnpacked(const TypeRegistry& registry, const Node& node)
+{
+    return plainNodeToJson(registry, node, 0);
+}
+
 std::unique_ptr<Node> SceneBranches::read(
     const TypeRegistry& registry,
     const Json& node,
@@ -565,6 +570,15 @@ std::unique_ptr<Node> SceneBranches::instantiate(
     const PrefabInstance* instance = node ? node->prefabInstance() : nullptr;
 
     return instance && instance->base ? std::move(node) : nullptr;
+}
+
+Json SceneBranches::fileOf(Json root)
+{
+    Json file;
+    kFormat.stamp(file);
+    file[kRoot] = std::move(root);
+
+    return file;
 }
 
 std::optional<Json> SceneBranches::rootOfFile(Json file)
