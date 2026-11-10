@@ -15,6 +15,7 @@
 namespace yqlora {
 
 class EngineServices;
+class PrefabBases;
 class ResourceCache;
 class ResourceDatabase;
 class TypeRegistry;
@@ -34,6 +35,8 @@ struct PrefabSources {
     ResourceCache& cache;
     // nullptr - проекта нет: у моделей нет материалов из файла.
     const ResourceDatabase* resources = nullptr;
+    // Кэш развёрнутых деревьев; nullptr - каждое разворачивается заново.
+    PrefabBases* bases = nullptr;
 
     YQLORA_API static PrefabSources of(const EngineServices& services);
 };
@@ -63,12 +66,14 @@ YQLORA_API std::shared_ptr<const nlohmann::json> prefabTree(
 // данных своего префаба, вложенные - так же, в пространстве ветки. chain -
 // префабы, которые сейчас разворачиваются, от внешнего: запись префаба из
 // него - цикл, она выпадает с ошибкой в лог, как и запись префаба, который не
-// развернулся. nullopt, если сама branch - такая запись.
+// развернулся. nullopt, если сама branch - такая запись. В used (если он
+// задан) дописываются префабы, из которых ветка собрана.
 YQLORA_API std::optional<nlohmann::json> resolvePrefabs(
     nlohmann::json branch,
     const PrefabSources& sources,
     const TypeRegistry& registry,
-    std::vector<ResourceId>& chain
+    std::vector<ResourceId>& chain,
+    std::vector<ResourceId>* used = nullptr
 );
 
 struct ExpandedPrefab {

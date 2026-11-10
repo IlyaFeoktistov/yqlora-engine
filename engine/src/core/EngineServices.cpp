@@ -4,6 +4,7 @@
 #include "yqlora/input/Input.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
+#include "yqlora/scene/PrefabBases.hpp"
 
 namespace yqlora {
 
@@ -11,6 +12,7 @@ EngineServices::EngineServices(const Input& input, const TypeRegistry& registry)
     : m_input(input)
     , m_registry(registry)
     , m_resources(std::make_shared<ResourceCache>())
+    , m_prefabBases(std::make_shared<PrefabBases>())
 {
     addEngineLoaders(*m_resources);
 }
@@ -20,6 +22,7 @@ EngineServices::EngineServices(const Input& input, const EngineServices& shared)
     , m_registry(shared.m_registry)
     , m_project(shared.m_project)
     , m_resources(shared.m_resources)
+    , m_prefabBases(shared.m_prefabBases)
 {
 }
 

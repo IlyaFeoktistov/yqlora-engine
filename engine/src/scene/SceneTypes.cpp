@@ -4,6 +4,7 @@
 #include "yqlora/scene/ExecutionOrderSettings.hpp"
 #include "yqlora/scene/LayerSettings.hpp"
 #include "yqlora/scene/Node3D.hpp"
+#include "yqlora/scene/PrefabPool.hpp"
 #include "yqlora/scene/SceneFileKeys.hpp"
 #include "yqlora/scene/TimeSettings.hpp"
 #include "yqlora/scene/Timer.hpp"
@@ -17,6 +18,8 @@ namespace {
 
 // Предел ползунка длительности таймера в инспекторе: час; из кода - любая.
 constexpr float kMaxTimerSeconds = 3600.0f;
+// Предел ползунка размера пула в инспекторе; из кода - любой.
+constexpr int kMaxPoolSize = 1000;
 
 } // namespace
 
@@ -62,6 +65,15 @@ void registerSceneTypes(TypeRegistry& registry)
         .method("stop", &Timer::stop)
         .method("running", &Timer::running)
         .method("remaining", &Timer::remaining);
+    registry.registerComponent<PrefabPool>()
+        .property("prefab", &PrefabPool::prefab)
+        .property("size", &PrefabPool::size)
+        .range(0, kMaxPoolSize)
+        .property("whenEmpty", &PrefabPool::whenEmpty)
+        .method("acquire", static_cast<Node* (PrefabPool::*)(const NodeRef&)>(&PrefabPool::acquire), {{"parent"}})
+        .method("release", static_cast<bool (PrefabPool::*)(const NodeRef&)>(&PrefabPool::release), {{"node"}})
+        .method("available", &PrefabPool::available)
+        .method("total", &PrefabPool::total);
 
     registry.registerSettings<ExecutionOrderSettings>("execution_order")
         .property("entries", &ExecutionOrderSettings::entries);

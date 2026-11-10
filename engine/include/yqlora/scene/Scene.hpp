@@ -9,6 +9,7 @@
 #include "yqlora/scene/GameTime.hpp"
 #include "yqlora/scene/Node.hpp"
 #include "yqlora/scene/NodeIndex.hpp"
+#include "yqlora/scene/Prefab.hpp"
 #include "yqlora/scene/SceneSystems.hpp"
 #include "yqlora/scene/TreeChangeQueue.hpp"
 
@@ -89,6 +90,14 @@ public:
     // нет, любое кого-то удивило бы. Когда применяется - как у
     // destroy. Корень и перенос внутрь своей же ветки - ошибка программы.
     void setParent(Node& node, Node& parent, KeepWorld keepWorld);
+
+    // Новый экземпляр префаба или модели последним ребёнком parent этой сцены
+    // (новый ID экземпляра, без переопределений); возвращает его корень. Во
+    // время кадра узлы участвуют со следующего, как другие созданные в нём.
+    // nullptr с причиной в логе, если prefab не развернулся (не префаб,
+    // сцена, нет файла). Для объектов, которые появляются часто (пули), -
+    // PrefabPool: он не разворачивает префаб на ходу.
+    Node* instantiate(const Ref<Prefab>& prefab, Node& parent);
 
     // Идёт кадр (advance): изменения дерева ждут его конца, а компоненты,
     // включённые в нём (и узлы, созданные в нём), участвуют со следующего.

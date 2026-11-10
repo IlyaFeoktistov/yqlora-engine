@@ -7,6 +7,7 @@
 namespace yqlora {
 
 class Input;
+class PrefabBases;
 class Project;
 class ResourceCache;
 class TypeRegistry;
@@ -57,11 +58,18 @@ public:
         return *m_resources;
     }
 
+    // Развёрнутые деревья префабов, общие для сцен с тем же кэшем ресурсов.
+    PrefabBases& prefabBases() const
+    {
+        return *m_prefabBases;
+    }
+
 private:
     const Input& m_input;
     const TypeRegistry& m_registry;
     Project* m_project = nullptr;
     std::shared_ptr<ResourceCache> m_resources;
+    std::shared_ptr<PrefabBases> m_prefabBases;
 };
 
 } // namespace yqlora

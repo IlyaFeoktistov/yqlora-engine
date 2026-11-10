@@ -12,6 +12,7 @@
 
 #include <cassert>
 #include <concepts>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <span>
@@ -168,6 +169,13 @@ public:
     // к этому моменту быть не должно. Возвращает, сколько типов убрано.
     std::size_t removeModule(std::string_view module);
 
+    // Растёт, когда типы добавляются или убираются (модуль игры загружен или
+    // выгружен): по ней узнают, что построенное по типам устарело.
+    std::uint64_t revision() const
+    {
+        return m_revision;
+    }
+
 private:
     template <typename T>
     TypeInfo& add(TypeKind kind)
@@ -192,6 +200,7 @@ private:
     std::vector<std::unique_ptr<TypeInfo>> m_types;
     std::map<std::string, TypeInfo*, std::less<>> m_byName;
     std::string m_module{engineModule()};
+    std::uint64_t m_revision = 0;
 };
 
 } // namespace yqlora

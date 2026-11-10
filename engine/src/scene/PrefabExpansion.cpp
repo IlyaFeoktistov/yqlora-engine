@@ -405,7 +405,11 @@ void freshenNode(Json& node)
 
 PrefabSources PrefabSources::of(const EngineServices& services)
 {
-    return {services.resources(), services.project() ? &services.project()->resources() : nullptr};
+    return {
+        services.resources(),
+        services.project() ? &services.project()->resources() : nullptr,
+        &services.prefabBases(),
+    };
 }
 
 bool isPrefabRecord(const Json& node)
@@ -458,7 +462,8 @@ std::optional<Json> resolvePrefabs(
     Json branch,
     const PrefabSources& sources,
     const TypeRegistry& registry,
-    std::vector<ResourceId>& chain
+    std::vector<ResourceId>& chain,
+    std::vector<ResourceId>* used
 )
 {
     if (isPrefabRecord(branch)) {
@@ -474,12 +479,16 @@ std::optional<Json> resolvePrefabs(
 
             return std::nullopt;
         }
+        // Записан и тот, что не развернулся: когда он появится, дерево устареет.
+        if (used) {
+            used->push_back(prefab);
+        }
         const auto tree = prefabTree(prefab, sources, registry);
         if (!tree) {
             return std::nullopt;
         }
         chain.push_back(prefab);
-        const auto base = resolvePrefabs(*tree, sources, registry, chain);
+        const auto base = resolvePrefabs(*tree, sources, registry, chain, used);
         chain.pop_back();
         if (!base) {
             return std::nullopt;
@@ -491,7 +500,7 @@ std::optional<Json> resolvePrefabs(
     if (const auto children = branch.find(keys::kChildren); children != branch.end() && children->is_array()) {
         Json resolved = Json::array();
         for (Json& child : *children) {
-            if (auto node = resolvePrefabs(std::move(child), sources, registry, chain)) {
+            if (auto node = resolvePrefabs(std::move(child), sources, registry, chain, used)) {
                 resolved.push_back(std::move(*node));
             }
         }

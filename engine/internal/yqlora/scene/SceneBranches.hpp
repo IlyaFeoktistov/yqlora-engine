@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/resource/ResourceKinds.hpp"
 
 #include <nlohmann/json.hpp>
@@ -36,6 +37,15 @@ struct YQLORA_API SceneBranches {
         const nlohmann::json& node,
         BranchIds ids,
         const PrefabSources* sources = nullptr
+    );
+
+    // Новый экземпляр префаба prefab (новый ID экземпляра) без переопределений:
+    // так его создают игра и бросок в редакторе. nullptr с причиной в логе,
+    // если prefab не развернулся (не префаб и не модель, нет файла, цикл).
+    static std::unique_ptr<Node> instantiate(
+        const TypeRegistry& registry,
+        ResourceId prefab,
+        const PrefabSources& sources
     );
 
     // Корень дерева из документа файла сцены или префаба, переведённого на

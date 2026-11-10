@@ -12,6 +12,7 @@
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/scene/MissingComponent.hpp"
 #include "yqlora/scene/NodeTree.hpp"
+#include "yqlora/scene/PrefabBases.hpp"
 #include "yqlora/scene/PrefabExpansion.hpp"
 #include "yqlora/scene/PrefabInstance.hpp"
 #include "yqlora/scene/Scene.hpp"
@@ -244,18 +245,31 @@ struct SceneSerializer::Format {
     // которых нет в файле, прежние имена свойств).
     std::shared_ptr<const Json> instanceBase(ResourceId prefab) const
     {
-        const auto tree = sources ? prefabTree(prefab, *sources, registry) : nullptr;
+        if (!sources) {
+            return nullptr;
+        }
+        if (sources->bases) {
+            if (auto cached = sources->bases->find(prefab, registry.revision(), sources->cache)) {
+                return cached;
+            }
+        }
+        const auto tree = prefabTree(prefab, *sources, registry);
         if (!tree) {
             return nullptr;
         }
         std::vector<ResourceId> chain{prefab};
-        const auto resolved = resolvePrefabs(*tree, *sources, registry, chain);
+        std::vector<ResourceId> files{prefab};
+        const auto resolved = resolvePrefabs(*tree, *sources, registry, chain, &files);
         const auto nodes = resolved ? Format{registry}.readNode(*resolved) : nullptr;
         if (!nodes) {
             return nullptr;
         }
+        auto base = std::make_shared<const Json>(plainNodeToJson(registry, *nodes, 0));
+        if (sources->bases) {
+            sources->bases->store(prefab, registry.revision(), base, files, sources->cache);
+        }
 
-        return std::make_shared<const Json>(plainNodeToJson(registry, *nodes, 0));
+        return base;
     }
 
     std::unique_ptr<Node> placeholder(Json record) const
@@ -538,6 +552,19 @@ std::unique_ptr<Node> SceneBranches::read(
 )
 {
     return SceneSerializer::Format{registry, ids == BranchIds::Fresh, sources}.readNode(node);
+}
+
+std::unique_ptr<Node> SceneBranches::instantiate(
+    const TypeRegistry& registry,
+    ResourceId prefab,
+    const PrefabSources& sources
+)
+{
+    const Json record{{scene_keys::kPrefab, idToJson(prefab)}, {kId, idToJson(newObjectId())}};
+    auto node = read(registry, record, BranchIds::FromFile, &sources);
+    const PrefabInstance* instance = node ? node->prefabInstance() : nullptr;
+
+    return instance && instance->base ? std::move(node) : nullptr;
 }
 
 std::optional<Json> SceneBranches::rootOfFile(Json file)

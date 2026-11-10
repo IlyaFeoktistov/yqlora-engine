@@ -80,6 +80,9 @@
         },
         "Script": {
             "description": "Base of C++ scripts: game behaviour with the component lifecycle."
+        },
+        "PrefabPool": {
+            "description": "Instances of a prefab made ahead and kept disabled: hands out a ready one and takes it back, with no expanding on the fly. For objects that come and go often: bullets, shells, hit effects."
         }
     },
     "editor": {
@@ -460,7 +463,10 @@
         "shadowSoftness": "Softness",
         "shadowStrength": "Strength",
         "shadows": "Shadows",
-        "sourceRadius": "Source radius, m"
+        "sourceRadius": "Source radius, m",
+        "prefab": "Prefab",
+        "size": "Size",
+        "whenEmpty": "When empty"
     },
     "enum": {
         "Aces": "ACES",
@@ -481,7 +487,9 @@
         "Release": "Release",
         "Sky": "Sky",
         "Soft": "Soft",
-        "Vulkan": "Vulkan"
+        "Vulkan": "Vulkan",
+        "Grow": "Grow",
+        "Refuse": "Refuse"
     },
     "group": {
         "ambientLight": "Ambient light",

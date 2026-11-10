@@ -16,13 +16,19 @@
 #include <yqlora/scene/ObjectId.hpp>
 #include <yqlora/scene/PrefabExpansion.hpp>
 #include <yqlora/scene/PrefabInstance.hpp>
+#include <yqlora/scene/PrefabPool.hpp>
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneBranches.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
+#include <yqlora/scripting/ModuleRegistrar.hpp>
+#include <yqlora/scripting/Script.hpp>
 
 #include <filesystem>
+#include <functional>
 #include <optional>
+#include <set>
 #include <string>
+#include <utility>
 
 using namespace yqlora;
 namespace fs = std::filesystem;
@@ -38,6 +44,43 @@ struct Pointer final : Component {
     ComponentRef<> part;
 };
 
+// Считает свои кадры: по нему видно, с какого кадра экземпляр в игре.
+struct Ticker final : Component {
+    YQLORA_TYPE(Ticker, Component)
+
+    void onUpdate(float /*deltaSeconds*/) override
+    {
+        ++frames;
+    }
+
+    int frames = 0;
+};
+
+// Выполняет действие в первом onUpdate: так тест меняет сцену посреди кадра.
+struct Spawner final : Component {
+    YQLORA_TYPE(Spawner, Component)
+
+    void onUpdate(float /*deltaSeconds*/) override
+    {
+        if (call) {
+            std::exchange(call, nullptr)();
+        }
+    }
+
+    std::function<void()> call;
+};
+
+// Скрипт модуля игры: его тип пропадает и возвращается при перезагрузке модуля.
+struct Runner final : Script {
+    YQLORA_TYPE(Runner, Script)
+
+    float speed = 1.0f;
+
+    YQLORA_FIELDS(field("speed", &Runner::speed))
+};
+
+constexpr std::string_view kGameModule = "game";
+constexpr float kFrame = 1.0f / 60.0f;
 constexpr NodeId kFirst = 0x1111;
 constexpr NodeId kSecond = 0x2222;
 
@@ -58,6 +101,8 @@ struct Fixture {
     Fixture()
     {
         registry.registerComponent<Pointer>().property("target", &Pointer::target).property("part", &Pointer::part);
+        registry.registerComponent<Ticker>();
+        registry.registerComponent<Spawner>();
         REQUIRE(Project::create(directory, "Game", registry));
         project = Project::open(directory, registry);
         REQUIRE(project);
@@ -385,4 +430,226 @@ TEST_CASE_FIXTURE(Fixture, "A scene is not a prefab: its record stays a placehol
     const Node& placeholder = *scene.root()->children().front();
     REQUIRE(placeholder.prefabInstance());
     CHECK(placeholder.prefabInstance()->base == nullptr);
+}
+
+TEST_CASE_FIXTURE(Fixture, "An instance made during onUpdate takes part from the next frame")
+{
+    Scene door{services};
+    makeDoor(door);
+    childNamed(*door.root(), "Leaf").addComponent<Ticker>();
+    const ResourceId prefab = writePrefab("Door.yprefab", door);
+
+    Scene scene{services};
+    scene.setPlaying(true);
+    auto& root = scene.createRoot<Node3D>("Level");
+    Node* made = nullptr;
+    root.addComponent<Spawner>().call = [&] {
+        made = scene.instantiate(Ref<Prefab>{prefab}, root);
+    };
+    scene.advance(kFrame);
+    REQUIRE(made);
+    CHECK(made->parent() == &root);
+    const auto* ticker = childNamed(*made, "Leaf").getComponent<Ticker>();
+    REQUIRE(ticker);
+    CHECK(ticker->frames == 0);
+    scene.advance(kFrame);
+    CHECK(ticker->frames == 1);
+}
+
+TEST_CASE_FIXTURE(Fixture, "Instances of one prefab have distinct IDs and share the expanded tree")
+{
+    constexpr int kCount = 100;
+    Scene door{services};
+    const ResourceId prefab = writeDoor(door);
+
+    Scene scene{services};
+    auto& root = scene.createRoot<Node3D>("Level");
+    std::set<NodeId> ids;
+    for (int i = 0; i < kCount; ++i) {
+        Node* made = scene.instantiate(Ref<Prefab>{prefab}, root);
+        REQUIRE(made);
+        ids.insert(made->id());
+        ids.insert(childNamed(*made, "Leaf").id());
+        CHECK(made->prefabInstance()->base == root.children().front()->prefabInstance()->base);
+        CHECK(childNamed(*made, "Leaf").getComponent<MeshRenderer>()->mesh().id == builtin::kCubeMesh);
+    }
+    CHECK(ids.size() == 2 * kCount);
+
+    // Префаб изменился - дерево развёртывается заново, прежние экземпляры
+    // держат своё.
+    const auto before = root.children().front()->prefabInstance()->base;
+    door.root()->addChild<Node3D>("Knob");
+    writePrefab("Door.yprefab", door);
+    Node* changed = scene.instantiate(Ref<Prefab>{prefab}, root);
+    REQUIRE(changed);
+    CHECK(changed->prefabInstance()->base != before);
+    CHECK(changed->findChild("Knob"));
+
+    // Типы поменялись (модуль игры) - тоже.
+    const auto current = changed->prefabInstance()->base;
+    ModuleRegistrar game(registry, std::string(kGameModule));
+    game.registerScript<Runner>();
+    Node* retyped = scene.instantiate(Ref<Prefab>{prefab}, root);
+    REQUIRE(retyped);
+    CHECK(retyped->prefabInstance()->base != current);
+}
+
+TEST_CASE_FIXTURE(Fixture, "A prefab and a model instantiate, a scene is refused")
+{
+    Scene door{services};
+    const ResourceId prefab = writeDoor(door);
+    Scene room{services};
+    room.createRoot<Node3D>("Room");
+    REQUIRE(serializer.save(room, directory / "Room.yscene"));
+    const ResourceId roomId = project->resources().add("Room.yscene");
+
+    Scene scene{services};
+    auto& root = scene.createRoot<Node3D>("Level");
+    CHECK(scene.instantiate(Ref<Prefab>{prefab}, root));
+    Node* mesh = scene.instantiate(Ref<Prefab>{builtin::kCubeMesh}, root);
+    REQUIRE(mesh);
+    CHECK(mesh->getComponent<MeshRenderer>()->mesh().id == builtin::kCubeMesh);
+    CHECK(scene.instantiate(Ref<Prefab>{roomId}, root) == nullptr);
+    CHECK(root.children().size() == 2);
+}
+
+TEST_CASE_FIXTURE(Fixture, "Reloading the game module keeps the overrides of instances")
+{
+    std::string saved;
+    {
+        ModuleRegistrar game(registry, std::string(kGameModule));
+        game.registerScript<Runner>();
+        Scene door{services};
+        makeDoor(door);
+        childNamed(*door.root(), "Leaf").addComponent<Runner>();
+        const ResourceId prefab = writePrefab("Door.yprefab", door);
+        Scene scene{services};
+        REQUIRE(serializer.fromJson(scene, level({recordOf(prefab, kFirst)})));
+        childNamed(*scene.root()->children().front(), "Leaf").getComponent<Runner>()->speed = 5.0f;
+        saved = serializer.toJson(scene);
+    }
+    REQUIRE(registry.removeModule(kGameModule) == 1);
+
+    // Без модуля скрипт - заглушка, переопределение остаётся.
+    std::string without;
+    {
+        Scene scene{services};
+        REQUIRE(serializer.fromJson(scene, saved));
+        without = serializer.toJson(scene);
+    }
+    ModuleRegistrar game(registry, std::string(kGameModule));
+    game.registerScript<Runner>();
+    Scene scene{services};
+    REQUIRE(serializer.fromJson(scene, without));
+    const auto* runner = childNamed(*scene.root()->children().front(), "Leaf").getComponent<Runner>();
+    REQUIRE(runner);
+    CHECK(runner->speed == doctest::Approx(5.0f));
+}
+
+namespace {
+
+std::size_t countNodes(const Node& node)
+{
+    std::size_t count = 1;
+    for (const auto& child : node.children()) {
+        count += countNodes(*child);
+    }
+
+    return count;
+}
+
+} // namespace
+
+TEST_CASE_FIXTURE(Fixture, "PrefabPool: acquiring and releasing neither create nor destroy nodes")
+{
+    Scene door{services};
+    const ResourceId prefab = writeDoor(door);
+
+    Scene scene{services};
+    scene.setPlaying(true);
+    auto& root = scene.createRoot<Node3D>("Level");
+    auto& poolNode = root.addChild<Node3D>("Bullets");
+    auto& pool = poolNode.addComponent<PrefabPool>();
+    pool.prefab = Ref<Prefab>{prefab};
+    pool.size = 3;
+    scene.advance(kFrame);
+    CHECK(pool.total() == 3);
+    CHECK(pool.available() == 3);
+    CHECK_FALSE(poolNode.children().front()->active());
+    const std::size_t nodes = countNodes(root);
+
+    Node* bullet = pool.acquire(root);
+    REQUIRE(bullet);
+    CHECK(bullet->active());
+    CHECK(bullet->parent() == &root);
+    CHECK(pool.available() == 2);
+    const NodeId id = bullet->id();
+
+    REQUIRE(pool.release(*bullet));
+    CHECK_FALSE(bullet->active());
+    CHECK(bullet->parent() == &poolNode);
+    CHECK(pool.available() == 3);
+    CHECK(countNodes(root) == nodes);
+    // Свободные выдаются по порядку, тот же узел - снова.
+    CHECK(pool.acquire(NodeRef{root.id()})->id() == id);
+}
+
+TEST_CASE_FIXTURE(Fixture, "PrefabPool: a returned instance comes back with the prefab values")
+{
+    Scene door{services};
+    const ResourceId prefab = writeDoor(door);
+
+    Scene scene{services};
+    auto& root = scene.createRoot<Node3D>("Level");
+    auto& pool = root.addChild<Node3D>("Pool").addComponent<PrefabPool>();
+    pool.prefab = Ref<Prefab>{prefab};
+    pool.size = 1;
+
+    auto* bullet = static_cast<Node3D*>(pool.acquire(root));
+    REQUIRE(bullet);
+    bullet->transform().setPosition(Vec3(5.0f, 1.0f, 0.0f));
+    Node& leaf = childNamed(*bullet, "Leaf");
+    leaf.setName("Burnt");
+    auto& pointer = *childNamed(*bullet, "Handle").getComponent<Pointer>();
+    pointer.target = NodeRef{root.id()};
+    REQUIRE(pool.release(*bullet));
+
+    auto* again = static_cast<Node3D*>(pool.acquire(root));
+    REQUIRE(again == bullet);
+    CHECK(again->transform().position() == Vec3(0.0f));
+    CHECK(leaf.name() == "Leaf");
+    CHECK(pointer.target.id == leaf.id());
+
+    // Дерево изменилось за жизнь - вместо экземпляра новый.
+    const NodeId id = again->id();
+    again->addChild<Node3D>("Scorch");
+    REQUIRE(pool.release(*again));
+    CHECK(scene.find(id) == nullptr);
+    CHECK(pool.total() == 1);
+    CHECK(pool.available() == 1);
+}
+
+TEST_CASE_FIXTURE(Fixture, "PrefabPool: an empty pool grows or refuses, a stranger is not taken back")
+{
+    Scene door{services};
+    const ResourceId prefab = writeDoor(door);
+
+    Scene scene{services};
+    auto& root = scene.createRoot<Node3D>("Level");
+    auto& pool = root.addChild<Node3D>("Pool").addComponent<PrefabPool>();
+    pool.prefab = Ref<Prefab>{prefab};
+    pool.size = 1;
+    pool.whenEmpty = PoolWhenEmpty::Refuse;
+    Node* first = pool.acquire(root);
+    REQUIRE(first);
+    CHECK(pool.acquire(root) == nullptr);
+
+    pool.whenEmpty = PoolWhenEmpty::Grow;
+    CHECK(pool.acquire(root));
+    CHECK(pool.total() == 2);
+
+    CHECK_FALSE(pool.release(root));
+    REQUIRE(pool.release(*first));
+    // Уже возвращённый - не выдан.
+    CHECK_FALSE(pool.release(*first));
 }

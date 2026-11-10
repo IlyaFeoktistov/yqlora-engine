@@ -201,11 +201,14 @@ overrides are not written.
   neither parses nor compares the tree again.
 - A prefab pool: a `PrefabPool` component (prefab, initial size, grow when
   empty or refuse) and the methods `acquire(parent)` and `release(node)`;
-  instances are made when the pool enters the scene, disabled, a handed out
-  one is enabled, a returned one is disabled and goes back under the pool.
-  Properties changed during an object's life are reset to the prefab values
-  on return, so a handed out object is as new; `onEnable` and `onDisable`
-  arrive as for any enabling. The same from code and from the inspector.
+  instances are made at the start of the game (the pool's `onStart`) or on
+  the first acquire if it comes earlier, disabled (in an edited scene the
+  pool is empty); a handed out one is enabled, a returned one is disabled
+  and goes back under the pool. Properties changed during an object's life
+  are reset to the prefab values on return, so a handed out object is as
+  new; `onEnable` and `onDisable` arrive as for any enabling. An instance
+  that gained or lost nodes or components during its life is replaced with
+  a new one on return. The same from code and from the inspector.
 - Pool tests: acquiring and releasing neither create nor destroy nodes; an
   acquired instance has the prefab values after the changes of its past
   life; an empty pool grows or refuses as set; a node not from the pool is

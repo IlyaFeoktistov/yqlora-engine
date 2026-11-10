@@ -4,6 +4,8 @@
 #include "yqlora/reflection/ComponentRules.hpp"
 #include "yqlora/reflection/Property.hpp"
 #include "yqlora/scene/NodeTree.hpp"
+#include "yqlora/scene/PrefabExpansion.hpp"
+#include "yqlora/scene/SceneBranches.hpp"
 #include "yqlora/scene/TimeSettings.hpp"
 
 #include <algorithm>
@@ -78,6 +80,14 @@ bool Scene::destroy(Component& component)
     node->removeComponent(component);
 
     return true;
+}
+
+Node* Scene::instantiate(const Ref<Prefab>& prefab, Node& parent)
+{
+    assert(parent.scene() == this && "instantiate: the parent is not in this scene");
+    auto instance = SceneBranches::instantiate(m_services.registry(), prefab.id, PrefabSources::of(m_services));
+
+    return instance ? &parent.addChild(std::move(instance)) : nullptr;
 }
 
 void Scene::setParent(Node& node, Node& parent, KeepWorld keepWorld)

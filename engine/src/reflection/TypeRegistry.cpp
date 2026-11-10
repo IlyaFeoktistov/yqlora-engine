@@ -29,6 +29,7 @@ TypeInfo& TypeRegistry::addType(std::string name, TypeKind kind, std::string bas
     TypeInfo& ref = *info;
     m_byName.emplace(ref.m_name, &ref);
     m_types.push_back(std::move(info));
+    ++m_revision;
 
     return ref;
 }
@@ -112,6 +113,8 @@ std::size_t TypeRegistry::removeModule(std::string_view module)
     std::erase_if(m_byName, [&](const auto& entry) {
         return entry.second->module() == module;
     });
+
+    ++m_revision;
 
     return std::erase_if(m_types, inModule);
 }
