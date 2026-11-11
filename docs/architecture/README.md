@@ -46,7 +46,7 @@ How the code is written (layout, design rules, style, commits) is in
 The rest of the MVP, in this order; each stage has its plan with phases
 (a commit per phase) in the document of its subsystem.
 
-1. **Scripts and prefabs**: scene access from code (SA.1, SA.2), IDs
+1. **Scripts and prefabs** **[done]**: scene access from code (SA.1, SA.2), IDs
    (PF.1), references in the inspector (SA.3), events (EV.1, EV.2), timers
    (T.1, T.2), prefabs (PF.2 to PF.5), the external code editor (CE.1,
    CE.2), then the documents of the stage (SA.4, PF.6, EV.3, T.3, CE.3). See [scripting](scripting.md),

@@ -102,7 +102,14 @@ Status marks: see [README](README.md).
   counters on the right; a click opens the log.
 - Build output goes to the same buffer with the source "build"; every line
   gets its level from `CompilerDiagnostics` (GCC, Clang, MSVC, the linker,
-  CMake), so compiler errors count as errors.
+  CMake), so compiler errors count as errors. Shader errors are written in
+  the GCC form (`file:line: error: text`), so they are read the same way.
+- A line of an entry that names a place (`file:line[:column]`) is
+  underlined under the cursor, and a click opens it in the code editor. A
+  relative path is taken from the folder of the entry (`LogEntry::directory`:
+  the build folder for build output, where Ninja runs the compiler) or from
+  the project folder; a path that is not a file on disk (a built-in engine
+  shader `engine:...`) is not a link.
 - **Log file**: every start rewrites `yqlora.log` in the user data folder
   of the application (`SDL_GetPrefPath`: on Windows
   `%APPDATA%\Yqlora\Editor\`, on Linux `~/.local/share/Yqlora/Editor/`;
@@ -137,8 +144,9 @@ Status marks: see [README](README.md).
   function that creates it. Every kind asks for a name
   first (a free one is suggested) and is made by the Create button: Cancel
   leaves nothing behind. A C++ script's name is its class name; it is made
-  from `assets/templates/cpp-script/`. A double click on a
-  file that is not a scene opens it with the system (`platform::openWithSystem`).
+  from `assets/templates/cpp-script/`. A double click on a code file opens
+  it in the code editor (below), on another file that is not a scene or a
+  prefab with the system (`platform::openWithSystem`).
 
 ## Resources in the editor [done]
 
@@ -225,39 +233,47 @@ dragged from Files into the viewport.
   together with the editor key settings.
 - A snapped move is one edit in the history, as an unsnapped one.
 
-## External code editor [planned, after step 5]
+## External code editor [done]
 
-A file with an error opens at its line in the code editor the person uses.
+A code file and a place of an error open in the code editor the person
+uses, at the line and column.
 
-- Editor settings (`EditorSettings::codeEditor`, a file in the user
-  folder, a habit of the person, not of a project): the path of the
-  program and the arguments, a template with `{file}`, `{line}`,
-  `{column}` and `{project}`. Ready rows for common editors fill the
-  template (`code --goto {file}:{line}:{column}`, `clion --line {line}
-  {file}`, `subl {file}:{line}:{column}`); an empty path keeps opening with
-  the system (`platform::openWithSystem`), which knows no line.
-- A click on a log entry with `file:line` (shader errors, compiler errors
-  from `CompilerDiagnostics`) opens it there; so does a double click on a
-  `.yshader`, `.cpp` or `.hpp` in Files, at line 1.
-- The arguments are passed as a list to the process (`platform::Process`),
-  never through a shell, so a path with spaces or quotes stays one
-  argument.
+- **The setting** (`EditorSettings::codeEditor`, `CodeEditorSetting`; a
+  habit of the person, so it is in the editor settings file, not in a
+  project): the program and a template of its arguments. The template is
+  words separated by spaces, `"..."` keeps spaces inside a word; `{file}`,
+  `{line}`, `{column}` and `{project}` are replaced with the place, `{{`
+  and `}}` are the braces themselves (`expandCodeEditorArguments`). The
+  place is put in after the template is split into words, so a path with
+  spaces or quotes stays one argument; a word that is empty after that
+  (`{project}` without a project) is dropped, `""` stays an empty
+  argument. An unknown placeholder, an unclosed brace or quote and a
+  template without `{file}` are errors of the setting, shown under the
+  field, never a silent empty string. A line or column that is not named
+  is 1.
+- **Ready settings** (`codeEditorPresets`) fill the program and the template
+  for Visual Studio Code (`{project} --goto {file}:{line}:{column}`), CLion
+  (`--line {line} --column {column} {file}`) and Sublime Text
+  (`{file}:{line}:{column}`). The program is a name looked up in `PATH`
+  (`code`, on Windows `Code.exe`); one installed elsewhere is chosen with
+  the file dialog.
+- **Opening** (`openInCodeEditor`, the way chosen by `codeEditorOpening`):
+  with no program, the system opens the file (`platform::openWithSystem`),
+  which knows no line; otherwise the program is started by
+  `platform::launchDetached` in the project folder and the editor does not
+  wait for it. The arguments go to the process as a list, never through a
+  shell; on Windows there is no console window, and batch files (`.bat`,
+  `.cmd`) are refused, because `cmd.exe` would parse the arguments by its
+  own rules. What fails goes to the log.
+- **What opens there**: a click on a place in the log, a double click or
+  "Open" on a code file in Files (`isCodeFile`: C++ sources, `.yshader`,
+  `.glsl`), "Open" and the error lines in the shader inspector.
+- **Edit > Editor settings** (`EditorSettingsPanel`) holds this setting and
+  the paths that replace those of the engine SDK for building scripts
+  (CMake, the build program, the C and C++ compilers): an empty field shows
+  the recorded path, a change applies from the next build. The rows of the
+  toolchain come from one table (`kToolchainOverrideFields`) that the
+  settings file, the build and the window all read. A change is written to
+  the file at once, without the edit history: it is not part of the scene.
 - When the Scripts tab comes (see [code editor](code-editor.md)), it is one
   more choice in the same setting.
-
-### Phases (a commit per phase)
-
-- **CE.1 Launching**: `platform::launchDetached` (starts a program without
-  waiting for it, arguments as a list, no console window on Windows), the
-  template with its placeholders, the ready rows. Tests: a template with
-  `{file}` and `{line}` gives the right argument list for a path with spaces
-  and quotes; an unknown placeholder is an error of the setting, not a
-  silent empty string.
-- **CE.2 Editor**: the first editor settings window (Edit > Editor
-  settings; the toolchain overrides, now edited only in the file, move into
-  it too) with the code editor setting; the log
-  click, the double click in Files and "Open" of the shader inspector go
-  through it; the system opening stays when the path is empty. Tests (logic
-  without the interface): a diagnostic opens at its line and column; an
-  empty setting falls back to the system.
-- **CE.3 Documents**: this section, the guide "First script".

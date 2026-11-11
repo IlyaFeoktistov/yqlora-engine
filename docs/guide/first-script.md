@@ -15,8 +15,10 @@ In Files press "Create resource" (or right-click a folder) and pick
 creates `Spinner.hpp` and `Spinner.cpp` in the folder and builds the module;
 the Log panel shows the build.
 
-A double click on `Spinner.cpp` opens it in the program your system uses
-for C++ files (your IDE).
+A double click on `Spinner.cpp` opens it in your code editor: choose it in
+Edit > Editor settings (ready settings for Visual Studio Code, CLion and
+Sublime Text, or any program with its arguments). Without one, the program
+your system uses for C++ files opens it, without the line.
 
 ## 2. Write the code
 
@@ -66,7 +68,8 @@ void Spinner::onUpdate(float deltaSeconds)
   live only while the game runs.
 - `YQLORA_REGISTER_SCRIPT` adds the script to the game module, with rules
   after it: `requiresNode`, `requiresComponent`, `formerly`,
-  `executionOrder`. No other file lists the scripts.
+  `executionOrder`, and its methods and events (`method`, `event`, see
+  below). No other file lists the scripts.
 - Lifecycle calls (`onStart`, `onUpdate`, ...) and their order are in
   [scripts](../architecture/scripting.md#lifecycle-contract).
 
@@ -80,9 +83,99 @@ Change `degreesPerSecond` in the inspector, press Play.
 
 Change the code again and come back: the scene keeps the values of the
 script fields; the edit history is cleared, because its commands hold
-objects of the old code. Compiler errors are red in the Log panel, the main
-menu marks a failed build, and the old module keeps working until the next
-successful build.
+objects of the old code. Compiler errors are red in the Log panel (a click
+on one opens its line in your code editor), the main menu marks a failed
+build, and the old module keeps working until the next successful build.
+
+## 4. Reach other objects
+
+A switch that lights a lamp for a few seconds. The lamp is set in the
+inspector, not looked up by name; the switch tells others through an event
+and switches itself off with a timer.
+
+`Switch.hpp`:
+
+```cpp
+#pragma once
+
+#include <yqlora/render/Light3D.hpp>
+#include <yqlora/scene/Event.hpp>
+#include <yqlora/scripting/Script.hpp>
+
+class Switch : public yqlora::Script {
+public:
+    YQLORA_SCRIPT(Switch)
+
+    yqlora::NodeRef lamp;           // drop a light from the scene tree here
+    float onSeconds = 3.0f;
+    yqlora::Event<bool> onToggled;  // others listen in code or in the inspector
+
+    YQLORA_FIELDS(
+        field("lamp", &Switch::lamp).node<yqlora::Light3D>(),
+        field("onSeconds", &Switch::onSeconds).range(0.1f, 60.0f)
+    )
+
+    void toggle();
+
+private:
+    yqlora::TimerHandle m_off;
+};
+```
+
+`Switch.cpp`:
+
+```cpp
+#include "Switch.hpp"
+
+#include <yqlora/scene/Scene.hpp>
+#include <yqlora/scripting/ModuleScripts.hpp>
+
+YQLORA_REGISTER_SCRIPT(Switch)
+    .method("toggle", &Switch::toggle)
+    .event("onToggled", &Switch::onToggled, {"lit"});
+
+void Switch::toggle()
+{
+    yqlora::Light3D* light = scene().find<yqlora::Light3D>(lamp);
+    if (!light) {
+        return;
+    }
+    const bool lit = !light->active();
+    light->setActive(lit);
+    onToggled.emit(lit);
+
+    timers().cancel(m_off);
+    if (lit) {
+        m_off = timers().after(onSeconds, [this] {
+            toggle();
+        });
+    }
+}
+```
+
+- **References in the inspector**: drag the lamp from the scene tree onto
+  the `lamp` field. `.node<Light3D>()` lets the field take only lights;
+  what does not fit is refused while dragging. A click on a filled field
+  shows its target in the tree. Other reference fields work the same:
+  `ComponentRef<MeshRenderer>` takes a node with a renderer (or the
+  component dragged by its header in the inspector), `Ref<MaterialData>`
+  and `Ref<Prefab>` take files from Files.
+- **Methods and events**: `.method` and `.event` after
+  `YQLORA_REGISTER_SCRIPT` make `toggle` and `onToggled` known to the
+  editor. On another node's script or `Timer`, the event field lists
+  listeners: drop the switch's node onto it and pick `toggle`, and that
+  event toggles the lamp without code. Listeners run only in Play and in
+  the game.
+- **Timers**: `timers().after` and `every` belong to the script: they stop
+  when it leaves the scene and wait while it is disabled. The `Timer`
+  component does the same from the inspector.
+- **Finding without a reference**: `node().find("Arm/Hand")` (a path from
+  this node, `..` for the parent), `findNode("Door")` (the first node with
+  the name), `scene().group("enemies")` (the nodes of a group set in the
+  inspector), `getComponent<T>()`, `findComponentInChildren<T>()`,
+  `findComponentInParent<T>()`. More in
+  [scripts](../architecture/scripting.md#scene-access-from-code-done) and
+  [events](../architecture/events.md).
 
 ## Limits
 

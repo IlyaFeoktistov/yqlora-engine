@@ -107,7 +107,7 @@ scene.advance(realDelta):
     while a fixed step is accumulated:
         systems.fixedUpdate, then components.onFixedUpdate
     components.onUpdate
-    systems.update
+    systems.update                                timers (TimerSystem)
     components.onLateUpdate
     systems.lateUpdate
     apply deferred tree changes                   destroy, change of parent

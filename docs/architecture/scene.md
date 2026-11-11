@@ -192,19 +192,22 @@ is in [materials](materials.md).
 
 ### Deferred tree changes [done]
 
-Destroying a node and changing its parent during a frame are applied at the
-end of the frame, so no phase sees a half-changed tree. Nodes created during a
-frame take part from the next one.
+Destroying a node or a component and changing a parent during a frame are
+applied at the end of the frame, so no phase sees a half-changed tree. Nodes
+and components created during a frame take part from the next one.
 
 ```cpp
 scene.destroy(node);              // the node with its branch, the root too
+scene.destroy(component);         // onDisable and onStop at the end of the frame
 scene.setParent(node, newParent, KeepWorld::No); // last child of newParent
 ```
 
 - Outside a frame (editor, loading, tests) both apply at once; `inFrame()`
   tells which case it is.
-- The queue refers to nodes by ID: a node gone with a destroyed branch is
-  skipped, destroying twice is harmless.
+- The queue refers to nodes and components by ID: a node or a component
+  gone with a destroyed branch is skipped, destroying twice is harmless.
+- A component that is built in or that others on the node require is not
+  removed: `destroy(component)` returns false and says so in the log.
 - A move keeps the components running (no `onDisable` / `onEnable`, unless the
   new parent changes `activeInHierarchy`). What happens to the position is
   the choice below.
@@ -250,6 +253,10 @@ it owns. Its public interface stays as it is.
 - `SceneSystems`: systems created from the registry, lookup by type, calls in
   the order of registration.
 - `ComponentIndex`: components by type name.
+- `NodeIndex`: nodes by ID and by group (`Scene::find(NodeId)`,
+  `Scene::group`), updated when a node enters or leaves the scene, changes
+  its ID or its groups. Groups are a saved property of a node (`groups`);
+  finding nodes and components from scripts: [scripts](scripting.md#scene-access-from-code-done).
 
 ## References, state and serialization
 

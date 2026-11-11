@@ -123,9 +123,11 @@ YQLORA_REGISTER_SCRIPT(Player).requiresNode<Node3D>();
   before the entry function, and no file lists the scripts by hand. A type name already taken (by another module, by the same
   module twice, or as a former name) is not registered: it goes to
   `rejected()` with the module that holds it, so the loader reports it
-  instead of crashing the editor. After `registerScript<T>()` only type rules
-  chain: `formerly`, `requiresNode`, `requiresComponent`, `executionOrder`;
-  fields come from `YQLORA_FIELDS`.
+  instead of crashing the editor. After `registerScript<T>()` the chain
+  holds the type rules (`formerly`, `requiresNode`, `requiresComponent`,
+  `executionOrder`) and the methods and events of the script (`method`,
+  `event`, see [types](reflection.md#methods-done)); fields come from
+  `YQLORA_FIELDS`.
 - **The script API** (`node()`, `transform()`, `input()`, `time()`,
   `scene()`, finding nodes, the log) is a convenience over the engine
   context the component already has through its scene; `Script` owns no
@@ -240,9 +242,9 @@ What a script cannot do yet, and where each item is done. Every item is a
 registered method or type, so Luau and visual scripts get it through the
 bindings without extra work.
 
-- **Timers and delayed actions**: see "Timers" below.
-- **Events** (a timer ran out, a button was pressed), from code and wired
-  in the inspector: see [events](events.md).
+- **Timers and delayed actions** **[done]**: see "Timers" below.
+- **Events** **[done]** (a timer ran out, a button was pressed), from code
+  and wired in the inspector: see [events](events.md).
 - **Creating objects in a game** **[done]**: `scene().instantiate(prefab,
   parent)` for a prefab or a model and the `PrefabPool` for what comes
   often, see [prefabs](prefabs.md#in-a-game-done).
@@ -256,7 +258,7 @@ bindings without extra work.
 - **Audio and the game interface**: steps 7 and 8.
 - **Luau**: after the MVP (below).
 
-## Scene access from code [planned]
+## Scene access from code [done]
 
 Everything a person changes in the inspector a script changes from code,
 with the same effect: the registry builds properties from the getters and
@@ -300,12 +302,14 @@ parents, changes deferred during a frame.
   a filled field shows its target (the node in the tree, the file in
   Files).
 - **Finding nodes**: `scene().find(NodeRef)`; `node().find("Arm/Hand")`, a
-  path relative to the node (`..` for the parent), and `scene().findNode`
-  for the first node with a name; `children()`, `parent()`.
+  path relative to the node (`..` for the parent, also the method `find` for
+  Luau and visual scripts); `findNode("Door")` of a script for the first
+  node of the scene with a name; `children()`, `parent()`.
 - **Groups**: a node has a list of group names (`groups`, saved, set in
-  the inspector); `scene().group("enemies")` gives the nodes of a group,
-  kept in an index like components, so finding all enemies does not walk
-  the tree.
+  the inspector; `addToGroup`, `removeFromGroup`, `isInGroup`);
+  `scene().group("enemies")` gives the nodes of a group from `NodeIndex`,
+  kept up to date when a node enters or leaves the scene or its groups
+  change, so finding all enemies does not walk the tree.
 - **Components**: `getComponent<T>()` (the first of the type or derived),
   `getComponents<T>()` (all of them, for types with `allowMultiple`),
   `findComponentInChildren<T>()`, `findComponentInParent<T>()`, and by the
@@ -320,43 +324,15 @@ parents, changes deferred during a frame.
   camera are returned for writing (`RenderSystem::environment()`,
   `mainCamera()`), so a day and night cycle changes the sky and the sun
   from a script.
-- **By name, for Luau and visual scripts**: `get` and `set` of any
-  registered property and `call` of a method on a node or component, the
-  same entries the inspector uses.
+- **By name, for Luau and visual scripts**: `getProperty` and
+  `setProperty` of any registered property and `callMethod` of a method on
+  a node or component (`ObjectAccess.hpp`), the same entries the inspector
+  uses, with those of the base types.
 - **Each step adds its own**: physics, audio and the game interface come
   with their script API in their plans (bodies and forces, queries, sources
   and buses, controls and their events).
 
-### Phases (a commit per phase)
-
-- **SA.1 Lookup**: `find(NodeRef)`, paths, groups with their index,
-  `getComponents`, in children and parents, by registry name. Tests: a path
-  with `..`; a group after a node is renamed, moved and destroyed; the
-  component searches on a three-level branch.
-- **SA.2 Changes from code**: `destroy(component)` deferred; writable
-  `environment()` and `mainCamera()`; `get`, `set`, `call` by name. Tests:
-  a component destroyed in `onUpdate` gets `onDisable` and `onStop` at the
-  end of the frame, the others still run that frame; a test walks every
-  registered property of every engine node and component, sets a value
-  through the registry on a live scene and reads it back; light intensity,
-  camera field of view and the sky material set from a script reach
-  `FrameData`.
-- **SA.3 References in the inspector** (after PF.1, which gives
-  components their IDs): `ComponentRef<T>`, `Ref<T>`, narrowing of
-  `NodeRef`; the node and component fields with drops from the tree and
-  from component headers, the picker with search, showing the target;
-  drops of several files onto a list. Tests (logic without the interface):
-  a drop of a node onto a `ComponentRef<MeshRenderer>` takes its renderer
-  and is refused for a node without one; a node with two scripts of a type
-  asks which; a
-  reference survives save, load, the Play copy and a hot reload; a removed
-  component makes the reference null, not dangling; three textures dropped
-  onto a list make three elements in one undo step.
-- **SA.4 Documents**: this section, scene (groups, deferred removal of a
-  component), the guide "First script" (references in the inspector,
-  finding nodes and components).
-
-## Timers [planned]
+## Timers [done]
 
 The design is the established one of a timer manager: handles, owners,
 game time.
@@ -366,8 +342,10 @@ game time.
   pause and time scale apply. A timer may run on real time instead
   (`unscaled`, for the game interface during a pause).
 - **From a script**: `timers().after(seconds, callback)` for one call and
-  `timers().every(seconds, callback)` for repeated ones return a
-  `TimerHandle`; `cancel`, `pause`, `resume`, `remaining` take it. The
+  `timers().every(seconds, callback)` for repeated ones (a third argument
+  `true` runs them on real time) return a `TimerHandle`; `cancel`,
+  `pause`, `resume`, `remaining` take it. `timers()` of a script is
+  `Timers`, the `TimerSystem` of its scene on behalf of the script. The
   owner is the calling component: its timers stop when it leaves the scene
   and wait while it is disabled, so a callback of a destroyed component is
   never called.
@@ -379,23 +357,11 @@ game time.
   like the calls of the lifecycle.
 - **The `Timer` component** for timers set in the inspector: `duration`,
   `repeat`, `autostart`, `unscaled`, the event `onTimeout` (see
-  [events](events.md)), methods `start`, `stop`, `remaining`. It is a
-  `TimerSystem` timer owned by the component.
+  [events](events.md)), methods `start`, `stop`, `running`, `remaining`.
+  It is a `TimerSystem` timer owned by the component; `autostart` starts it
+  only in a running scene (the Play copy, a game), never in the edited one.
 - **Not saved**: running timers are run-time state; a hot reload or a load
   of a scene starts from the properties (`autostart`).
-
-### Phases (a commit per phase)
-
-- **T.1 Timers from code**: `TimerSystem`, `TimerHandle`, owners, order,
-  catching up, `unscaled`. Tests: a one-shot fires once at its time with
-  time scale 0.5; a repeated one at a frame longer than its interval fires
-  the right count; pause stops it; a destroyed owner is never called; a
-  disabled owner waits and resumes with the remaining time.
-- **T.2 The `Timer` component**: properties, `onTimeout`, methods, icon in
-  the inspector. Tests: `autostart` fires in the Play copy and not in the
-  edited scene; a persistent listener of `onTimeout` calls a method of
-  another node.
-- **T.3 Documents**: this section, frame (the place of timers in the frame).
 
 ## Scripts in Luau [planned, after MVP]
 
@@ -473,7 +439,7 @@ field values; compiler errors show in the editor log.
   record, so a script is built like the engine it is loaded into. The
   configuration (Debug, Release; project settings, section Scripts) changes
   optimization only, never the runtime library. Overrides live in the
-  editor settings (`editor.json`): paths are per machine and stay out of
+  editor settings (`editor.json`, Edit > Editor settings): paths are per machine and stay out of
   git. A changed toolchain makes a fresh build folder, never a reuse of the
   old `CMakeCache.txt`.
 - **Each load is a fresh copy.** The built library is copied to

@@ -84,11 +84,35 @@ MethodCallResult result = lookAt.call(transform, arguments); // called is false 
   `ClassTypeBuilder::method` takes the types from the C++ signature and only
   the parameter names from the caller, `Method::forComponent` describes a
   method of a runtime type. A returned node pointer becomes a `NodeRef`.
-- Engine methods so far: `Node.findChild`, `Node3D.worldPosition` /
-  `setWorldPosition` / `toWorld` / `toLocal` / `worldForward` / `worldRight` /
-  `worldUp`, `Transform3D.lookAt`.
-- Properties and methods are one list for Luau bindings, the visual script
-  palette and the API documentation.
+- Engine methods: `Node.findChild` / `find` / `isInGroup`,
+  `Node3D.worldPosition` / `setWorldPosition` / `toWorld` / `toLocal` /
+  `worldForward` / `worldRight` / `worldUp`, `Transform3D.lookAt`,
+  `Timer.start` / `stop` / `running` / `remaining`, `PrefabPool.acquire` /
+  `release` / `available` / `total`.
+- A script of the game registers its methods the same way, after
+  `YQLORA_REGISTER_SCRIPT(Door).method("open", &Door::open)`; the
+  registration keeps the parameter list until the entry function of the
+  module runs, so `ClassTypeBuilder::method` also takes it as a `span`.
+- Properties, methods and events are one list for Luau bindings, the visual
+  script palette and the API documentation.
+
+## Events [done]
+
+```cpp
+registry.registerComponent<Timer>().event("onTimeout", &Timer::onTimeout);
+YQLORA_REGISTER_SCRIPT(Score).event("onScored", &Score::onScored, {"points"});
+```
+
+- `ClassTypeBuilder::event` describes an `Event<Args...>` member of a
+  component (`EventInfo`): its name, the parameters with names from the
+  caller and types from the signature, and how to reach the event of an
+  object. `TypeRegistry::events(type)` lists those of a type with its base
+  types.
+- The same call adds a property with the name of the event
+  (`PropertyHint::EventTargets`, a list of records of a component
+  reference and a method name): the persistent listeners, so they are
+  saved, edited with undo and copied into Play like any property. How an
+  event is emitted and who is called: [events](events.md).
 
 ## Types declared at run time [done]
 

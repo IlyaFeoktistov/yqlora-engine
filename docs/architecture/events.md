@@ -10,64 +10,64 @@ physics (step 6) are built on it.
 
 Status marks: see [README](README.md).
 
-## Decisions [planned]
+## Events from code [done]
 
-The design is the established one for component events: listeners from code
-and persistent listeners saved with the scene, called through reflection.
+```cpp
+class Score : public Script {
+public:
+    YQLORA_SCRIPT(Score)
+    Event<int> onScored;                     // a member of the component
+    void add(int points) { onScored.emit(points); }
+};
+YQLORA_REGISTER_SCRIPT(Score).event("onScored", &Score::onScored, {"points"});
 
-- **`Event<Args...>`** is a member of a component and is registered like a
-  property (`.event("onTimeout", &Timer::onTimeout)`), with the names of its
-  arguments; its argument types are property types, so Luau and visual
-  scripts get events without extra work.
-- **Listeners from code**: `connect(owner, callback)` returns a
-  `Connection`. The owner is a component: when it leaves the scene its
-  connections are dropped, so a callback of a destroyed component is never
+// another component:
+Connection c = score->onScored.connect(*this, [this](int points) { show(points); });
+```
+
+- **`Event<Args...>`** (`scene/Event.hpp`) is a member of a component and
+  is registered with the names of its arguments
+  (`.event("onTimeout", &Timer::onTimeout)`, `EventInfo` in the registry,
+  `TypeRegistry::events`). The argument types are property types, so Luau
+  and visual scripts listen through `connectValues`, which gets the
+  arguments as `PropertyValue`s.
+- **The owner** of a connection is a component: when it leaves the scene
+  its connections are dropped (`Scene::exitComponent` puts out the life
+  mark of the component), so a callback of a destroyed component is never
   called. A `Connection` disconnects on `disconnect()` or when it is
-  destroyed, unless `release()`d to live as long as the owner.
-- **Persistent listeners** are the value of the event property: a list of
-  targets (`NodeRef`, the component by its `ComponentId`, the method name),
-  set in the inspector and saved with the scene. When the event is
-  emitted, the method is called through the registry (`Method::call`) with
-  the event arguments; a method whose parameters do not fit is reported
-  once and skipped. A target inside a prefab is mapped like any `NodeRef`
-  (see [prefabs](prefabs.md)).
+  destroyed; `release()` lets it live as long as the owner or the event.
 - **Emitting** (`emit(args...)`): code listeners first, in order of
   connection, then persistent ones in list order. A listener added during
   an emit is first called by the next emit, one removed during an emit is
   not called any more. An exception in a listener is caught and logged with
   the event and the listener, and the others still run, as calls of the
   lifecycle are guarded.
-- **Only in the scene where it was set**: a persistent listener is called
-  in the Play copy and in a game, never in the edited scene of the editor.
 - **No global message bus**: an event belongs to a component, so who can
   emit and who listens is visible in code and in the inspector.
 
-## Editor
+## Persistent listeners [done]
 
-- An event property shows its persistent listeners as a list: a node field
-  (dropping a node from the tree onto it), then a list of the components of
-  that node, then their methods whose parameters fit the event, with the
-  names of the parameters. One undo step per change.
+- `.event(...)` also adds a property with the name of the event
+  (`PropertyHint::EventTargets`): a list of `EventTarget`s, each a node
+  (`NodeRef`), the node itself or its component by `ComponentId`, and a
+  method name. Being a property, the list is saved with the scene, edited
+  in the inspector with undo and copied into Play; a target inside a
+  prefab is mapped like any `NodeRef` (see [prefabs](prefabs.md)).
+- When the event is emitted, each target's method is called through the
+  registry (`Method::call`). A method with parameters gets the event
+  arguments, one without parameters is called without them, so it listens
+  to any event. A target that is gone or whose method does not fit is
+  skipped and reported in the log once, not every emit.
+- **Only in a running scene**: persistent listeners are called where
+  `Scene::playing()` is set (the Play copy, a game; `PlayMode` and
+  `GameRuntime` set it), never in the edited scene of the editor.
 
-## Phases (a commit per phase)
+## Editor [done]
 
-### EV.1 Events from code
-
-- `Event<Args...>`, `Connection`, owner-bound connections, the order and
-  re-entrancy rules, guarded calls; `.event(...)` in the registry.
-- Tests: a callback of a destroyed owner is never called; connect and
-  disconnect during an emit; an exception in one listener does not stop
-  the next; a `Connection` destroyed disconnects.
-
-### EV.2 Persistent listeners
-
-- The event property value (`EventValue`: a list of targets), its
-  serialization, calls through `Method::call`, a target that does not fit
-  reported once; the inspector list.
-- Tests: a listener set on one node calls a method of another after save
-  and load; a removed target is skipped without an error loop; listeners do
-  not run in the edited scene; one undo step per change.
-
-### EV.3 Documents
-
-This file, reflection (event properties), scripting, editor.
+- An event property shows its persistent listeners as a list
+  (`EventTargetsField`): for each, a node field (a node is dropped from the
+  tree onto it), then the node or one of its components, then a method
+  that listens to the event (`eventMethods`: no result, and no parameters
+  or the event's parameter types in order), with the names of the
+  parameters; a button removes the row. "Add" at the bottom takes a dropped
+  node too. One undo step per change.

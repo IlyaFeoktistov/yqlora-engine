@@ -110,7 +110,7 @@ scene.advance(realDelta):
     пока накоплен фиксированный шаг:
         systems.fixedUpdate, затем components.onFixedUpdate
     components.onUpdate
-    systems.update
+    systems.update                                таймеры (TimerSystem)
     components.onLateUpdate
     systems.lateUpdate
     применить отложенные изменения дерева         удаление, смена родителя

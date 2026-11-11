@@ -83,11 +83,34 @@ MethodCallResult result = lookAt.call(transform, arguments); // called is false 
   вызывающего только имена параметров, `Method::forComponent` описывает метод
   типа, объявленного во время выполнения. Возвращённый указатель на узел
   становится `NodeRef`.
-- Методы движка пока: `Node.findChild`, `Node3D.worldPosition` /
-  `setWorldPosition` / `toWorld` / `toLocal` / `worldForward` / `worldRight` /
-  `worldUp`, `Transform3D.lookAt`.
-- Свойства и методы - один список для привязок Luau, палитры визуальных
-  скриптов и документации API.
+- Методы движка: `Node.findChild` / `find` / `isInGroup`,
+  `Node3D.worldPosition` / `setWorldPosition` / `toWorld` / `toLocal` /
+  `worldForward` / `worldRight` / `worldUp`, `Transform3D.lookAt`,
+  `Timer.start` / `stop` / `running` / `remaining`, `PrefabPool.acquire` /
+  `release` / `available` / `total`.
+- Скрипт игры регистрирует свои методы так же, после
+  `YQLORA_REGISTER_SCRIPT(Door).method("open", &Door::open)`; регистрация
+  хранит список параметров до входной функции модуля, поэтому
+  `ClassTypeBuilder::method` принимает его и как `span`.
+- Свойства, методы и события - один список для привязок Luau, палитры
+  визуальных скриптов и документации API.
+
+## События [done]
+
+```cpp
+registry.registerComponent<Timer>().event("onTimeout", &Timer::onTimeout);
+YQLORA_REGISTER_SCRIPT(Score).event("onScored", &Score::onScored, {"points"});
+```
+
+- `ClassTypeBuilder::event` описывает член компонента `Event<Args...>`
+  (`EventInfo`): имя, параметры с именами от вызывающего и типами из
+  сигнатуры и как добраться до события у объекта.
+  `TypeRegistry::events(type)` перечисляет события типа вместе с базовыми.
+- Тот же вызов добавляет свойство с именем события
+  (`PropertyHint::EventTargets`, список записей из ссылки на компонент и
+  имени метода): постоянных подписчиков, поэтому они сохраняются, правятся
+  с отменой и копируются в Play, как любое свойство. Как событие
+  вызывается и кто вызывается: [события](events.ru.md).
 
 ## Типы, объявленные во время выполнения [done]
 
