@@ -15,6 +15,8 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+
+#include <cwctype>
 #else
 #include <SDL3/SDL.h>
 
@@ -246,6 +248,60 @@ ProcessResult runPlatform(const ProcessOptions& options, LineSplitter& lines, st
     return result;
 }
 
+bool isBatchFile(const std::filesystem::path& program)
+{
+    std::wstring extension = program.extension().wstring();
+    for (wchar_t& c : extension) {
+        c = static_cast<wchar_t>(std::towlower(c));
+    }
+
+    return extension == L".bat" || extension == L".cmd";
+}
+
+LaunchResult launchPlatform(const ProcessOptions& options)
+{
+    LaunchResult result;
+    if (isBatchFile(options.program)) {
+        result.error = "Batch files are not launched: choose the program itself (.exe)";
+
+        return result;
+    }
+
+    std::wstring commandLine = quoteArgument(options.program.wstring());
+    for (const std::string& argument : options.arguments) {
+        commandLine += L' ';
+        commandLine += quoteArgument(toWide(argument));
+    }
+    const std::wstring directory = options.workingDirectory.wstring();
+
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
+    PROCESS_INFORMATION info{};
+    // Без наследования описателей: открытые файлы и трубы вызывающего
+    // не остаются жить в чужой программе.
+    if (!CreateProcessW(
+            nullptr,
+            commandLine.data(),
+            nullptr,
+            nullptr,
+            FALSE,
+            CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_NEW_PROCESS_GROUP,
+            nullptr,
+            directory.empty() ? nullptr : directory.c_str(),
+            &startup,
+            &info
+        )) {
+        result.error = lastError();
+
+        return result;
+    }
+    CloseHandle(info.hThread);
+    CloseHandle(info.hProcess);
+    result.started = true;
+
+    return result;
+}
+
 #else
 
 // SDL отдаёт вывод без блокировки: пока его нет, ждём столько и проверяем остановку.
@@ -307,6 +363,42 @@ ProcessResult runPlatform(const ProcessOptions& options, LineSplitter& lines, st
     return result;
 }
 
+LaunchResult launchPlatform(const ProcessOptions& options)
+{
+    LaunchResult result;
+
+    std::vector<std::string> arguments;
+    arguments.push_back(toUtf8(options.program));
+    arguments.insert(arguments.end(), options.arguments.begin(), options.arguments.end());
+    std::vector<const char*> argv;
+    for (const std::string& argument : arguments) {
+        argv.push_back(argument.c_str());
+    }
+    argv.push_back(nullptr);
+    const std::string directory = toUtf8(options.workingDirectory);
+
+    // Фоновый процесс SDL отделяется от терминала (setsid) и усыновляется
+    // init, так что зомби после него не остаётся; ввод и вывод - /dev/null.
+    const SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, argv.data());
+    SDL_SetBooleanProperty(props, SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN, true);
+    if (!directory.empty()) {
+        SDL_SetStringProperty(props, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, directory.c_str());
+    }
+    SDL_Process* process = SDL_CreateProcessWithProperties(props);
+    SDL_DestroyProperties(props);
+    if (!process) {
+        result.error = SDL_GetError();
+
+        return result;
+    }
+    // Освобождает только описание: сама программа продолжает работать.
+    SDL_DestroyProcess(process);
+    result.started = true;
+
+    return result;
+}
+
 #endif
 
 } // namespace
@@ -318,6 +410,11 @@ ProcessResult runProcess(const ProcessOptions& options, const ProcessLineHandler
     lines.finish();
 
     return result;
+}
+
+LaunchResult launchDetached(const ProcessOptions& options)
+{
+    return launchPlatform(options);
 }
 
 } // namespace yqlora::platform

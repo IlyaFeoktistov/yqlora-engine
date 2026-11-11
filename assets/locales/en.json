@@ -131,6 +131,13 @@
             "search": "Search",
             "open": "Open the log"
         },
+        "codeEditor": {
+            "unknownPlaceholder": "Unknown placeholder; known ones are {file}, {line}, {column}, {project}",
+            "unclosedBrace": "A placeholder is not closed with }",
+            "strayBrace": "A } without {; a literal brace is written as }}",
+            "unclosedQuote": "A quote is not closed",
+            "noFile": "The arguments have no {file}: the editor would not know what to open"
+        },
         "scene": {
             "empty": "The scene is empty"
         },

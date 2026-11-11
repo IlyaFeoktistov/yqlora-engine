@@ -76,3 +76,43 @@ TEST_CASE("runProcess: stop ends a running program")
     CHECK_FALSE(result.succeeded());
     CHECK(std::chrono::steady_clock::now() - started < std::chrono::seconds(10));
 }
+
+TEST_CASE("launchDetached: the program runs without waiting, arguments with spaces stay whole")
+{
+    const auto directory = std::filesystem::temp_directory_path() / "yqlora_tests" / "launch";
+    std::filesystem::remove_all(directory);
+    std::filesystem::create_directories(directory);
+    const auto marker = directory / "two words.txt";
+
+    auto options = cmake({"-E", "touch", "two words.txt"});
+    options.workingDirectory = directory;
+    const auto result = launchDetached(options);
+    REQUIRE(result.started);
+
+    // Программа живёт сама по себе: её конца никто не ждёт, файл появляется позже.
+    constexpr auto kTimeout = std::chrono::seconds(10);
+    constexpr auto kPoll = std::chrono::milliseconds(20);
+    const auto started = std::chrono::steady_clock::now();
+    while (!std::filesystem::exists(marker) && std::chrono::steady_clock::now() - started < kTimeout) {
+        std::this_thread::sleep_for(kPoll);
+    }
+    CHECK(std::filesystem::exists(marker));
+}
+
+TEST_CASE("launchDetached: a missing program does not start")
+{
+    const ProcessOptions options{.program = "/no/such/program", .arguments = {}, .workingDirectory = {}};
+    const auto result = launchDetached(options);
+    CHECK_FALSE(result.started);
+    CHECK_FALSE(result.error.empty());
+}
+
+#if defined(_WIN32)
+TEST_CASE("launchDetached: batch files are refused")
+{
+    const ProcessOptions options{.program = "C:/tools/code.CMD", .arguments = {}, .workingDirectory = {}};
+    const auto result = launchDetached(options);
+    CHECK_FALSE(result.started);
+    CHECK_FALSE(result.error.empty());
+}
+#endif

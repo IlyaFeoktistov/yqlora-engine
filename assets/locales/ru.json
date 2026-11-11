@@ -131,6 +131,13 @@
             "search": "Поиск",
             "open": "Открыть лог"
         },
+        "codeEditor": {
+            "unknownPlaceholder": "Неизвестная метка; есть {file}, {line}, {column}, {project}",
+            "unclosedBrace": "Метка не закрыта скобкой }",
+            "strayBrace": "Скобка } без {; сама скобка пишется как }}",
+            "unclosedQuote": "Кавычка не закрыта",
+            "noFile": "В аргументах нет {file}: редактор не узнает, что открыть"
+        },
         "scene": {
             "empty": "Сцена пуста"
         },

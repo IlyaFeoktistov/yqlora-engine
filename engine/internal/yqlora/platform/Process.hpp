@@ -48,4 +48,19 @@ using ProcessLineHandler = std::function<void(std::string_view line)>;
 YQLORA_API ProcessResult
 runProcess(const ProcessOptions& options, const ProcessLineHandler& onLine, std::stop_token stop = {});
 
+struct LaunchResult {
+    bool started = false;
+    // Почему не запустилась, если started false.
+    std::string error;
+};
+
+// Запускает программу и не ждёт её: она живёт дальше и после выхода
+// вызывающего, её ввод и вывод никуда не идут. Аргументы уходят списком, без
+// оболочки. Программа без пути ищется в PATH (на Windows - с добавлением .exe).
+//
+// На Windows окна консоли нет. Пакетные файлы (.bat, .cmd) не запускаются:
+// их разбирает cmd.exe по своим правилам, и аргумент с кавычками или
+// спецсимволами списком уже не передать.
+YQLORA_API LaunchResult launchDetached(const ProcessOptions& options);
+
 } // namespace yqlora::platform

@@ -29,6 +29,7 @@ add_custom_command(
 
 add_library(yqlora_editor STATIC
     ${YQLORA_EDITOR_SHADERS_HEADER}
+    src/CodeEditor.cpp
     src/EditorCamera.cpp
     src/Picking.cpp
     src/PropertyValues.cpp
