@@ -9,6 +9,7 @@
 #include <yqlora/editor/ProjectSetup.hpp>
 #include <yqlora/input/Input.hpp>
 #include <yqlora/project/Project.hpp>
+#include <yqlora/reflection/ObjectAccess.hpp>
 #include <yqlora/scene/MissingComponent.hpp>
 #include <yqlora/scene/Node3D.hpp>
 #include <yqlora/scene/Scene.hpp>
@@ -91,6 +92,41 @@ TEST_CASE_FIXTURE(Fixture, "GameModule: load, register, create, run, destroy, un
     REQUIRE(module.load(YQLORA_TEST_GAME_MODULE));
     CHECK(registry.find(kScript));
     addScript(edited, "Again");
+    module.unload(scenes);
+}
+
+TEST_CASE_FIXTURE(
+    Fixture,
+    "GameModule: a script registers methods and events; a listener calls a method of another script"
+)
+{
+    REQUIRE(module.load(YQLORA_TEST_GAME_MODULE));
+    CHECK(module.rejected().empty());
+    const TypeInfo* door = registry.find("TestDoor");
+    REQUIRE(door);
+    const auto methods = registry.methods(*door);
+    CHECK(std::ranges::find(methods, "open", &Method::name) != methods.end());
+    CHECK(std::ranges::find(methods, "add", &Method::name) != methods.end());
+    const auto events = registry.events(*door);
+    REQUIRE(events.size() == 1);
+    CHECK(events.front()->name == "onOpened");
+
+    Scene scene{services};
+    scene.setPlaying(true);
+    auto& root = scene.createRoot<Node3D>("Root");
+    auto& button = root.addChild<Node3D>("Button");
+    auto& lamp = root.addChild<Node3D>("Lamp");
+    Component& pressed = button.addComponent(door->createComponent());
+    Component& listening = lamp.addComponent(door->createComponent());
+    // Подписчик - как его задаёт инспектор: элемент списка свойства события.
+    const PropertyValue target = RecordValue{{ComponentRef<>{lamp.id(), listening.id()}, std::string("add")}};
+    REQUIRE(setProperty(pressed, "onOpened", ListValue{{target}}, registry));
+
+    CHECK(callMethod(pressed, "open", {}, registry).called);
+    CHECK(getProperty(pressed, "opened", registry) == PropertyValue{1});
+    CHECK(getProperty(listening, "opened", registry) == PropertyValue{1});
+
+    const std::array<Scene*, 1> scenes{&scene};
     module.unload(scenes);
 }
 

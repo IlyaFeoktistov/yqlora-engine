@@ -293,12 +293,38 @@ public:
     // сигнатуры, имена параметров (и значения по умолчанию) - из parameters,
     // по одному на каждый параметр:
     //   .method("lookAt", &Transform3D::lookAt, {{"target"}, {"up", kWorldUp}})
+    // Список параметров можно дать и span: так его хранит регистрация, которая
+    // выполняется позже (скрипт модуля игры).
     template <typename Result, typename Owner, typename... Args>
         requires std::derived_from<Class, Owner>
     ClassTypeBuilder& method(
         std::string name,
         Result (Owner::*function)(Args...),
         std::initializer_list<ClassMethodParameter> parameters = {}
+    )
+        requires(std::same_as<Root, Node> || std::same_as<Root, Component>)
+    {
+        return addMethod<Result, Args...>(std::move(name), function, std::span(parameters.begin(), parameters.size()));
+    }
+
+    template <typename Result, typename Owner, typename... Args>
+        requires std::derived_from<Class, Owner>
+    ClassTypeBuilder& method(
+        std::string name,
+        Result (Owner::*function)(Args...) const,
+        std::initializer_list<ClassMethodParameter> parameters = {}
+    )
+        requires(std::same_as<Root, Node> || std::same_as<Root, Component>)
+    {
+        return addMethod<Result, Args...>(std::move(name), function, std::span(parameters.begin(), parameters.size()));
+    }
+
+    template <typename Result, typename Owner, typename... Args>
+        requires std::derived_from<Class, Owner>
+    ClassTypeBuilder& method(
+        std::string name,
+        Result (Owner::*function)(Args...),
+        std::span<const ClassMethodParameter> parameters
     )
         requires(std::same_as<Root, Node> || std::same_as<Root, Component>)
     {
@@ -310,7 +336,7 @@ public:
     ClassTypeBuilder& method(
         std::string name,
         Result (Owner::*function)(Args...) const,
-        std::initializer_list<ClassMethodParameter> parameters = {}
+        std::span<const ClassMethodParameter> parameters
     )
         requires(std::same_as<Root, Node> || std::same_as<Root, Component>)
     {
@@ -325,6 +351,18 @@ public:
         std::string name,
         Event<Args...> Owner::* member,
         std::initializer_list<std::string> parameterNames = {}
+    )
+        requires std::same_as<Root, Component>
+    {
+        return event(std::move(name), member, std::span(parameterNames.begin(), parameterNames.size()));
+    }
+
+    template <typename Owner, typename... Args>
+        requires std::derived_from<Class, Owner>
+    ClassTypeBuilder& event(
+        std::string name,
+        Event<Args...> Owner::* member,
+        std::span<const std::string> parameterNames
     )
         requires std::same_as<Root, Component>
     {
@@ -367,7 +405,7 @@ public:
 
 private:
     template <typename Result, typename... Args, typename Function>
-    ClassTypeBuilder& addMethod(std::string name, Function function, std::initializer_list<ClassMethodParameter> names)
+    ClassTypeBuilder& addMethod(std::string name, Function function, std::span<const ClassMethodParameter> names)
     {
         assert(names.size() == sizeof...(Args) && "method: name every parameter");
         const std::array<PropertyType, sizeof...(Args)> types{propertyTypeOf<std::remove_cvref_t<Args>>()...};

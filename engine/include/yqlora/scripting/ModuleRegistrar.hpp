@@ -5,6 +5,7 @@
 #include "yqlora/scripting/Script.hpp"
 
 #include <concepts>
+#include <initializer_list>
 #include <optional>
 #include <span>
 #include <string>
@@ -93,6 +94,47 @@ public:
         }
 
         return *this;
+    }
+
+    // Метод скрипта для постоянных подписчиков событий, Luau и визуальных
+    // скриптов: как ClassTypeBuilder::method, имя на каждый параметр.
+    //   .method("open", &Door::open)
+    template <typename Function>
+    ScriptBuilder& method(std::string name, Function function, std::span<const ClassMethodParameter> parameters)
+    {
+        if (m_builder) {
+            m_builder->method(std::move(name), function, parameters);
+        }
+
+        return *this;
+    }
+
+    template <typename Function>
+    ScriptBuilder& method(
+        std::string name,
+        Function function,
+        std::initializer_list<ClassMethodParameter> parameters = {}
+    )
+    {
+        return method(std::move(name), function, std::span(parameters.begin(), parameters.size()));
+    }
+
+    // Событие скрипта, как ClassTypeBuilder::event: имя на каждый аргумент.
+    //   .event("onOpened", &Door::onOpened)
+    template <typename Member>
+    ScriptBuilder& event(std::string name, Member member, std::span<const std::string> parameterNames)
+    {
+        if (m_builder) {
+            m_builder->event(std::move(name), member, parameterNames);
+        }
+
+        return *this;
+    }
+
+    template <typename Member>
+    ScriptBuilder& event(std::string name, Member member, std::initializer_list<std::string> parameterNames = {})
+    {
+        return event(std::move(name), member, std::span(parameterNames.begin(), parameterNames.size()));
     }
 
 private:

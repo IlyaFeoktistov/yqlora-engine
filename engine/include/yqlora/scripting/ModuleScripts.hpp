@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <concepts>
 #include <functional>
+#include <initializer_list>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -78,6 +80,35 @@ public:
         return *this;
     }
 
+    template <typename Function>
+    ScriptRegistration& method(
+        std::string name,
+        Function function,
+        std::initializer_list<ClassMethodParameter> parameters = {}
+    )
+    {
+        // Регистрация выполняется позже, во входной функции: список хранится копией.
+        m_rules.push_back(
+            [name = std::move(name), function, parameters = std::vector(parameters)](ScriptBuilder<T>& builder) {
+                builder.method(name, function, std::span<const ClassMethodParameter>(parameters));
+            }
+        );
+
+        return *this;
+    }
+
+    template <typename Member>
+    ScriptRegistration& event(std::string name, Member member, std::initializer_list<std::string> parameterNames = {})
+    {
+        m_rules.push_back(
+            [name = std::move(name), member, parameterNames = std::vector(parameterNames)](ScriptBuilder<T>& builder) {
+                builder.event(name, member, std::span<const std::string>(parameterNames));
+            }
+        );
+
+        return *this;
+    }
+
     std::string_view name() const override
     {
         return typeNameOf<T>();
@@ -128,7 +159,8 @@ inline void registerModuleScripts(ModuleRegistrar& registrar)
 //   YQLORA_REGISTER_SCRIPT(Spinner).requiresNode<yqlora::Node3D>();
 //
 // Правила после него - как у ScriptBuilder: formerly, requiresNode,
-// requiresComponent, executionOrder. Входную функцию модуля даёт SDK.
+// requiresComponent, executionOrder, method, event. Входную функцию модуля
+// даёт SDK.
 #define YQLORA_REGISTER_SCRIPT(Type)                                                                                   \
     [[maybe_unused]] static auto& YQLORA_DETAIL_CONCAT(                                                                \
         yqloraScriptRegistration,                                                                                      \
