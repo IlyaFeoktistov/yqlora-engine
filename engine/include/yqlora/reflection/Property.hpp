@@ -394,6 +394,14 @@ public:
         return self();
     }
 
+    // Только нижний предел: масса, размер.
+    Self& min(float min)
+    {
+        edit().min = min;
+
+        return self();
+    }
+
     Self& displayName(std::string name)
     {
         edit().displayName = std::move(name);

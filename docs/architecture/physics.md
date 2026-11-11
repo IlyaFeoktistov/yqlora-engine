@@ -41,9 +41,9 @@ is wired as its documentation and samples recommend; nothing here is new.
   `TimeSettings::fixedStep`; the frame catch-up limit of `GameTime` also
   limits physics. Only a running scene (the Play copy, a game) is stepped;
   the edited scene keeps its bodies for queries and gizmos.
-- **Transforms**: physics computes the world pose of a node itself from
-  its local transforms (world matrices of the frame are updated only after
-  the simulation, so during fixed steps they may be old). Every body keeps
+- **Transforms**: physics reads the world pose of a node through
+  `Node3D::worldMatrix()`, which is recomputed on read when a transform up
+  the tree changed, so it is never old during fixed steps. Every body keeps
   the pose it last wrote into its node. Before a step, a node whose pose
   differs from that is taken as moved by code or the editor: a static or
   dynamic body teleports, a kinematic one gets a target (`MoveKinematic`,
@@ -70,6 +70,20 @@ is wired as its documentation and samples recommend; nothing here is new.
 - **Contacts are reported on the main thread**: Jolt calls its listener
   on worker threads, so the listener only records pairs into a buffer, and
   `PhysicsWorld` emits the events after the step, in a stable order.
+- **Keeping bodies in step with the tree**: what a body is made of
+  changes when a collider or a body enters or leaves the scene, is enabled
+  or disabled, a property of it is set, or a branch is moved to another
+  parent. Each of them marks the owner of the body as changed in the
+  world: the components from `onEnterScene`, `onExitScene`, `onEnable`,
+  `onDisable` and their setters, a move through a new scene system hook
+  `onNodeMoved` that `Scene::setParent` calls. Before a step and before a
+  query, the world rebuilds only the changed bodies: it finds which body
+  each collider of the branch belongs to and builds the shape again; a
+  body keeps its velocity when only its shape changes (`SetShape`) and is
+  made again only when its motion changes. A child collider moved
+  relative to its body (an arm of a robot) is found by the revision of the
+  transforms between it and the body node (`Transform3D::revision()`), so
+  nothing walks the tree every step.
 - **Bodies and the scene tree**: a body belongs to its component and is
   added in `onEnterScene` and removed in `onExitScene`; the body keeps the
   `ComponentId` of its component as Jolt user data, so a contact or a ray
@@ -324,23 +338,35 @@ Everything set in the inspector is a property with a setter (see
   script force in `onFixedUpdate` comes before the step of the same fixed
   step (the order of the stages); the settings survive save and load.
 
-### PH.2 Bodies and colliders
+### PH.2a Bodies and simple colliders
 
-- `RigidBody`, the six colliders, compound shapes from descendants,
-  implicit static bodies, scale, cooked mesh shapes, continuous collision,
-  locks; the transform sync both ways with the remembered pose, the world
-  pose computed by physics, interpolation; gravity of the settings and its
-  change during Play.
+- `RigidBody`; `BoxCollider`, `SphereCollider`, `CapsuleCollider`,
+  `CylinderCollider`; compound shapes from descendants; implicit static
+  bodies; keeping bodies in step with the tree (`onNodeMoved`,
+  `Transform3D::revision()`); the transform sync both ways with the
+  remembered pose; interpolation; gravity of the settings and its change
+  during Play.
 - Tests: a box falls 1 s under gravity to 4.9 m within tolerance; a
   sphere rests on a static plane; two colliders on children form one body
-  with the right mass; a kinematic platform carries a box; a fast small
-  body with continuous collision does not pass a thin wall; non-uniform
-  scale of a box collider; a mesh shape is cooked once for 100 colliders;
-  a matrix entry turned off lets two bodies pass; a node moved by code in
+  with the right mass; a collider added, disabled or moved to another
+  parent changes the body; a child collider moved relative to its body
+  rebuilds the shape; a kinematic platform carries a box; a matrix entry
+  turned off lets two bodies pass; a node moved by code in
   `onFixedUpdate` teleports its body in the same step; an interpolated
   body is never teleported by its own smoothed pose; the edited scene is
   not stepped; changing the fixed step changes the number of steps per
   second.
+
+### PH.2b Scale, mesh shapes and motion options
+
+- Scale of nodes on shapes; `ConvexCollider` and `MeshCollider` with
+  shapes cooked once per mesh and revision; continuous collision; locks;
+  `startAsleep`.
+- Tests: non-uniform scale of a box collider; a sphere under non-uniform
+  scale takes the largest axis and says so once; a mesh shape is cooked
+  once for 100 colliders and again after the mesh changes; a fast small
+  body with continuous collision does not pass a thin wall; a locked axis
+  does not move; a body that starts asleep wakes on a hit.
 
 ### PH.3 Physics materials
 

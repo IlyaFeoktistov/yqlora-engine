@@ -4,6 +4,8 @@
 #include "yqlora/math/Math.hpp"
 #include "yqlora/scene/Component.hpp"
 
+#include <cstdint>
+
 namespace yqlora {
 
 // Положение, поворот и масштаб относительно родителя разом, как их видно в
@@ -67,6 +69,13 @@ public:
     // Матрица T * R * S в пространстве родителя.
     Mat4 matrix() const;
 
+    // Растёт с каждым изменением значений: по ней подсистемы узнают, что
+    // узел сдвинулся относительно своего родителя, не сравнивая матрицы.
+    std::uint64_t revision() const
+    {
+        return m_revision;
+    }
+
 private:
     friend class Node3D;
     Transform3D() = default;
@@ -78,6 +87,7 @@ private:
     Quat m_rotation{1.0f, 0.0f, 0.0f, 0.0f};
     Vec3 m_rotationDegrees{0.0f};
     Vec3 m_scale{1.0f};
+    std::uint64_t m_revision = 0;
 };
 
 } // namespace yqlora

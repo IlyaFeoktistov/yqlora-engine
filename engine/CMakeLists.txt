@@ -199,7 +199,16 @@ add_library(yqlora SHARED
     src/render/PrimitiveMeshes.cpp
     src/render/RenderSystem.cpp
     src/render/RenderTypes.cpp
+    src/physics/BodyPose.cpp
+    src/physics/BoxCollider.cpp
+    src/physics/CapsuleCollider.cpp
+    src/physics/Collider.cpp
+    src/physics/CylinderCollider.cpp
     src/physics/JoltLayers.cpp
+    src/physics/JoltShapes.cpp
+    src/physics/PhysicsBodies.cpp
+    src/physics/RigidBody.cpp
+    src/physics/SphereCollider.cpp
     src/physics/JoltSetup.cpp
     src/physics/LayerCollisionMatrix.cpp
     src/physics/PhysicsLayers.cpp

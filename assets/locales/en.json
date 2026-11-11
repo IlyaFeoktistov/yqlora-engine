@@ -89,6 +89,24 @@
         },
         "PhysicsSettings": {
             "description": "Physics: gravity, solver iterations and which layers collide."
+        },
+        "RigidBody": {
+            "description": "A rigid body: the node moves by forces and collisions, or is moved by code (kinematic), or stays put (static)."
+        },
+        "Collider": {
+            "description": "A shape for collisions on a node."
+        },
+        "BoxCollider": {
+            "description": "A box for collisions."
+        },
+        "SphereCollider": {
+            "description": "A sphere for collisions."
+        },
+        "CapsuleCollider": {
+            "description": "A capsule for collisions along Y: the usual shape of a player."
+        },
+        "CylinderCollider": {
+            "description": "A cylinder for collisions along Y."
         }
     },
     "editor": {
@@ -526,7 +544,16 @@
         "positionSteps": "Position iterations",
         "ignoredCollisions": "Layer collisions",
         "first": "First",
-        "second": "Second"
+        "second": "Second",
+        "motion": "Motion",
+        "mass": "Mass, kg",
+        "linearDamping": "Linear damping",
+        "angularDamping": "Angular damping",
+        "gravityScale": "Gravity scale",
+        "interpolation": "Interpolation",
+        "center": "Center",
+        "radius": "Radius",
+        "height": "Height"
     },
     "enum": {
         "Aces": "ACES",
@@ -549,7 +576,10 @@
         "Soft": "Soft",
         "Vulkan": "Vulkan",
         "Grow": "Grow",
-        "Refuse": "Refuse"
+        "Refuse": "Refuse",
+        "Static": "Static",
+        "Kinematic": "Kinematic",
+        "Dynamic": "Dynamic"
     },
     "group": {
         "ambientLight": "Ambient light",

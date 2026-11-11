@@ -236,11 +236,19 @@ void Node::moveTo(Node& parent, KeepWorld keepWorld)
     if (restoreWorld) {
         restoreWorld();
     }
+    m_scene->branchChanged(*this);
 }
 
 void Node::setLayer(int layer)
 {
-    m_layer = std::clamp(layer, 0, kLayerCount - 1);
+    const int clamped = std::clamp(layer, 0, kLayerCount - 1);
+    if (clamped == m_layer) {
+        return;
+    }
+    m_layer = clamped;
+    if (m_scene) {
+        m_scene->branchChanged(*this);
+    }
 }
 
 void Node::setGroups(std::vector<std::string> groups)
@@ -295,8 +303,12 @@ Node* Node::find(std::string_view path) const
 
 void Node::setActive(bool active)
 {
+    const bool wasActive = m_activeInHierarchy;
     m_active = active;
     updateActiveInHierarchy();
+    if (m_scene && m_activeInHierarchy != wasActive) {
+        m_scene->branchChanged(*this);
+    }
 }
 
 void Node::updateActiveInHierarchy()

@@ -219,6 +219,10 @@ private:
 
     void destroyNow(Node& node);
 
+    // Системам: ветка node сменила родителя, активность или слой, или
+    // компонент узла включили или выключили (SceneSystem::onBranchChanged).
+    void branchChanged(Node& node);
+
     const EngineServices& m_services;
     GameTime m_time;
     ComponentLifecycle m_lifecycle{m_services};

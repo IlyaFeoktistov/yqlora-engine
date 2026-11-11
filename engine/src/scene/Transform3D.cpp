@@ -51,6 +51,7 @@ void Transform3D::lookAt(const Vec3& target, const Vec3& up)
 
 void Transform3D::touch()
 {
+    ++m_revision;
     // Встроенный компонент живёт только на Node3D; до подключения узла нет.
     if (Node* node = owner()) {
         static_cast<Node3D*>(node)->markWorldDirty();

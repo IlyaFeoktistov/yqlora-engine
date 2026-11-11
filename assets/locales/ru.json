@@ -89,6 +89,24 @@
         },
         "PhysicsSettings": {
             "description": "Физика: гравитация, итерации решателя и какие слои сталкиваются."
+        },
+        "RigidBody": {
+            "description": "Твёрдое тело: узел движется от сил и столкновений, или его двигает код (кинематическое), или стоит на месте (неподвижное)."
+        },
+        "Collider": {
+            "description": "Форма для столкновений на узле."
+        },
+        "BoxCollider": {
+            "description": "Ящик для столкновений."
+        },
+        "SphereCollider": {
+            "description": "Шар для столкновений."
+        },
+        "CapsuleCollider": {
+            "description": "Капсула для столкновений вдоль Y: обычная форма игрока."
+        },
+        "CylinderCollider": {
+            "description": "Цилиндр для столкновений вдоль Y."
         }
     },
     "editor": {
@@ -526,7 +544,16 @@
         "positionSteps": "Итерации по положению",
         "ignoredCollisions": "Столкновения слоёв",
         "first": "Первый",
-        "second": "Второй"
+        "second": "Второй",
+        "motion": "Движение",
+        "mass": "Масса, кг",
+        "linearDamping": "Затухание движения",
+        "angularDamping": "Затухание вращения",
+        "gravityScale": "Множитель гравитации",
+        "interpolation": "Сглаживание",
+        "center": "Центр",
+        "radius": "Радиус",
+        "height": "Высота"
     },
     "enum": {
         "Aces": "ACES",
@@ -549,7 +576,10 @@
         "Soft": "Мягкие",
         "Vulkan": "Vulkan",
         "Grow": "Расти",
-        "Refuse": "Отказать"
+        "Refuse": "Отказать",
+        "Static": "Неподвижное",
+        "Kinematic": "Кинематическое",
+        "Dynamic": "Динамическое"
     },
     "group": {
         "ambientLight": "Окружающий свет",

@@ -33,6 +33,13 @@ void SceneSystems::afterFixedUpdate(float step)
     }
 }
 
+void SceneSystems::branchChanged(Node& node)
+{
+    for (const auto& system : m_systems) {
+        system->onBranchChanged(node);
+    }
+}
+
 void SceneSystems::update(float deltaSeconds)
 {
     for (const auto& system : m_systems) {

@@ -53,6 +53,14 @@ public:
 
     void setFixedStep(float step);
 
+    // Какая доля фиксированного шага набралась после последнего шага, от 0
+    // до 1: насколько показанное должно уйти от последнего шага физики к
+    // следующему (сглаживание).
+    float fixedStepFraction() const
+    {
+        return m_accumulator / m_fixedStep;
+    }
+
     float scale() const
     {
         return m_scale;

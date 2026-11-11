@@ -31,13 +31,13 @@ struct HeavyBody final : Body {
     YQLORA_TYPE(HeavyBody, Body)
 };
 
-struct Collider : Component {
-    YQLORA_TYPE(Collider, Component)
+struct TestCollider : Component {
+    YQLORA_TYPE(TestCollider, Component)
 };
 
-// Требования базового Collider действуют и на него.
-struct BoxCollider final : Collider {
-    YQLORA_TYPE(BoxCollider, Collider)
+// Требования базового TestCollider действуют и на него.
+struct TestBoxCollider final : TestCollider {
+    YQLORA_TYPE(TestBoxCollider, TestCollider)
 };
 
 struct Sound final : Component {
@@ -71,8 +71,8 @@ struct Fixture {
         registerEngineTypes(registry);
         registry.registerComponent<Body>().requiresNode<Node3D>();
         registry.registerComponent<HeavyBody>();
-        registry.registerComponent<Collider>().requiresComponent<Body>();
-        registry.registerComponent<BoxCollider>();
+        registry.registerComponent<TestCollider>().requiresComponent<Body>();
+        registry.registerComponent<TestBoxCollider>();
         registry.registerComponent<Sound>().allowMultiple();
         registry.registerComponent<First>().requiresComponent<Second>();
         registry.registerComponent<Second>().requiresComponent<Third>();
@@ -128,15 +128,15 @@ TEST_CASE_FIXTURE(Fixture, "ComponentRules: one component of a type unless allow
 TEST_CASE_FIXTURE(Fixture, "ComponentRules: missing requirements come in the order to add them")
 {
     Node3D node;
-    REQUIRE(missingRequirements(registry, type("Collider"), node));
-    CHECK(names(*missingRequirements(registry, type("Collider"), node)) == std::vector<std::string>{"Body"});
+    REQUIRE(missingRequirements(registry, type("TestCollider"), node));
+    CHECK(names(*missingRequirements(registry, type("TestCollider"), node)) == std::vector<std::string>{"Body"});
 
-    // Требование унаследовано от Collider.
-    CHECK(names(*missingRequirements(registry, type("BoxCollider"), node)) == std::vector<std::string>{"Body"});
+    // Требование унаследовано от TestCollider.
+    CHECK(names(*missingRequirements(registry, type("TestBoxCollider"), node)) == std::vector<std::string>{"Body"});
 
     // Наследник требуемого типа тоже подходит.
     node.addComponent<HeavyBody>();
-    CHECK(missingRequirements(registry, type("Collider"), node)->empty());
+    CHECK(missingRequirements(registry, type("TestCollider"), node)->empty());
 }
 
 TEST_CASE_FIXTURE(Fixture, "ComponentRules: requirements of requirements, and cycles end")
@@ -152,15 +152,15 @@ TEST_CASE_FIXTURE(Fixture, "ComponentRules: a requirement that cannot be met")
     const Node3D node;
     // Тип требования не зарегистрирован.
     CHECK_FALSE(missingRequirements(registry, type("NeedsUnregistered"), node));
-    // Body не живёт на голом Node, значит и Collider на нём не собрать.
-    CHECK_FALSE(missingRequirements(registry, type("Collider"), plain));
+    // Body не живёт на голом Node, значит и TestCollider на нём не собрать.
+    CHECK_FALSE(missingRequirements(registry, type("TestCollider"), plain));
 }
 
 TEST_CASE_FIXTURE(Fixture, "ComponentRules: dependents of a component")
 {
     Node3D node;
     auto& body = node.addComponent<Body>();
-    auto& collider = node.addComponent<BoxCollider>();
+    auto& collider = node.addComponent<TestBoxCollider>();
 
     CHECK(dependentsOf(registry, node, body) == std::vector<const Component*>{&collider});
     CHECK(dependentsOf(registry, node, collider).empty());
@@ -192,7 +192,7 @@ TEST_CASE_FIXTURE(Fixture, "EditorSession: component rules")
 
     SUBCASE("a required component is added in the same history step")
     {
-        Component* collider = session.editing().addComponent(*node, type("BoxCollider"));
+        Component* collider = session.editing().addComponent(*node, type("TestBoxCollider"));
         REQUIRE(collider);
         REQUIRE(node->components().size() == 3);
         CHECK(node->components()[1]->typeName() == "Body");
@@ -229,7 +229,7 @@ TEST_CASE_FIXTURE(Fixture, "SceneSerializer: component rules on load")
 
     Scene source{EngineServices::none()};
     auto& root = source.createRoot<Node3D>("Root");
-    root.addComponent<BoxCollider>();                          // тела нет: файл как будто правили руками
+    root.addComponent<TestBoxCollider>();                      // тела нет: файл как будто правили руками
     root.addChild<Node>("Plain").addComponent<MeshRenderer>(); // не тот узел
 
     Scene loaded{EngineServices::none()};
@@ -239,7 +239,7 @@ TEST_CASE_FIXTURE(Fixture, "SceneSerializer: component rules on load")
 
     // Обязательное тело добавлено.
     REQUIRE(loadedRoot->components().size() == 3);
-    CHECK(loadedRoot->components()[1]->typeName() == "BoxCollider");
+    CHECK(loadedRoot->components()[1]->typeName() == "TestBoxCollider");
     CHECK(loadedRoot->components()[2]->typeName() == "Body");
 
     // Компонент на неподходящем узле пропущен.
@@ -258,7 +258,7 @@ TEST_CASE_FIXTURE(Fixture, "Inspection: what the inspector shows for the selecte
 
     Node* node = session.editing().createNode(type("Node3D"), nullptr);
     REQUIRE(node);
-    REQUIRE(session.editing().addComponent(*node, type("BoxCollider")));
+    REQUIRE(session.editing().addComponent(*node, type("TestBoxCollider")));
 
     const auto inspection = inspect(session);
     REQUIRE(inspection);
@@ -274,7 +274,7 @@ TEST_CASE_FIXTURE(Fixture, "Inspection: what the inspector shows for the selecte
     CHECK_FALSE(body.removable);
     CHECK(body.requiredBy == std::vector<const Component*>{&collider.component});
     CHECK(collider.removable);
-    CHECK(collider.type == &type("BoxCollider"));
+    CHECK(collider.type == &type("TestBoxCollider"));
 
     // Уже есть Body, второго не предложат.
     CHECK(std::ranges::none_of(inspection->addable, [&](const TypeInfo* t) {
@@ -299,13 +299,13 @@ TEST_CASE_FIXTURE(Fixture, "Node: addComponent in a scene adds the required comp
     Scene scene{services};
     auto& root = scene.createRoot<Node3D>();
 
-    auto& collider = root.addComponent<BoxCollider>();
+    auto& collider = root.addComponent<TestBoxCollider>();
     REQUIRE(root.components().size() == 3);
     CHECK(root.components()[1]->typeName() == "Body");
     CHECK(root.components()[2].get() == &collider);
 
     // Вне сцены правила не проверяются: узел ещё собирают.
     Node3D detached;
-    detached.addComponent<BoxCollider>();
+    detached.addComponent<TestBoxCollider>();
     CHECK(detached.components().size() == 2);
 }

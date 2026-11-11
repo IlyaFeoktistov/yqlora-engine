@@ -13,6 +13,7 @@
 
 namespace yqlora {
 
+class Node;
 class Scene;
 class TypeRegistry;
 
@@ -41,6 +42,7 @@ public:
     void update(float deltaSeconds);
     void lateUpdate(float deltaSeconds);
     void updateTransforms();
+    void branchChanged(Node& node);
 
 private:
     std::vector<std::unique_ptr<SceneSystem>> m_systems;

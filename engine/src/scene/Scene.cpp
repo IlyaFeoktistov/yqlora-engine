@@ -117,6 +117,11 @@ void Scene::destroyNow(Node& node)
     node.parent()->removeChild(node);
 }
 
+void Scene::branchChanged(Node& node)
+{
+    m_systems.branchChanged(node);
+}
+
 std::span<Component* const> Scene::componentsOfType(std::string_view typeName) const
 {
     return m_components.ofType(typeName);

@@ -23,6 +23,9 @@ public:
     ~PhysicsWorld() override;
 
     void afterFixedUpdate(float stepSeconds) override;
+    // Сглаженные тела показывают положение между двумя последними шагами.
+    void update(float deltaSeconds) override;
+    void onBranchChanged(Node& node) override;
 
     // Есть ли мир Jolt (появилось ли тело).
     bool simulating() const

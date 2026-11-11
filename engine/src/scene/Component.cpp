@@ -41,13 +41,18 @@ void Component::setEnabled(bool enabled)
         return;
     }
     m_enabled = enabled;
-    if (m_owner && m_owner->activeInHierarchy() && m_owner->scene()) {
+    Scene* scene = m_owner ? m_owner->scene() : nullptr;
+    if (!scene) {
+        return;
+    }
+    if (m_owner->activeInHierarchy()) {
         if (enabled) {
-            m_owner->scene()->activate(*this);
+            scene->activate(*this);
         } else {
-            m_owner->scene()->deactivate(*this);
+            scene->deactivate(*this);
         }
     }
+    scene->branchChanged(*m_owner);
 }
 
 bool Component::activeAndEnabled() const
