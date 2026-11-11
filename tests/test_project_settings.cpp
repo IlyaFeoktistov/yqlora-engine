@@ -115,14 +115,14 @@ TEST_CASE_FIXTURE(Fixture, "ProjectSettings: every registered section, read from
 
     // Нет файла - значения по умолчанию; файл раздела, которого нет в реестре, не трогается.
     std::filesystem::remove(directory / "settings" / "general.json");
-    std::ofstream(directory / "settings" / "physics.json") << R"({"version": 1, "values": {"gravity": 1}})";
+    std::ofstream(directory / "settings" / "unknown.json") << R"({"version": 1, "values": {"gravity": 1}})";
     const Project reopened = open();
     CHECK(reopened.settings().get<GeneralSettings>().company.empty());
-    CHECK(reopened.settings().find("PhysicsSettings") == nullptr);
-    CHECK(std::filesystem::exists(directory / "settings" / "physics.json"));
+    CHECK(reopened.settings().find("UnknownSettings") == nullptr);
+    CHECK(std::filesystem::exists(directory / "settings" / "unknown.json"));
 
     // Настройки не ресурсы игры.
-    CHECK(reopened.resources().id("settings/physics.json") == 0);
+    CHECK(reopened.resources().id("settings/unknown.json") == 0);
 }
 
 TEST_CASE_FIXTURE(

@@ -83,6 +83,12 @@
         },
         "PrefabPool": {
             "description": "Instances of a prefab made ahead and kept disabled: hands out a ready one and takes it back, with no expanding on the fly. For objects that come and go often: bullets, shells, hit effects."
+        },
+        "PhysicsWorld": {
+            "description": "The physics world of the scene: bodies, collisions and their steps."
+        },
+        "PhysicsSettings": {
+            "description": "Physics: gravity, solver iterations and which layers collide."
         }
     },
     "editor": {
@@ -292,7 +298,8 @@
             "ExecutionOrderSettings": "Execution Order",
             "GraphicsSettings": "Graphics",
             "ScriptsSettings": "Scripts",
-            "InputSettings": "Input"
+            "InputSettings": "Input",
+            "PhysicsSettings": "Physics"
         },
         "panel": {
             "maximize": "Maximize",
@@ -513,7 +520,13 @@
         "sourceRadius": "Source radius, m",
         "prefab": "Prefab",
         "size": "Size",
-        "whenEmpty": "When empty"
+        "whenEmpty": "When empty",
+        "gravity": "Gravity, m/s²",
+        "velocitySteps": "Velocity iterations",
+        "positionSteps": "Position iterations",
+        "ignoredCollisions": "Layer collisions",
+        "first": "First",
+        "second": "Second"
     },
     "enum": {
         "Aces": "ACES",

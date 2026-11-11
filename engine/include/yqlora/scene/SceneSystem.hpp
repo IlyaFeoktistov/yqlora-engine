@@ -48,10 +48,16 @@ public:
         return m_scene;
     }
 
-    // Шаги кадра, порядок - в Scene::advance. Фиксированный шаг - перед
-    // onFixedUpdate компонентов (физика), update - после onUpdate,
-    // lateUpdate - после onLateUpdate (список отрисовки, звук).
+    // Шаги кадра, порядок - в Scene::advance. fixedUpdate - перед
+    // onFixedUpdate компонентов, afterFixedUpdate - после него (шаг физики:
+    // силы, добавленные скриптами в onFixedUpdate, действуют в том же шаге),
+    // update - после onUpdate, lateUpdate - после onLateUpdate (список
+    // отрисовки, звук).
     virtual void fixedUpdate(float /*stepSeconds*/)
+    {
+    }
+
+    virtual void afterFixedUpdate(float /*stepSeconds*/)
     {
     }
 

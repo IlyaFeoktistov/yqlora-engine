@@ -83,6 +83,12 @@
         },
         "PrefabPool": {
             "description": "Экземпляры префаба, созданные заранее и выключенные: выдаёт готовый и принимает обратно, без развёртывания на ходу. Для того, что появляется и исчезает часто: пули, гильзы, эффекты попаданий."
+        },
+        "PhysicsWorld": {
+            "description": "Физический мир сцены: тела, столкновения и их шаги."
+        },
+        "PhysicsSettings": {
+            "description": "Физика: гравитация, итерации решателя и какие слои сталкиваются."
         }
     },
     "editor": {
@@ -292,7 +298,8 @@
             "ExecutionOrderSettings": "Порядок выполнения",
             "GraphicsSettings": "Графика",
             "ScriptsSettings": "Скрипты",
-            "InputSettings": "Ввод"
+            "InputSettings": "Ввод",
+            "PhysicsSettings": "Физика"
         },
         "panel": {
             "maximize": "Развернуть",
@@ -513,7 +520,13 @@
         "sourceRadius": "Радиус источника, м",
         "prefab": "Префаб",
         "size": "Размер",
-        "whenEmpty": "Когда пусто"
+        "whenEmpty": "Когда пусто",
+        "gravity": "Гравитация, м/с²",
+        "velocitySteps": "Итерации по скорости",
+        "positionSteps": "Итерации по положению",
+        "ignoredCollisions": "Столкновения слоёв",
+        "first": "Первый",
+        "second": "Второй"
     },
     "enum": {
         "Aces": "ACES",

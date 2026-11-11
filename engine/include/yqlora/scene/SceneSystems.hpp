@@ -37,6 +37,7 @@ public:
     }
 
     void fixedUpdate(float step);
+    void afterFixedUpdate(float step);
     void update(float deltaSeconds);
     void lateUpdate(float deltaSeconds);
     void updateTransforms();

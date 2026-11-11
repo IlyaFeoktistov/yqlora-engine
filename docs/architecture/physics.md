@@ -13,34 +13,69 @@ Status marks: see [README](README.md).
 The design is the established one for a component physics engine, and Jolt
 is wired as its documentation and samples recommend; nothing here is new.
 
-- **Jolt, a pinned release**, built by CMake with the engine. Its build
-  defines (`JPH_DEBUG_RENDERER`, `JPH_PROFILE_ENABLED`, precision) are set
-  once in the engine target and exported, since Jolt objects change layout
-  with them. Single precision: worlds up to about 10 km; double precision
-  is a define away when large worlds come.
-- **`PhysicsWorld`**, a scene system, owns one `JPH::PhysicsSystem` per
-  scene: the edited scene and its Play copy have their own. One job system
-  (`JobSystemThreadPool`, cores minus one) and one temporary allocator are
-  shared by all worlds (`EngineServices`). Only the Play copy and a game are
-  stepped; the edited scene keeps its bodies for queries and gizmos.
-- **Stepping**: in `systems.fixedUpdate` with `TimeSettings::fixedStep`,
-  one collision step per fixed step; the frame catch-up limit of
-  `GameTime` also limits physics.
-- **Transforms**: before a step, nodes moved by code or the editor teleport
-  their bodies (static and dynamic) or set a kinematic target
-  (`MoveKinematic`, so a kinematic platform carries what stands on it);
-  after a step, dynamic bodies write their pose into the node (world to
-  local through the parent). Interpolation (`RigidBody::interpolation`)
-  shows a pose between the last two steps, so motion is smooth at any
-  frame rate; the physics state itself is never changed by it.
-- **Layers**: the 32 node layers of the project are the object layers;
-  the Physics section of the project settings holds the collision matrix
-  (which layers collide), gravity and solver iterations. Two broad phase
-  layers, moving and static, as Jolt advises.
+- **Jolt, a pinned release** (v5.6.0), built by CMake with the engine and
+  linked privately: no public engine header names a Jolt type, so its build
+  defines (precision, debug renderer, processor features) never have to
+  match the code of a game. Single precision: worlds up to about 10 km;
+  double precision is a define away when large worlds come. Processor
+  features stop at SSE4.2, so a game runs on any x86-64 from 2008 on, not
+  only where AVX2 is. `JPH::VerifyJoltVersionID` checks at start that the
+  engine and the Jolt library agree.
+- **`PhysicsWorld`**, a scene system with a public interface without Jolt
+  (the Jolt objects are behind a pointer to its implementation), owns one
+  `JPH::PhysicsSystem` per scene: the edited scene and its Play copy have
+  their own. It is created when the first body comes, so a scene without
+  physics, and every test without it, pays nothing.
+- **One Jolt runtime per process**: the job system (`JobSystemThreadPool`,
+  cores minus one) and the temporary allocator are shared by all worlds of
+  the services (`EngineServices::physics()`, `PhysicsRuntime`), created on
+  first use. The global setup of Jolt (allocator hooks, `Factory`, the
+  registered types, its trace and assert going to our log) is made by the
+  first runtime and undone by the last one, counted, never hidden in a
+  static initializer.
+- **Stepping**: Jolt steps in a new stage of the frame,
+  `systems.afterFixedUpdate`, after `onFixedUpdate` of components: a force a
+  script adds in `onFixedUpdate` acts in the same step, and the contact
+  events of the step come right after it, before the next fixed step or
+  `onUpdate`. One collision step per fixed step of
+  `TimeSettings::fixedStep`; the frame catch-up limit of `GameTime` also
+  limits physics. Only a running scene (the Play copy, a game) is stepped;
+  the edited scene keeps its bodies for queries and gizmos.
+- **Transforms**: physics computes the world pose of a node itself from
+  its local transforms (world matrices of the frame are updated only after
+  the simulation, so during fixed steps they may be old). Every body keeps
+  the pose it last wrote into its node. Before a step, a node whose pose
+  differs from that is taken as moved by code or the editor: a static or
+  dynamic body teleports, a kinematic one gets a target (`MoveKinematic`,
+  so a platform carries what stands on it). After a step a dynamic body
+  writes its pose into the node (world to local through the parent) and
+  remembers it. **Interpolation** (`RigidBody::interpolation`) writes a
+  pose between the last two steps in `update`, and that pose is what the
+  body remembers, so a smoothed node is never taken for a moved one; the
+  physics state itself is not changed by it. A change of scale rebuilds
+  the shape.
+- **Layers**: the 32 node layers of the project are what collides with
+  what; the collision matrix (32 by 32, symmetric) is in the Physics
+  section of the project settings, edited as a table of the named layers.
+  A Jolt object layer is a node layer and the motion (static or moving),
+  64 in all, since Jolt takes the broad phase layer from the object layer:
+  two broad phase layers, static and moving, as Jolt advises. Static never
+  collides with static. Each step takes a copy of the matrix, so the job
+  threads never read the settings while the editor changes them.
+- **Gravity** and the solver iterations are in the Physics section. A world
+  starts with the gravity of the settings; `setGravity` from a script
+  changes it until the scene ends; a change of the settings during Play is
+  applied at once (the editor), also over a script's value.
 - **Units**: metres, kilograms, seconds; gravity -9.81 along Y by default.
 - **Contacts are reported on the main thread**: Jolt calls its listener
   on worker threads, so the listener only records pairs into a buffer, and
   `PhysicsWorld` emits the events after the step, in a stable order.
+- **Bodies and the scene tree**: a body belongs to its component and is
+  added in `onEnterScene` and removed in `onExitScene`; the body keeps the
+  `ComponentId` of its component as Jolt user data, so a contact or a ray
+  gives a node by an index, never a dangling pointer. A node destroyed
+  during a frame keeps its body until the end of the frame, as the node
+  itself lives that long.
 - **Run-time state is not saved**: velocities and contacts live in Jolt;
   a hot reload and the Play copy start from the properties, as for any
   component.
@@ -71,7 +106,10 @@ is wired as its documentation and samples recommend; nothing here is new.
 - **`PhysicsMaterial`**, a resource (`.ymat` is taken by render materials,
   so `.yphysmat`): `friction`, `restitution` and how two values combine
   (average, minimum, maximum, multiply). Per collider, combined in the
-  contact listener; without one the project default is used.
+  contact listener (`OnContactAdded`, since Jolt has one combine function
+  per world); when the two modes differ, the higher one in maximum,
+  multiply, minimum, average is used, so the result does not depend on
+  which body is first. Without a material the project default is used.
 
 ## Contacts and triggers [planned, step 6]
 
@@ -202,7 +240,7 @@ axles, ragdolls, things hanging from a ceiling.
 ## From code [planned, step 6]
 
 Everything set in the inspector is a property with a setter (see
-[scripting](scripting.md#scene-access-from-code-planned)); on top of it:
+[scripting](scripting.md#scene-access-from-code-done)); on top of it:
 
 - `RigidBody`: `velocity()` and `setVelocity`, `angularVelocity()` and
   `setAngularVelocity`, `addForce`, `addForceAtPoint`, `addImpulse`,
@@ -231,24 +269,36 @@ Everything set in the inspector is a property with a setter (see
 
 ### PH.1 Jolt and the world
 
-- Jolt in the build with its defines; `PhysicsWorld` with the job system
-  and the allocator from `EngineServices`; layers, the collision matrix
-  and the Physics section of project settings; the fixed step; the
-  transform sync both ways; a `JPH` check of the build defines at start.
-- Tests: a world steps with no bodies; a matrix entry turned off stops two
-  layers colliding; the edited scene is not stepped; changing the fixed
-  step changes the number of physics steps per second.
+- Jolt in the build (private, SSE4.2), `PhysicsRuntime` with the counted
+  global setup of Jolt, trace and asserts into the log and the version
+  check; `PhysicsWorld` with its implementation behind a pointer, created
+  with the first body; the frame stage `systems.afterFixedUpdate`; object
+  and broad phase layers from node layers and motion; the Physics section
+  of the project settings (gravity, iterations, the collision matrix) with
+  the matrix as a table of named layers in the settings window.
+- Tests: the layer mapping and the filters (static never with static, a
+  matrix entry turned off in both directions); the matrix stays symmetric
+  whatever is written; a scene without bodies creates no Jolt world; a
+  script force in `onFixedUpdate` comes before the step of the same fixed
+  step (the order of the stages); the settings survive save and load.
 
 ### PH.2 Bodies and colliders
 
 - `RigidBody`, the six colliders, compound shapes from descendants,
-  implicit static bodies, scale, cooked mesh shapes, interpolation,
-  continuous collision, locks; bodies follow a node moved by code.
+  implicit static bodies, scale, cooked mesh shapes, continuous collision,
+  locks; the transform sync both ways with the remembered pose, the world
+  pose computed by physics, interpolation; gravity of the settings and its
+  change during Play.
 - Tests: a box falls 1 s under gravity to 4.9 m within tolerance; a
   sphere rests on a static plane; two colliders on children form one body
   with the right mass; a kinematic platform carries a box; a fast small
   body with continuous collision does not pass a thin wall; non-uniform
-  scale of a box collider; a mesh shape is cooked once for 100 colliders.
+  scale of a box collider; a mesh shape is cooked once for 100 colliders;
+  a matrix entry turned off lets two bodies pass; a node moved by code in
+  `onFixedUpdate` teleports its body in the same step; an interpolated
+  body is never teleported by its own smoothed pose; the edited scene is
+  not stepped; changing the fixed step changes the number of steps per
+  second.
 
 ### PH.3 Physics materials
 
@@ -292,12 +342,10 @@ Everything set in the inspector is a property with a setter (see
 
 ### PH.8 Editor
 
-- Collider gizmos and handles, "Show colliders", fitting to the mesh, the
-  Physics settings with the matrix, drops onto physics fields; joint
-  gizmos.
+- Collider gizmos and handles, "Show colliders", fitting to the mesh,
+  drops onto physics fields; joint gizmos.
 - Tests (logic without the interface): a new collider fits the mesh bounds
-  of its node; a handle drag is one undo step; the matrix edits the
-  settings file.
+  of its node; a handle drag is one undo step.
 
 ### PH.9 Documents
 

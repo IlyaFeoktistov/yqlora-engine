@@ -77,8 +77,8 @@ public:
     YQLORA_TYPE(PhysicsWorld, SceneSystem)
     explicit PhysicsWorld(Scene& scene);
 
-    void fixedUpdate(float step) override;     // здесь шагает физика
-    // ещё update, lateUpdate (после скриптов: список рендера, звук)
+    void afterFixedUpdate(float step) override; // здесь шагает физика, после onFixedUpdate скриптов
+    // ещё fixedUpdate, update, lateUpdate (после скриптов: список рендера, звук)
     // и updateTransforms (после симуляции, перед Extract)
 };
 
@@ -108,7 +108,8 @@ scene.system<PhysicsWorld>()                    // компонент регис
 scene.advance(realDelta):
     time.advance(realDelta)                       шкала, накопитель фиксированного шага
     пока накоплен фиксированный шаг:
-        systems.fixedUpdate, затем components.onFixedUpdate
+        systems.fixedUpdate, components.onFixedUpdate,
+        systems.afterFixedUpdate                  шаг физики
     components.onUpdate
     systems.update                                таймеры (TimerSystem)
     components.onLateUpdate

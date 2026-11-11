@@ -199,6 +199,14 @@ add_library(yqlora SHARED
     src/render/PrimitiveMeshes.cpp
     src/render/RenderSystem.cpp
     src/render/RenderTypes.cpp
+    src/physics/JoltLayers.cpp
+    src/physics/JoltSetup.cpp
+    src/physics/LayerCollisionMatrix.cpp
+    src/physics/PhysicsLayers.cpp
+    src/physics/PhysicsRuntime.cpp
+    src/physics/PhysicsSettings.cpp
+    src/physics/PhysicsTypes.cpp
+    src/physics/PhysicsWorld.cpp
     src/render/UniformRing.cpp
     src/rhi/Pipeline.cpp
     src/resource/BuiltinResourceTable.cpp
@@ -228,12 +236,12 @@ add_library(yqlora::yqlora ALIAS yqlora)
 # include/ - публичный API для игр: математика, сцена, ввод, лог, tr().
 # internal/ - окно, платформа, рендер, Application: см. yqlora::internal ниже.
 target_include_directories(yqlora PUBLIC include PRIVATE src ${CMAKE_CURRENT_BINARY_DIR}/generated)
-# glslang - компилятор шейдеров, SPIRV-Cross (ядро) - их отражение.
+# glslang - компилятор шейдеров, SPIRV-Cross (ядро) - их отражение, Jolt - физика.
 target_link_libraries(yqlora
     PUBLIC glm::glm imgui_headers
     PRIVATE
         yqlora_engine_code imgui SDL3::SDL3-static nlohmann_json::nlohmann_json cgltf_headers stb_headers mikktspace
-        glslang glslang-default-resource-limits spirv-cross-core
+        glslang glslang-default-resource-limits spirv-cross-core Jolt
 )
 target_compile_definitions(yqlora PRIVATE YQLORA_ENGINE_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(yqlora INTERFACE

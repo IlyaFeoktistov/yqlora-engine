@@ -26,6 +26,13 @@ void SceneSystems::fixedUpdate(float step)
     }
 }
 
+void SceneSystems::afterFixedUpdate(float step)
+{
+    for (const auto& system : m_systems) {
+        system->afterFixedUpdate(step);
+    }
+}
+
 void SceneSystems::update(float deltaSeconds)
 {
     for (const auto& system : m_systems) {

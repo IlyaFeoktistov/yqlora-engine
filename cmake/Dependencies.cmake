@@ -118,7 +118,57 @@ FetchContent_Declare(spirv_cross
     SYSTEM
 )
 
-FetchContent_MakeAvailable(SDL3 glm nlohmann_json imgui imguizmo cgltf stb mikktspace glslang spirv_cross)
+# Jolt Physics: физика (docs/architecture/physics.md). Только внутри движка:
+# в открытых заголовках его типов нет, поэтому его определения (точность,
+# наборы команд процессора) не обязаны совпадать с кодом игры.
+# Наши флаги компиляции он не переписывает, предупреждения - не наши.
+set(OVERRIDE_CXX_FLAGS OFF CACHE BOOL "" FORCE)
+set(ENABLE_ALL_WARNINGS OFF CACHE BOOL "" FORCE)
+set(GENERATE_DEBUG_SYMBOLS OFF CACHE BOOL "" FORCE)
+set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
+set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+set(JPH_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+# Исключения процессора включаются только в его тестах; в игре ими ведает она сама.
+set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF CACHE BOOL "" FORCE)
+# Как у glslang: наши классы наследуют интерфейсы Jolt, а проверке vptr у
+# UBSan (пресет asan) нужны их typeinfo.
+set(CPP_RTTI_ENABLED ON CACHE BOOL "" FORCE)
+set(CPP_EXCEPTIONS_ENABLED ON CACHE BOOL "" FORCE)
+# Проверки Jolt - в отладочной сборке, как наши assert.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(USE_ASSERTS ON CACHE BOOL "" FORCE)
+else()
+    set(USE_ASSERTS OFF CACHE BOOL "" FORCE)
+endif()
+# Игра должна идти на любом x86-64 с SSE4.2 (процессоры с 2008 года), а не
+# только там, где есть AVX2.
+set(USE_AVX OFF CACHE BOOL "" FORCE)
+set(USE_AVX2 OFF CACHE BOOL "" FORCE)
+set(USE_AVX512 OFF CACHE BOOL "" FORCE)
+set(USE_LZCNT OFF CACHE BOOL "" FORCE)
+set(USE_TZCNT OFF CACHE BOOL "" FORCE)
+set(USE_F16C OFF CACHE BOOL "" FORCE)
+set(USE_FMADD OFF CACHE BOOL "" FORCE)
+# Отрисовка отладки и профилировщик Jolt не нужны: коллайдеры рисует
+# редактор, сериализация объектов Jolt - тоже. Вычисления на GPU - позже.
+set(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF CACHE BOOL "" FORCE)
+set(PROFILER_IN_DEBUG_AND_RELEASE OFF CACHE BOOL "" FORCE)
+set(ENABLE_OBJECT_STREAM OFF CACHE BOOL "" FORCE)
+set(JPH_USE_DX12 OFF CACHE BOOL "" FORCE)
+set(JPH_USE_VK OFF CACHE BOOL "" FORCE)
+set(JPH_USE_MTL OFF CACHE BOOL "" FORCE)
+set(JPH_USE_CPU_COMPUTE OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(JoltPhysics
+    GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
+    GIT_TAG v5.6.0
+    GIT_SHALLOW TRUE
+    SOURCE_SUBDIR Build
+    SYSTEM
+)
+
+FetchContent_MakeAvailable(SDL3 glm nlohmann_json imgui imguizmo cgltf stb mikktspace glslang spirv_cross JoltPhysics)
+# Входит в разделяемую библиотеку движка.
+set_target_properties(Jolt PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # SYSTEM: наши строгие предупреждения не распространяются на чужой код.
 add_library(cgltf_headers INTERFACE)

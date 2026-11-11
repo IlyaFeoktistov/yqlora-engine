@@ -75,8 +75,8 @@ public:
     YQLORA_TYPE(PhysicsWorld, SceneSystem)
     explicit PhysicsWorld(Scene& scene);
 
-    void fixedUpdate(float step) override;     // physics steps here
-    // also update, lateUpdate (after scripts: render list, audio)
+    void afterFixedUpdate(float step) override; // physics steps here, after onFixedUpdate of scripts
+    // also fixedUpdate, update, lateUpdate (after scripts: render list, audio)
     // and updateTransforms (after the simulation, before extract)
 };
 
@@ -105,7 +105,8 @@ The order lives in one place, `Scene::advance`:
 scene.advance(realDelta):
     time.advance(realDelta)                       scale, fixed-step accumulator
     while a fixed step is accumulated:
-        systems.fixedUpdate, then components.onFixedUpdate
+        systems.fixedUpdate, components.onFixedUpdate,
+        systems.afterFixedUpdate                  the physics step
     components.onUpdate
     systems.update                                timers (TimerSystem)
     components.onLateUpdate

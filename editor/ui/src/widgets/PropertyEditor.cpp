@@ -179,6 +179,11 @@ void listField(const Property& property, ListValue& list, const PropertyEditorCo
 
         return;
     }
+    if (property.hint() == PropertyHint::CollisionMatrix) {
+        result.changed = collisionMatrixField(list, context) || result.changed;
+
+        return;
+    }
 
     std::optional<std::size_t> removed;
     if (!list.items.empty() && ImGui::BeginTable("items", kListColumnCount)) {

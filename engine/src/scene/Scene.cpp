@@ -207,6 +207,7 @@ void Scene::advance(float realDelta)
     while (m_time.takeFixedStep()) {
         m_systems.fixedUpdate(m_time.fixedStep());
         m_lifecycle.runPhase(LifecyclePhase::FixedUpdate, m_time.fixedStep());
+        m_systems.afterFixedUpdate(m_time.fixedStep());
     }
     m_lifecycle.runPhase(LifecyclePhase::Update, m_time.delta());
     m_systems.update(m_time.delta());

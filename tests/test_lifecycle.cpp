@@ -476,6 +476,11 @@ struct RecordingSystem final : SceneSystem {
         log->push_back("system:fixed");
     }
 
+    void afterFixedUpdate(float /*stepSeconds*/) override
+    {
+        log->push_back("system:afterFixed");
+    }
+
     void update(float /*deltaSeconds*/) override
     {
         log->push_back("system:update");
@@ -517,8 +522,10 @@ TEST_CASE("SceneSystem: every scene gets its own, steps run next to the componen
             "start",
             "system:fixed",
             "fixed",
+            "system:afterFixed",
             "system:fixed",
             "fixed",
+            "system:afterFixed",
             "update",
             "system:update",
             "late",

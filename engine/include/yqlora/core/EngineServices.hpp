@@ -7,6 +7,7 @@
 namespace yqlora {
 
 class Input;
+class PhysicsRuntime;
 class PrefabBases;
 class Project;
 class ResourceCache;
@@ -64,12 +65,19 @@ public:
         return *m_prefabBases;
     }
 
+    // Среда Jolt для физических миров сцен этих служб (и копии Play).
+    PhysicsRuntime& physics() const
+    {
+        return *m_physics;
+    }
+
 private:
     const Input& m_input;
     const TypeRegistry& m_registry;
     Project* m_project = nullptr;
     std::shared_ptr<ResourceCache> m_resources;
     std::shared_ptr<PrefabBases> m_prefabBases;
+    std::shared_ptr<PhysicsRuntime> m_physics;
 };
 
 } // namespace yqlora

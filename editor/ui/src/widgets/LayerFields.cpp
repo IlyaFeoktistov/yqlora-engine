@@ -4,6 +4,7 @@
 #include "yqlora/editor/ui/widgets/Checkbox.hpp"
 
 #include "yqlora/i18n/Translate.hpp"
+#include "yqlora/physics/LayerCollisionMatrix.hpp"
 #include "yqlora/scene/Layers.hpp"
 
 #include <imgui.h>
@@ -11,6 +12,7 @@
 
 #include <bit>
 #include <string>
+#include <vector>
 
 namespace yqlora::editor {
 
@@ -150,6 +152,69 @@ bool layerNamesField(ListValue& list)
         changed = ImGui::InputText("##name", &std::get<std::string>(list.items[i])) || changed;
         ImGui::EndDisabled();
         ImGui::PopID();
+    }
+
+    return changed;
+}
+
+bool collisionMatrixField(ListValue& list, const PropertyEditorContext& context)
+{
+    using Pairs = PropertyStorage<std::vector<LayerPair>>;
+    LayerCollisionMatrix matrix;
+    matrix.setIgnoredPairs(Pairs::load(list));
+
+    std::vector<int> layers;
+    for (int layer = 0; layer < kLayerCount; ++layer) {
+        if (layerListed(layer, context.layerNames, false)) {
+            layers.push_back(layer);
+        }
+    }
+    // Столбцы в обратном порядке: строка слоя показывает пары с ним и со
+    // всеми слоями после него, так что каждая пара - одна клетка, а таблица -
+    // треугольник.
+    const int columns = static_cast<int>(layers.size()) + 1;
+    bool changed = false;
+    constexpr ImGuiTableFlags kFlags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_HighlightHoveredColumn
+                                       | ImGuiTableFlags_BordersInnerV;
+    if (!ImGui::BeginTable("collisions", columns, kFlags)) {
+        return false;
+    }
+    ImGui::TableSetupColumn("##layer", ImGuiTableColumnFlags_NoHide);
+    for (auto it = layers.rbegin(); it != layers.rend(); ++it) {
+        ImGui::TableSetupColumn(
+            layerLabel(*it, context.layerNames).c_str(),
+            ImGuiTableColumnFlags_AngledHeader | ImGuiTableColumnFlags_WidthFixed
+        );
+    }
+    ImGui::TableAngledHeadersRow();
+    for (std::size_t row = 0; row < layers.size(); ++row) {
+        const int first = layers[row];
+        ImGui::PushID(first);
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(layerLabel(first, context.layerNames).c_str());
+        for (std::size_t column = layers.size(); column-- > row;) {
+            const int second = layers[column];
+            ImGui::TableNextColumn();
+            ImGui::PushID(second);
+            bool on = matrix.collides(first, second);
+            if (checkbox("##pair", &on, context.metrics.checkboxPadding)) {
+                matrix.setCollides(first, second, on);
+                changed = true;
+            }
+            ImGui::SetItemTooltip(
+                "%s - %s",
+                layerLabel(first, context.layerNames).c_str(),
+                layerLabel(second, context.layerNames).c_str()
+            );
+            ImGui::PopID();
+        }
+        ImGui::PopID();
+    }
+    ImGui::EndTable();
+    if (changed) {
+        list = Pairs::store(matrix.ignoredPairs());
     }
 
     return changed;

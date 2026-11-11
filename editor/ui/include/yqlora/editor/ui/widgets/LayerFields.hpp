@@ -15,4 +15,9 @@ bool layerMaskCombo(int& stored, const PropertyEditorContext& context);
 // слой 0 не переименовывается.
 bool layerNamesField(ListValue& list);
 
+// Какие слои сталкиваются (PropertyHint::CollisionMatrix): треугольная
+// таблица именованных слоёв, по флажку на пару. Значение - список пар,
+// которые не сталкиваются (LayerCollisionMatrix::ignoredPairs).
+bool collisionMatrixField(ListValue& list, const PropertyEditorContext& context);
+
 } // namespace yqlora::editor
