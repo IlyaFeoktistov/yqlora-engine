@@ -201,11 +201,12 @@ std::string preamble(const std::vector<ShaderDefine>& defines)
 
 std::string formatShaderMessage(const ShaderMessage& message)
 {
+    constexpr std::string_view kKind = "error: ";
     if (message.line > 0) {
-        return message.file + ":" + std::to_string(message.line) + ": " + message.text;
+        return message.file + ":" + std::to_string(message.line) + ": " + std::string(kKind) + message.text;
     }
 
-    return message.file + ": " + message.text;
+    return message.file + ": " + std::string(kKind) + message.text;
 }
 
 struct ShaderCompiler::CacheEntry {

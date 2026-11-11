@@ -4,11 +4,11 @@
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 
-#include "yqlora/core/Utf8Path.hpp"
+#include "yqlora/editor/CodeEditor.hpp"
 #include "yqlora/editor/CompilerDiagnostics.hpp"
 #include "yqlora/editor/EditorSession.hpp"
+#include "yqlora/editor/EditorSettings.hpp"
 #include "yqlora/i18n/Translate.hpp"
-#include "yqlora/platform/Platform.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/shader/ShaderData.hpp"
 
@@ -43,7 +43,8 @@ const char* typeName(rhi::ValueType type)
     return "?";
 }
 
-// Строки ошибки компиляции ("файл:строка: текст"); щелчок открывает файл.
+// Строки ошибки компиляции ("файл:строка: текст"); щелчок открывает место
+// в редакторе кода. Пути в них - от папки проекта.
 void drawErrors(EditorContext& context, const std::string& message)
 {
     const auto& project = context.session.project();
@@ -51,10 +52,12 @@ void drawErrors(EditorContext& context, const std::string& message)
     std::string line;
     ImGui::PushStyleColor(ImGuiCol_Text, toImVec4(context.theme.colors().errorText));
     while (std::getline(lines, line)) {
-        const CompilerDiagnostic diagnostic = parseCompilerOutput(line);
         ImGui::PushID(line.c_str());
-        if (ImGui::Selectable(line.c_str()) && project && !diagnostic.file.empty()) {
-            platform::openWithSystem(project->directory() / fromUtf8(diagnostic.file));
+        if (ImGui::Selectable(line.c_str()) && project) {
+            const auto location = diagnosticLocation(parseCompilerOutput(line), project->directory());
+            if (location) {
+                openInCodeEditor(context.settings.codeEditor, *location, project->directory());
+            }
         }
         ImGui::PopID();
     }
@@ -68,7 +71,7 @@ void ShaderInspector::draw(EditorContext& context, ResourceId id)
     const auto& project = context.session.project();
     const auto path = project ? project->resources().path(id) : std::nullopt;
     if (path && ImGui::Button((std::string(icons::kCodeFile) + "  " + tr("editor.shader.open")).c_str())) {
-        platform::openWithSystem(project->directory() / *path);
+        openInCodeEditor(context.settings.codeEditor, {.file = project->directory() / *path}, project->directory());
     }
     ResourceCache& cache = context.session.resources();
     const ShaderData* shader = cache.find<ShaderData>(id);

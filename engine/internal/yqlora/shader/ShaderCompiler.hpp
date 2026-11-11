@@ -27,7 +27,8 @@ struct ShaderMessage {
     std::string text{};
 };
 
-// "file:line: text" - как у компиляторов, чтобы IDE и лог понимали одинаково.
+// "file:line: error: text" - как у GCC и Clang: лог редактора и IDE находят в
+// такой строке место и вид, как в выводе сборки скриптов.
 YQLORA_API std::string formatShaderMessage(const ShaderMessage& message);
 
 struct ShaderCompileResult {

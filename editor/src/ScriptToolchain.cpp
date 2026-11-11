@@ -96,10 +96,9 @@ std::optional<ScriptToolchain> loadScriptToolchain(const std::filesystem::path& 
 
 void applyOverrides(ScriptToolchain& toolchain, const ToolchainOverrides& overrides)
 {
-    overrideIfSet(toolchain.cmake, overrides.cmake);
-    overrideIfSet(toolchain.makeProgram, overrides.makeProgram);
-    overrideIfSet(toolchain.cCompiler, overrides.cCompiler);
-    overrideIfSet(toolchain.cxxCompiler, overrides.cxxCompiler);
+    for (const ToolchainOverrideField& field : kToolchainOverrideFields) {
+        overrideIfSet(toolchain.*field.recorded, overrides.*field.override);
+    }
 }
 
 } // namespace yqlora::editor

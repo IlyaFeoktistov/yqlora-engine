@@ -27,4 +27,12 @@ void EditorHost::showFolderDialog(
     m_app.showFolderDialog(start, std::move(callback));
 }
 
+void EditorHost::showFileDialog(
+    const std::filesystem::path& start,
+    std::function<void(std::optional<std::filesystem::path>)> callback
+) const
+{
+    m_app.showFileDialog(start, std::move(callback));
+}
+
 } // namespace yqlora::editor

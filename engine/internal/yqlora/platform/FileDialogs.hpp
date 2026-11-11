@@ -20,11 +20,13 @@ public:
     FileDialogs(const FileDialogs&) = delete;
     FileDialogs& operator=(const FileDialogs&) = delete;
 
-    // Диалог выбора папки. Ответ придёт в callback из deliver(), в главном
-    // потоке; nullopt, если выбор отменили или диалог недоступен.
+    // Диалоги выбора папки и файла. Ответ придёт в callback из deliver(), в
+    // главном потоке; nullopt, если выбор отменили или диалог недоступен.
     // Пока открыт один диалог, второй не открывается.
-    using FolderCallback = std::function<void(std::optional<std::filesystem::path>)>;
-    void showFolderDialog(const std::filesystem::path& start, FolderCallback callback);
+    using PathCallback = std::function<void(std::optional<std::filesystem::path>)>;
+    void showFolderDialog(const std::filesystem::path& start, PathCallback callback);
+    // start - папка или файл, с которого диалог начинает.
+    void showFileDialog(const std::filesystem::path& start, PathCallback callback);
 
     // Отдаёт готовый ответ диалога. Вызывается раз в кадр.
     void deliver();
@@ -32,10 +34,15 @@ public:
 private:
     // Диалог SDL может ответить из другого потока: ответ кладётся сюда,
     // а отдаётся в deliver().
-    struct FolderDialog;
+    struct Dialog;
+
+    // Место под ответ нового диалога; nullptr, если один уже открыт.
+    Dialog* begin(PathCallback callback);
+    // Ответ SDL, из любого потока.
+    static void onAnswer(void* userdata, const char* const* files, int filter);
 
     Window& m_window;
-    std::unique_ptr<FolderDialog> m_folderDialog;
+    std::unique_ptr<Dialog> m_dialog;
 };
 
 } // namespace yqlora

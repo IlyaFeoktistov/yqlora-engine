@@ -33,21 +33,10 @@ void forEachSnapField(Snap& snap, Visitor&& visit)
     visit(kScaleStepKey, snap.scaleStep);
     visit(kAlignToSurfaceKey, snap.alignToSurface);
 }
+constexpr const char* kCodeEditorKey = "codeEditor";
+constexpr const char* kProgramKey = "program";
+constexpr const char* kArgumentsKey = "arguments";
 constexpr const char* kToolchainKey = "toolchain";
-constexpr const char* kCmakeKey = "cmake";
-constexpr const char* kMakeProgramKey = "makeProgram";
-constexpr const char* kCCompilerKey = "cCompiler";
-constexpr const char* kCxxCompilerKey = "cxxCompiler";
-
-// Поля переопределений с их ключами: одно место и для чтения, и для записи.
-template <typename Overrides, typename Visitor>
-void forEachOverride(Overrides& overrides, Visitor&& visit)
-{
-    visit(kCmakeKey, overrides.cmake);
-    visit(kMakeProgramKey, overrides.makeProgram);
-    visit(kCCompilerKey, overrides.cCompiler);
-    visit(kCxxCompilerKey, overrides.cxxCompiler);
-}
 
 } // namespace
 
@@ -95,22 +84,30 @@ void EditorSettings::load()
         });
     }
     if (const auto it = json->find(kToolchainKey); it != json->end() && it->is_object()) {
-        forEachOverride(toolchain, [&](const char* key, std::filesystem::path& path) {
-            if (const auto value = it->find(key); value != it->end() && value->is_string()) {
-                path = fromUtf8(value->get<std::string>());
+        for (const ToolchainOverrideField& field : kToolchainOverrideFields) {
+            if (const auto value = it->find(field.key); value != it->end() && value->is_string()) {
+                toolchain.*field.override = fromUtf8(value->get<std::string>());
             }
-        });
+        }
+    }
+    if (const auto it = json->find(kCodeEditorKey); it != json->end() && it->is_object()) {
+        if (const auto value = it->find(kProgramKey); value != it->end() && value->is_string()) {
+            codeEditor.program = fromUtf8(value->get<std::string>());
+        }
+        if (const auto value = it->find(kArgumentsKey); value != it->end() && value->is_string()) {
+            codeEditor.arguments = value->get<std::string>();
+        }
     }
 }
 
 bool EditorSettings::save() const
 {
     nlohmann::json overrides = nlohmann::json::object();
-    forEachOverride(toolchain, [&](const char* key, const std::filesystem::path& path) {
-        if (!path.empty()) {
-            overrides[key] = toUtf8(path);
+    for (const ToolchainOverrideField& field : kToolchainOverrideFields) {
+        if (const std::filesystem::path& path = toolchain.*field.override; !path.empty()) {
+            overrides[field.key] = toUtf8(path);
         }
-    });
+    }
 
     nlohmann::json snapJson = nlohmann::json::object();
     forEachSnapField(snap, [&](const char* key, const auto& field) {
@@ -123,6 +120,11 @@ bool EditorSettings::save() const
         {kViewportShadowCascadesKey, viewportShadowCascades},
         {kSnapKey, snapJson},
         {kToolchainKey, overrides},
+        {kCodeEditorKey,
+         {
+             {kProgramKey, toUtf8(codeEditor.program)},
+             {kArgumentsKey, codeEditor.arguments},
+         }},
     };
     if (reparentKeepWorld) {
         json[kReparentKeepWorldKey] = *reparentKeepWorld == KeepWorld::Yes;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -41,6 +42,21 @@ std::filesystem::path sdkDirectory();
 
 // Читает sdk/toolchain.json. Нет файла или он повреждён - nullopt.
 std::optional<ScriptToolchain> loadScriptToolchain(const std::filesystem::path& sdk);
+
+// Поле переопределения и поле записи SDK, которое оно заменяет. key - имя в
+// файле настроек редактора и в ключе перевода подписи.
+struct ToolchainOverrideField {
+    const char* key;
+    std::filesystem::path ToolchainOverrides::* override;
+    std::filesystem::path ScriptToolchain::* recorded;
+};
+
+inline constexpr std::array kToolchainOverrideFields{
+    ToolchainOverrideField{"cmake", &ToolchainOverrides::cmake, &ScriptToolchain::cmake},
+    ToolchainOverrideField{"makeProgram", &ToolchainOverrides::makeProgram, &ScriptToolchain::makeProgram},
+    ToolchainOverrideField{"cCompiler", &ToolchainOverrides::cCompiler, &ScriptToolchain::cCompiler},
+    ToolchainOverrideField{"cxxCompiler", &ToolchainOverrides::cxxCompiler, &ScriptToolchain::cxxCompiler},
+};
 
 void applyOverrides(ScriptToolchain& toolchain, const ToolchainOverrides& overrides);
 

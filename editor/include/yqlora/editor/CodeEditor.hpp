@@ -1,6 +1,10 @@
 #pragma once
 
+#include "yqlora/editor/CompilerDiagnostics.hpp"
+#include "yqlora/platform/Process.hpp"
+
 #include <filesystem>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -16,7 +20,7 @@ struct CodeEditorSetting {
     // Шаблон аргументов: слова через пробел, "..." внутри слова - кусок с
     // пробелами. Метки {file}, {line}, {column}, {project} заменяются местом,
     // {{ и }} - сами скобки.
-    std::string arguments;
+    std::string arguments = "{file}";
 };
 
 // Место в файле. Строка и столбец с 1; 0 - не названы, подставляется 1.
@@ -56,6 +60,50 @@ struct CodeEditorArguments {
 // или скобка, нет {file}) - ошибка настройки, аргументов тогда нет.
 CodeEditorArguments expandCodeEditorArguments(
     std::string_view arguments,
+    const CodeLocation& location,
+    const std::filesystem::path& project
+);
+
+// Файл правят в программе для кода, а не открывают системой: исходники C++,
+// шейдеры и подключаемые в них файлы.
+bool isCodeFile(const std::filesystem::path& path);
+
+// Место, которое называет строка вывода компилятора или шейдера. Относительный
+// путь считается от directory. nullopt - места в строке нет или файла нет на
+// диске (встроенный файл движка "engine:...").
+std::optional<CodeLocation> diagnosticLocation(
+    const CompilerDiagnostic& diagnostic,
+    const std::filesystem::path& directory
+);
+
+// Как открыть место: программой из настройки, системой (программа не
+// задана, строки она не знает) или никак (шаблон с ошибкой).
+struct CodeEditorOpening {
+    enum class Way {
+        Program,
+        System,
+        Error,
+    };
+
+    Way way = Way::System;
+    // Way::Program: запуск; рабочая папка - папка проекта.
+    platform::ProcessOptions process;
+    // Way::System: файл без строки.
+    std::filesystem::path file;
+    // Way::Error: как в CodeEditorArguments.
+    std::string error;
+    std::string detail;
+};
+
+CodeEditorOpening codeEditorOpening(
+    const CodeEditorSetting& setting,
+    const CodeLocation& location,
+    const std::filesystem::path& project
+);
+
+// Открывает место по codeEditorOpening; что не вышло - в лог. false, если не вышло.
+bool openInCodeEditor(
+    const CodeEditorSetting& setting,
     const CodeLocation& location,
     const std::filesystem::path& project
 );

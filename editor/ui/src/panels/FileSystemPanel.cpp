@@ -9,7 +9,9 @@
 
 #include "yqlora/core/AppPaths.hpp"
 #include "yqlora/core/Utf8Path.hpp"
+#include "yqlora/editor/CodeEditor.hpp"
 #include "yqlora/editor/EditorSession.hpp"
+#include "yqlora/editor/EditorSettings.hpp"
 #include "yqlora/editor/PrefabEditing.hpp"
 #include "yqlora/editor/ResourceChoices.hpp"
 #include "yqlora/i18n/Translate.hpp"
@@ -146,6 +148,11 @@ void FileSystemPanel::draw(EditorContext& context)
 
     if (m_openRequest) {
         context.openScene(*std::exchange(m_openRequest, std::nullopt));
+    }
+    if (m_codeRequest && session.project()) {
+        const std::filesystem::path& directory = session.project()->directory();
+        const CodeLocation location{.file = directory / *std::exchange(m_codeRequest, std::nullopt)};
+        openInCodeEditor(context.settings.codeEditor, location, directory);
     }
 }
 
@@ -317,6 +324,8 @@ void FileSystemPanel::drawEntry(
     if (!entry.directory && !nested && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
         if (ProjectFiles::opensAsScene(entry.path)) {
             m_openRequest = entry.path;
+        } else if (isCodeFile(entry.path)) {
+            m_codeRequest = entry.path;
         } else {
             platform::openWithSystem(session.project()->directory() / entry.path);
         }
@@ -372,6 +381,11 @@ void FileSystemPanel::drawContextMenu(const ProjectFiles::Entry& entry, EditorSe
         if (item(icons::kPrefab, "editor.files.open")) {
             m_openRequest = entry.path;
         }
+    } else if (isCodeFile(entry.path)) {
+        if (item(icons::kCodeFile, "editor.files.open")) {
+            m_codeRequest = entry.path;
+        }
+        ImGui::Separator();
     }
     // Вариант - у префаба и у модели: их экземпляры ставятся в сцены.
     const std::string_view kind = entry.directory ? std::string_view() : session.resources().kindOf(entry.path);

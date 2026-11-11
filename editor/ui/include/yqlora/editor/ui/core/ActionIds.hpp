@@ -9,6 +9,7 @@ inline constexpr const char* kProjectSettings = "project.settings";
 inline constexpr const char* kQuit = "app.quit";
 inline constexpr const char* kUndo = "edit.undo";
 inline constexpr const char* kRedo = "edit.redo";
+inline constexpr const char* kEditorSettings = "edit.editorSettings";
 inline constexpr const char* kMaximizePanel = "view.maximizePanel";
 inline constexpr const char* kTogglePlay = "play.toggle";
 inline constexpr const char* kPause = "play.pause";

@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <deque>
+#include <filesystem>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -22,6 +23,9 @@ struct LogEntry {
     log::Level level = log::Level::Info;
     LogSource source = LogSource::Engine;
     std::string message;
+    // Откуда считаются относительные пути "файл:строка" в тексте; пусто - от
+    // папки проекта.
+    std::filesystem::path directory;
 };
 
 inline constexpr std::size_t kLogLevelCount = static_cast<std::size_t>(log::Level::Error) + 1;

@@ -113,8 +113,12 @@ public:
     // Пустая строка - только название.
     void setTitleDetail(std::string detail);
 
-    // См. FileDialogs::showFolderDialog.
+    // См. FileDialogs::showFolderDialog и showFileDialog.
     void showFolderDialog(
+        const std::filesystem::path& start,
+        std::function<void(std::optional<std::filesystem::path>)> callback
+    );
+    void showFileDialog(
         const std::filesystem::path& start,
         std::function<void(std::optional<std::filesystem::path>)> callback
     );

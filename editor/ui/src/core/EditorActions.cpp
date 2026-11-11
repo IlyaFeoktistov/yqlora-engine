@@ -33,6 +33,7 @@ void registerEditorActions(ActionRegistry& registry, EditorSession& session, Edi
     registry.add(actions::kProjectSettings, "editor.menu.projectSettings")
         .enabledWhen(hasProject)
         .onRun(std::move(handlers.openProjectSettings));
+    registry.add(actions::kEditorSettings, "editor.menu.editorSettings").onRun(std::move(handlers.openEditorSettings));
     registry.add(actions::kQuit, "editor.menu.quit").onRun(std::move(handlers.quit));
 
     registry.add(actions::kUndo, "editor.menu.undo")

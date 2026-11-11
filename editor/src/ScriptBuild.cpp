@@ -78,6 +78,7 @@ public:
     BuildMessages(LogBuffer& log, const ScriptBuildSetup& setup)
         : m_log(log)
         , m_configuration(setup.configuration)
+        , m_directory(scriptBuildDirectory(setup))
     {
         if (!setup.quiet) {
             announce();
@@ -92,7 +93,12 @@ public:
     // Строка лога как есть.
     void add(log::Level level, std::string message)
     {
-        m_log.add({.level = level, .source = LogSource::Build, .message = std::move(message)});
+        m_log.add({
+            .level = level,
+            .source = LogSource::Build,
+            .message = std::move(message),
+            .directory = m_directory,
+        });
     }
 
     // Строка о сборке: перед первой - начало сборки.
@@ -113,6 +119,8 @@ private:
 
     LogBuffer& m_log;
     std::string m_configuration;
+    // Ninja запускает компилятор в папке сборки: относительные пути вывода - от неё.
+    fs::path m_directory;
     bool m_announced = false;
 };
 

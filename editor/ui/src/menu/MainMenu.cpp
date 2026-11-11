@@ -201,6 +201,8 @@ void drawMainMenu(const MainMenuContext& context)
         context.actions.menuItem(actions::kRedo);
         ImGui::Separator();
         drawReparentMenu(context.settings);
+        ImGui::Separator();
+        context.actions.menuItem(actions::kEditorSettings);
         ImGui::EndMenu();
     }
     if (context.session.project() && ImGui::BeginMenu(tr("editor.menu.project").c_str())) {

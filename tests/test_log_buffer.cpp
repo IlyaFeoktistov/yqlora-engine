@@ -17,7 +17,7 @@ namespace {
 
 LogEntry entry(log::Level level, std::string message)
 {
-    return {.level = level, .source = LogSource::Build, .message = std::move(message)};
+    return {.level = level, .source = LogSource::Build, .message = std::move(message), .directory = {}};
 }
 
 } // namespace

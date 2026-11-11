@@ -95,6 +95,8 @@ private:
     bool m_dirty = true;
     bool m_wasFocused = false;
     std::optional<std::filesystem::path> m_openRequest;
+    // Файл кода, который открыть в редакторе кода в конце кадра (от папки проекта).
+    std::optional<std::filesystem::path> m_codeRequest;
     std::vector<ResourceId> m_marked;
     ReleaseClick m_release;
     ResourceId m_pinged = 0;

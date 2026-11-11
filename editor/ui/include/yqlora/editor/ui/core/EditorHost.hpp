@@ -29,6 +29,10 @@ public:
         const std::filesystem::path& start,
         std::function<void(std::optional<std::filesystem::path>)> callback
     ) const;
+    void showFileDialog(
+        const std::filesystem::path& start,
+        std::function<void(std::optional<std::filesystem::path>)> callback
+    ) const;
 
 private:
     Application& m_app;

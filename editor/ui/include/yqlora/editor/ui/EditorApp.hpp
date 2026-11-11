@@ -4,6 +4,7 @@
 #include "yqlora/editor/ui/core/EditorHost.hpp"
 #include "yqlora/editor/ui/core/EditorPanel.hpp"
 #include "yqlora/editor/ui/dialogs/UnsavedChangesDialog.hpp"
+#include "yqlora/editor/ui/panels/EditorSettingsPanel.hpp"
 #include "yqlora/editor/ui/panels/LogPanel.hpp"
 #include "yqlora/editor/ui/panels/ProjectManagerPanel.hpp"
 #include "yqlora/editor/ui/panels/ProjectSettingsPanel.hpp"
@@ -71,7 +72,8 @@ private:
     log::Subscription m_logFeed = feedEngineLog(m_log);
     // Пишет в m_log из своего потока, поэтому объявлена после него.
     ScriptBuild m_scriptBuild{m_log};
-    // Из SDK рядом с редактором с переопределениями из настроек, см. onStart.
+    // Из SDK рядом с редактором, без переопределений из настроек: они
+    // накладываются при каждой сборке (scriptBuildSetup).
     std::optional<ScriptToolchain> m_toolchain;
     // Последняя законченная сборка не прошла: в главном меню, пока следующая не пройдёт.
     bool m_scriptsFailed = false;
@@ -89,6 +91,8 @@ private:
     std::vector<std::unique_ptr<EditorPanel>> m_panels;
     // Лежит в m_panels; отдельно - чтобы открывать его из меню.
     ProjectSettingsPanel* m_projectSettings = nullptr;
+    // Лежит в m_panels; отдельно - чтобы открывать его из меню.
+    EditorSettingsPanel* m_editorSettings = nullptr;
     // Лежит в m_panels; отдельно - чтобы открывать её по счётчику ошибок.
     LogPanel* m_logPanel = nullptr;
     // Развёрнута на всё окно; nullptr - обычная раскладка. Лежит в m_panels.

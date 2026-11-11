@@ -5,6 +5,7 @@
 #include "yqlora/editor/LogBuffer.hpp"
 
 #include <cstddef>
+#include <string_view>
 #include <vector>
 
 namespace yqlora::editor {
@@ -13,7 +14,8 @@ struct EditorColors;
 
 // Лог движка и сборки скриптов внизу редактора: фильтр по уровню, поиск,
 // очистка, копирование. Пока список прокручен до конца, он следует за
-// новыми записями.
+// новыми записями. Строка с местом "файл:строка" открывает его щелчком в
+// редакторе кода.
 class LogPanel final : public EditorPanel {
 public:
     explicit LogPanel(LogBuffer& buffer)
@@ -42,7 +44,9 @@ public:
 
 private:
     void drawToolbar(const EditorColors& colors);
-    void drawEntries(const EditorColors& colors);
+    void drawEntries(EditorContext& context);
+    // Одна строка текста записи; с местом - щелчок открывает его.
+    static void drawLine(EditorContext& context, const LogEntry& entry, std::string_view line);
 
     LogBuffer& m_buffer;
     LogFilter m_filter;

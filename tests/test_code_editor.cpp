@@ -1,8 +1,11 @@
 #include <doctest/doctest.h>
 
+#include <yqlora/core/Utf8Path.hpp>
 #include <yqlora/editor/CodeEditor.hpp>
+#include <yqlora/shader/ShaderCompiler.hpp>
 
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -85,4 +88,69 @@ TEST_CASE("codeEditorPresets: every ready row names a program and has a valid te
         CHECK(result.ok());
         CHECK_FALSE(result.arguments.empty());
     }
+}
+
+TEST_CASE("codeEditorOpening: a diagnostic opens at its line and column")
+{
+    const auto directory = std::filesystem::temp_directory_path() / "yqlora_tests" / "code editor" / "build";
+    std::filesystem::create_directories(directory);
+    const auto source = directory.parent_path() / "Player.cpp";
+    std::ofstream(source) << "int main() {}\n";
+
+    // Ninja печатает путь от папки сборки.
+    const CompilerDiagnostic diagnostic = parseCompilerOutput("../Player.cpp:12:5: error: expected ';'");
+    const auto location = diagnosticLocation(diagnostic, directory);
+    REQUIRE(location);
+    CHECK(location->file == source.lexically_normal());
+    CHECK(location->line == 12);
+    CHECK(location->column == 5);
+
+    const CodeEditorSetting setting{.program = "code", .arguments = "--goto {file}:{line}:{column}"};
+    const auto opening = codeEditorOpening(setting, *location, kProject);
+    REQUIRE(opening.way == CodeEditorOpening::Way::Program);
+    CHECK(opening.process.program == "code");
+    CHECK(opening.process.workingDirectory == kProject);
+    CHECK(opening.process.arguments == std::vector<std::string>{"--goto", toUtf8(source.lexically_normal()) + ":12:5"});
+}
+
+TEST_CASE("diagnosticLocation: no place or no file on disk gives nothing to open")
+{
+    CHECK_FALSE(diagnosticLocation(parseCompilerOutput("[2/3] Linking CXX shared library"), {}));
+    CHECK_FALSE(diagnosticLocation(parseCompilerOutput("engine:include/yqlora/uniforms.glsl:3: error: x"), {}));
+}
+
+TEST_CASE("codeEditorOpening: an empty program falls back to the system, a broken template is an error")
+{
+    const CodeLocation place = location("/home/me/a.cpp", 3, 1);
+    const auto system = codeEditorOpening({}, place, kProject);
+    CHECK(system.way == CodeEditorOpening::Way::System);
+    CHECK(system.file == place.file);
+
+    const auto broken = codeEditorOpening({.program = "code", .arguments = "{row}"}, place, kProject);
+    CHECK(broken.way == CodeEditorOpening::Way::Error);
+    CHECK(broken.error == "editor.codeEditor.unknownPlaceholder");
+}
+
+TEST_CASE("isCodeFile: C++ sources and shaders open in the code editor, other files with the system")
+{
+    CHECK(isCodeFile("scripts/Player.cpp"));
+    CHECK(isCodeFile("scripts/Player.hpp"));
+    CHECK(isCodeFile("shaders/water.yshader"));
+    CHECK(isCodeFile("shaders/noise.glsl"));
+    CHECK_FALSE(isCodeFile("models/tree.glb"));
+    CHECK_FALSE(isCodeFile("textures/bark.png"));
+}
+
+TEST_CASE("diagnosticLocation: a shader error line names its file from the project folder")
+{
+    const auto project = std::filesystem::temp_directory_path() / "yqlora_tests" / "code editor" / "project";
+    std::filesystem::create_directories(project / "shaders");
+    std::ofstream(project / "shaders" / "water.yshader") << "void main() {}\n";
+
+    // Строка в том виде, в каком компилятор шейдеров пишет её в лог.
+    const ShaderMessage message{.file = "shaders/water.yshader", .line = 7, .text = "'x' : undeclared identifier"};
+    const auto location = diagnosticLocation(parseCompilerOutput(formatShaderMessage(message)), project);
+    REQUIRE(location);
+    CHECK(location->file == (project / "shaders" / "water.yshader").lexically_normal());
+    CHECK(location->line == 7);
 }

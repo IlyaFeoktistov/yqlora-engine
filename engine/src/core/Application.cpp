@@ -138,6 +138,14 @@ void Application::showFolderDialog(
     m_dialogs->showFolderDialog(start, std::move(callback));
 }
 
+void Application::showFileDialog(
+    const std::filesystem::path& start,
+    std::function<void(std::optional<std::filesystem::path>)> callback
+)
+{
+    m_dialogs->showFileDialog(start, std::move(callback));
+}
+
 void Application::setMouseWrapping(bool wrapping)
 {
     m_window->setMouseWrapping(wrapping);

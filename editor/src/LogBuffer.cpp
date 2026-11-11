@@ -52,7 +52,13 @@ bool LogFilter::matches(const LogEntry& entry) const
 log::Subscription feedEngineLog(LogBuffer& buffer)
 {
     return log::subscribe([&buffer](log::Level level, std::string_view message) {
-        buffer.add({.level = level, .source = LogSource::Engine, .message = std::string(message)});
+        // Пути в сообщениях движка - от папки проекта.
+        buffer.add({
+            .level = level,
+            .source = LogSource::Engine,
+            .message = std::string(message),
+            .directory = {},
+        });
     });
 }
 

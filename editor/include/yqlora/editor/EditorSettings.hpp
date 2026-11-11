@@ -1,5 +1,6 @@
 #pragma once
 
+#include "yqlora/editor/CodeEditor.hpp"
 #include "yqlora/editor/ScriptToolchain.hpp"
 #include "yqlora/editor/Snapping.hpp"
 #include "yqlora/scene/Node.hpp"
@@ -35,9 +36,10 @@ public:
     std::optional<KeepWorld> reparentKeepWorld;
     // Привязка при перемещении: кнопки на панели окна вида.
     SnapSettings snap;
-    // Пути вместо записанных движком в sdk/toolchain.json; в интерфейсе их нет,
-    // только в файле.
+    // Пути вместо записанных движком в sdk/toolchain.json.
     ToolchainOverrides toolchain;
+    // Где открываются файлы кода и места ошибок.
+    CodeEditorSetting codeEditor;
 
 private:
     std::filesystem::path m_file;

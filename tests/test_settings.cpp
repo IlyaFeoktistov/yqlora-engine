@@ -91,14 +91,22 @@ TEST_CASE("EditorSettings: defaults without a file, the choice survives a restar
 
     CHECK_FALSE(fresh.reparentKeepWorld);
 
+    CHECK(fresh.codeEditor.program.empty());
+    CHECK(fresh.codeEditor.arguments == "{file}");
+
     fresh.cameraPreview = false;
     fresh.reparentKeepWorld = KeepWorld::Yes;
+    fresh.codeEditor = {.program = "/opt/my editor/code", .arguments = "--goto {file}:{line}"};
+    fresh.toolchain.cmake = "/opt/cmake/bin/cmake";
     REQUIRE(fresh.save());
 
     editor::EditorSettings reloaded(file);
     reloaded.load();
     CHECK_FALSE(reloaded.cameraPreview);
     CHECK(reloaded.reparentKeepWorld == KeepWorld::Yes);
+    CHECK(reloaded.codeEditor.program == "/opt/my editor/code");
+    CHECK(reloaded.codeEditor.arguments == "--goto {file}:{line}");
+    CHECK(reloaded.toolchain.cmake == "/opt/cmake/bin/cmake");
 
     // Снова "спрашивать": ключа в файле нет.
     reloaded.reparentKeepWorld.reset();

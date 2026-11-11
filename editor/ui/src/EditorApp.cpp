@@ -5,6 +5,7 @@
 #include "yqlora/editor/ui/core/EditorActions.hpp"
 #include "yqlora/editor/ui/menu/MainMenu.hpp"
 
+#include "yqlora/editor/ui/panels/EditorSettingsPanel.hpp"
 #include "yqlora/editor/ui/panels/FileSystemPanel.hpp"
 #include "yqlora/editor/ui/panels/GamePanel.hpp"
 #include "yqlora/editor/ui/panels/InspectorPanel.hpp"
@@ -61,6 +62,9 @@ EditorApp::EditorApp()
     auto projectSettings = std::make_unique<ProjectSettingsPanel>();
     m_projectSettings = projectSettings.get();
     m_panels.push_back(std::move(projectSettings));
+    auto editorSettings = std::make_unique<EditorSettingsPanel>(m_toolchain);
+    m_editorSettings = editorSettings.get();
+    m_panels.push_back(std::move(editorSettings));
 }
 
 EditorContext EditorApp::context()
@@ -105,9 +109,6 @@ void EditorApp::onStart()
     m_settings = std::make_unique<EditorSettings>(userData / kEditorSettingsFile);
     m_settings->load();
     m_toolchain = loadScriptToolchain(sdkDirectory());
-    if (m_toolchain) {
-        applyOverrides(*m_toolchain, m_settings->toolchain);
-    }
     m_projectManager = std::make_unique<ProjectManagerPanel>(*m_projects, m_theme);
 
     registerEditorActions(
@@ -135,6 +136,10 @@ void EditorApp::onStart()
             .openProjectSettings =
                 [this] {
                     m_projectSettings->open();
+                },
+            .openEditorSettings =
+                [this] {
+                    m_editorSettings->open();
                 },
             .toggleMaximizedPanel =
                 [this] {
@@ -240,11 +245,14 @@ std::optional<ScriptBuildSetup> EditorApp::scriptBuildSetup(const Project& proje
         return std::nullopt;
     }
     const ScriptConfiguration configuration = project.settings().get<ScriptsSettings>().configuration;
+    // Переопределения - каждый раз заново: их меняют в настройках редактора без перезапуска.
+    ScriptToolchain toolchain = *m_toolchain;
+    applyOverrides(toolchain, m_settings->toolchain);
 
     return ScriptBuildSetup{
         .projectDirectory = project.directory(),
         .sdkDirectory = sdkDirectory(),
-        .toolchain = *m_toolchain,
+        .toolchain = std::move(toolchain),
         .configuration = std::string(enumName(configuration)),
         .quiet = quiet,
     };

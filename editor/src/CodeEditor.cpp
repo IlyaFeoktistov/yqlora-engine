@@ -1,10 +1,16 @@
 #include "yqlora/editor/CodeEditor.hpp"
 
+#include "yqlora/core/Log.hpp"
 #include "yqlora/core/Utf8Path.hpp"
+#include "yqlora/i18n/Translate.hpp"
+#include "yqlora/platform/Platform.hpp"
+#include "yqlora/project/Project.hpp"
+#include "yqlora/shader/ShaderData.hpp"
 
 #include <algorithm>
 #include <array>
 #include <optional>
+#include <system_error>
 
 namespace yqlora::editor {
 
@@ -20,6 +26,10 @@ constexpr const char* kUnclosedBraceError = "editor.codeEditor.unclosedBrace";
 constexpr const char* kStrayBraceError = "editor.codeEditor.strayBrace";
 constexpr const char* kUnclosedQuoteError = "editor.codeEditor.unclosedQuote";
 constexpr const char* kNoFileError = "editor.codeEditor.noFile";
+
+// Подключаемые файлы шейдеров (#include): имя расширения выбирает автор,
+// это - принятое для GLSL.
+constexpr std::string_view kShaderIncludeExtension = ".glsl";
 
 constexpr char kOpenBrace = '{';
 constexpr char kCloseBrace = '}';
@@ -149,6 +159,88 @@ CodeEditorArguments expandCodeEditorArguments(
     }
 
     return result;
+}
+
+bool isCodeFile(const std::filesystem::path& path)
+{
+    const std::filesystem::path extension = path.extension();
+
+    return Project::isSource(path) || extension == kShaderFileExtension || extension == kShaderIncludeExtension;
+}
+
+std::optional<CodeLocation> diagnosticLocation(
+    const CompilerDiagnostic& diagnostic,
+    const std::filesystem::path& directory
+)
+{
+    if (diagnostic.file.empty()) {
+        return std::nullopt;
+    }
+    std::filesystem::path file = fromUtf8(diagnostic.file);
+    if (file.is_relative()) {
+        file = directory / file;
+    }
+    file = file.lexically_normal();
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(file, ec)) {
+        return std::nullopt;
+    }
+
+    return CodeLocation{.file = std::move(file), .line = diagnostic.line, .column = diagnostic.column};
+}
+
+CodeEditorOpening codeEditorOpening(
+    const CodeEditorSetting& setting,
+    const CodeLocation& location,
+    const std::filesystem::path& project
+)
+{
+    CodeEditorOpening opening;
+    if (setting.program.empty()) {
+        opening.way = CodeEditorOpening::Way::System;
+        opening.file = location.file;
+
+        return opening;
+    }
+    CodeEditorArguments arguments = expandCodeEditorArguments(setting.arguments, location, project);
+    if (!arguments.ok()) {
+        opening.way = CodeEditorOpening::Way::Error;
+        opening.error = std::move(arguments.error);
+        opening.detail = std::move(arguments.detail);
+
+        return opening;
+    }
+    opening.way = CodeEditorOpening::Way::Program;
+    opening.process = {
+        .program = setting.program,
+        .arguments = std::move(arguments.arguments),
+        .workingDirectory = project,
+    };
+
+    return opening;
+}
+
+bool openInCodeEditor(
+    const CodeEditorSetting& setting,
+    const CodeLocation& location,
+    const std::filesystem::path& project
+)
+{
+    const CodeEditorOpening opening = codeEditorOpening(setting, location, project);
+    switch (opening.way) {
+    case CodeEditorOpening::Way::System: return platform::openWithSystem(opening.file);
+    case CodeEditorOpening::Way::Error:
+        log::error("Code editor arguments: {} {}", tr(opening.error), opening.detail);
+
+        return false;
+    case CodeEditorOpening::Way::Program: break;
+    }
+    const platform::LaunchResult launched = platform::launchDetached(opening.process);
+    if (!launched.started) {
+        log::error("Cannot run code editor '{}': {}", toUtf8(opening.process.program), launched.error);
+    }
+
+    return launched.started;
 }
 
 } // namespace yqlora::editor

@@ -3,10 +3,16 @@
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 
+#include "yqlora/editor/CodeEditor.hpp"
+#include "yqlora/editor/CompilerDiagnostics.hpp"
+#include "yqlora/editor/EditorSession.hpp"
+#include "yqlora/editor/EditorSettings.hpp"
+
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
 #include <array>
+#include <filesystem>
 #include <string>
 
 namespace yqlora::editor {
@@ -64,7 +70,7 @@ void LogPanel::draw(EditorContext& context)
     const EditorColors& colors = context.theme.colors();
     drawToolbar(colors);
     ImGui::Separator();
-    drawEntries(colors);
+    drawEntries(context);
     ImGui::End();
 }
 
@@ -107,8 +113,35 @@ void LogPanel::drawToolbar(const EditorColors& colors)
     ImGui::InputTextWithHint("##search", hint.c_str(), &m_filter.text);
 }
 
-void LogPanel::drawEntries(const EditorColors& colors)
+void LogPanel::drawLine(EditorContext& context, const LogEntry& entry, std::string_view line)
 {
+    ImGui::TextUnformatted(line.data(), line.data() + line.size());
+    // Место ищется только под курсором: разбор и проверка файла на диске - не каждой строке каждый кадр.
+    if (!ImGui::IsItemHovered()) {
+        return;
+    }
+    const auto& project = context.session.project();
+    const std::filesystem::path projectDirectory = project ? project->directory() : std::filesystem::path();
+    const auto location = diagnosticLocation(
+        parseCompilerOutput(line),
+        entry.directory.empty() ? projectDirectory : entry.directory
+    );
+    if (!location) {
+        return;
+    }
+    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const ImVec2 max = ImGui::GetItemRectMax();
+    ImGui::GetWindowDrawList()->AddLine(ImVec2(min.x, max.y), max, ImGui::GetColorU32(ImGuiCol_Text));
+    ImGui::SetTooltip("%s", tr("editor.log.openCode").c_str());
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        openInCodeEditor(context.settings.codeEditor, *location, projectDirectory);
+    }
+}
+
+void LogPanel::drawEntries(EditorContext& context)
+{
+    const EditorColors& colors = context.theme.colors();
     m_shown.clear();
     const auto& entries = m_buffer.entries();
     for (std::size_t i = 0; i < entries.size(); ++i) {
@@ -139,7 +172,18 @@ void LogPanel::drawEntries(const EditorColors& colors)
             ImGui::PushStyleColor(ImGuiCol_Text, colorOf(entry.level, colors));
             ImGui::TextUnformatted(iconOf(entry.level));
             ImGui::SameLine();
-            ImGui::TextUnformatted(entry.message.c_str());
+            // Строки записи по одной: место открывает своя строка (ошибок шейдера в записи несколько).
+            ImGui::BeginGroup();
+            std::string_view rest = entry.message;
+            while (true) {
+                const std::size_t end = rest.find('\n');
+                drawLine(context, entry, rest.substr(0, end));
+                if (end == std::string_view::npos) {
+                    break;
+                }
+                rest.remove_prefix(end + 1);
+            }
+            ImGui::EndGroup();
             ImGui::PopStyleColor();
             if (ImGui::BeginPopupContextItem("##entry")) {
                 if (ImGui::MenuItem(tr("editor.log.copy").c_str())) {

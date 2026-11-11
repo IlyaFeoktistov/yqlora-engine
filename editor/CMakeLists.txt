@@ -113,6 +113,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/panels/LogPanel.cpp
     ui/src/panels/ProjectManagerPanel.cpp
     ui/src/panels/ProjectSettingsPanel.cpp
+    ui/src/panels/EditorSettingsPanel.cpp
     ui/src/panels/ResourceInspector.cpp
     ui/src/panels/SceneTreePanel.cpp
     ui/src/panels/ViewportPanel.cpp
