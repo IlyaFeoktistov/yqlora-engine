@@ -11,6 +11,8 @@ std::span<const BuiltinMesh> builtinMeshes()
         {builtin::kCubeMesh, "cube", &makeCube},
         {builtin::kSphereMesh, "sphere", &makeSphere},
         {builtin::kPlaneMesh, "plane", &makePlane},
+        {builtin::kCapsuleMesh, "capsule", &makeCapsule},
+        {builtin::kCylinderMesh, "cylinder", &makeCylinder},
     };
 
     return meshes;

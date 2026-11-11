@@ -73,6 +73,20 @@ TEST_CASE("MeshData: builtin meshes are valid and face outwards")
     CHECK(cache.find<MeshData>(builtin::kFirstProjectId) == nullptr);
 }
 
+TEST_CASE("MeshData: the builtin capsule and cylinder have the size of the default colliders")
+{
+    ResourceCache cache;
+    for (const ResourceId id : {builtin::kCapsuleMesh, builtin::kCylinderMesh}) {
+        CAPTURE(id);
+        const MeshData* mesh = cache.find<MeshData>(id);
+        REQUIRE(mesh);
+        CHECK(mesh->bounds.min.x == doctest::Approx(-0.5f));
+        CHECK(mesh->bounds.max.z == doctest::Approx(0.5f));
+        CHECK(mesh->bounds.min.y == doctest::Approx(-1.0f));
+        CHECK(mesh->bounds.max.y == doctest::Approx(1.0f));
+    }
+}
+
 TEST_CASE("FrameBuilder: every Node3D with a MeshRenderer and a known mesh becomes a draw item")
 {
     Scene scene{EngineServices::none()};

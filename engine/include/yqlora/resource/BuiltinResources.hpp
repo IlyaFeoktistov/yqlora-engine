@@ -11,6 +11,8 @@ namespace yqlora::builtin {
 inline constexpr ResourceId kCubeMesh = 1;
 inline constexpr ResourceId kSphereMesh = 2;
 inline constexpr ResourceId kPlaneMesh = 3;
+inline constexpr ResourceId kCapsuleMesh = 4;
+inline constexpr ResourceId kCylinderMesh = 5;
 
 // Освещённый шейдер PBR, с которого начинается каждый новый материал.
 inline constexpr ResourceId kStandardShader = 0x101;
