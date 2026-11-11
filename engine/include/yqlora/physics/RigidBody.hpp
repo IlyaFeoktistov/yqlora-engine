@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
+#include "yqlora/reflection/Record.hpp"
 #include "yqlora/scene/Component.hpp"
 
 #include <cstdint>
@@ -15,6 +16,16 @@ enum class BodyMotion : std::uint8_t {
     Static,
     Kinematic,
     Dynamic,
+};
+
+// Оси мира, по которым тело не движется (или вокруг которых не вращается):
+// игра в плоскости, дверь, которая только поворачивается.
+struct AxisLocks {
+    bool x = false;
+    bool y = false;
+    bool z = false;
+
+    bool operator==(const AxisLocks&) const = default;
 };
 
 // Самая малая масса тела, кг: у тела с нулевой массой нет инерции.
@@ -76,6 +87,39 @@ public:
 
     void setInterpolation(bool interpolation);
 
+    // Быстрое маленькое тело (пуля, мяч) проверяется по всему пути за шаг,
+    // поэтому не проскакивает тонкую стену. Дороже обычного.
+    bool continuousCollision() const
+    {
+        return m_continuousCollision;
+    }
+
+    void setContinuousCollision(bool continuous);
+
+    // Запрещённые оси мира. Запрещено всё - тело неподвижно, и лог говорит
+    // об этом один раз.
+    const AxisLocks& lockPosition() const
+    {
+        return m_lockPosition;
+    }
+
+    const AxisLocks& lockRotation() const
+    {
+        return m_lockRotation;
+    }
+
+    void setLockPosition(const AxisLocks& locks);
+    void setLockRotation(const AxisLocks& locks);
+
+    // Тело начинает спящим: не падает и не считается, пока его не тронут
+    // (груда ящиков, которая стоит до первого удара).
+    bool startAsleep() const
+    {
+        return m_startAsleep;
+    }
+
+    void setStartAsleep(bool asleep);
+
 protected:
     void onEnterScene() override;
     void onExitScene() override;
@@ -90,8 +134,19 @@ private:
     float m_angularDamping = kDefaultBodyDamping;
     float m_gravityScale = 1.0f;
     bool m_interpolation = true;
+    bool m_continuousCollision = false;
+    AxisLocks m_lockPosition;
+    AxisLocks m_lockRotation;
+    bool m_startAsleep = false;
 };
 
 } // namespace yqlora
 
 YQLORA_ENUM_NAMES(yqlora::BodyMotion, "Static", "Kinematic", "Dynamic")
+
+YQLORA_RECORD(
+    yqlora::AxisLocks,
+    field("x", &yqlora::AxisLocks::x),
+    field("y", &yqlora::AxisLocks::y),
+    field("z", &yqlora::AxisLocks::z)
+)

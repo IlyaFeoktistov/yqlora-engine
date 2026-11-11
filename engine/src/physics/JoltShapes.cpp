@@ -11,6 +11,7 @@
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/EmptyShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 
@@ -44,6 +45,9 @@ JPH::RefConst<JPH::Shape> created(const JPH::ShapeSettings& settings)
 }
 
 struct ShapeOf {
+    const MeshShapeSource& meshes;
+    Vec3 scale;
+
     JPH::RefConst<JPH::Shape> operator()(const BoxShape& box) const
     {
         const float smallest = std::min({box.halfExtents.x, box.halfExtents.y, box.halfExtents.z});
@@ -71,6 +75,16 @@ struct ShapeOf {
 
         return created(JPH::CylinderShapeSettings(cylinder.halfHeight, cylinder.radius, convexRadius(smallest)));
     }
+
+    JPH::RefConst<JPH::Shape> operator()(const MeshShape& mesh) const
+    {
+        JPH::RefConst<JPH::Shape> shape = meshes(mesh.mesh, mesh.convex);
+        if (!shape || scale == Vec3(1.0f)) {
+            return shape;
+        }
+
+        return created(JPH::ScaledShapeSettings(shape, toJolt(scale)));
+    }
 };
 
 bool atOrigin(const PlacedShape& placed)
@@ -80,11 +94,11 @@ bool atOrigin(const PlacedShape& placed)
 
 } // namespace
 
-JPH::RefConst<JPH::Shape> joltBodyShape(std::span<const PlacedShape> shapes)
+JPH::RefConst<JPH::Shape> joltBodyShape(std::span<const PlacedShape> shapes, const MeshShapeSource& meshes)
 {
     std::vector<std::pair<const PlacedShape*, JPH::RefConst<JPH::Shape>>> made;
     for (const PlacedShape& placed : shapes) {
-        if (JPH::RefConst<JPH::Shape> shape = std::visit(ShapeOf{}, placed.shape)) {
+        if (JPH::RefConst<JPH::Shape> shape = std::visit(ShapeOf{meshes, placed.scale}, placed.shape)) {
             made.emplace_back(&placed, std::move(shape));
         }
     }

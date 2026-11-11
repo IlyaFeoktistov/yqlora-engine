@@ -3,6 +3,7 @@
 // Только для кода движка, который включает Jolt (Jolt.h - раньше этого файла).
 
 #include "yqlora/physics/BodyPose.hpp"
+#include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/scene/NodeId.hpp"
 #include "yqlora/scene/ObjectId.hpp"
 
@@ -23,7 +24,9 @@ class BodyInterface;
 namespace yqlora {
 
 class Component;
+class MeshShapeCache;
 class Node;
+class ResourceCache;
 class Scene;
 
 // Тела Jolt вслед за деревом сцены. Хозяин тела - узел: с RigidBody (тело
@@ -33,7 +36,7 @@ class Scene;
 // перестраиваются в flush, перед шагом. Устройство - docs/architecture/physics.md.
 class PhysicsBodies {
 public:
-    PhysicsBodies(Scene& scene, JPH::BodyInterface& bodies);
+    PhysicsBodies(Scene& scene, JPH::BodyInterface& bodies, MeshShapeCache& meshShapes);
     ~PhysicsBodies();
 
     PhysicsBodies(const PhysicsBodies&) = delete;
@@ -45,7 +48,8 @@ public:
     void componentLeft(const Component& component);
 
     // Перестраивает изменённые тела и те, у которых дочерний коллайдер
-    // сдвинулся относительно узла тела.
+    // сдвинулся относительно узла тела, сменился масштаб узла тела или
+    // перевыгружен меш коллайдера.
     void flush();
 
     // Перед шагом: узлы, сдвинутые кодом или редактором, переносят свои тела
@@ -82,6 +86,10 @@ private:
         BodyPose lastTarget;
         // Ревизии трансформов между дочерними коллайдерами и узлом тела.
         std::vector<std::uint64_t> childRevisions;
+        // Масштаб осей узла тела: он в размерах фигур.
+        Vec3 scale{1.0f};
+        // Меши коллайдеров и ревизии, из которых готовились их формы.
+        std::vector<std::pair<ResourceId, std::uint64_t>> meshRevisions;
     };
 
     void rebuild(NodeId owner);
@@ -93,9 +101,14 @@ private:
     // Пишет положение тела в узел и запоминает, что в узле получилось.
     void writePose(Node& node, Body& body, const BodyPose& pose);
     void sortByDepth();
+    // Сообщение в лог об объекте id один раз за жизнь мира.
+    bool firstWarning(std::uint64_t id);
 
     Scene& m_scene;
     JPH::BodyInterface& m_interface;
+    MeshShapeCache& m_meshShapes;
+    ResourceCache& m_resources;
+    std::unordered_set<std::uint64_t> m_warned;
     std::unordered_map<NodeId, Body> m_bodies;
     // Хозяева тел в порядке глубины узлов.
     std::vector<NodeId> m_order;

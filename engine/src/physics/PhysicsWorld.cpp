@@ -7,6 +7,7 @@
 #include "yqlora/core/Log.hpp"
 #include "yqlora/physics/JoltLayers.hpp"
 #include "yqlora/physics/JoltMath.hpp"
+#include "yqlora/physics/MeshShapeCache.hpp"
 #include "yqlora/physics/PhysicsBodies.hpp"
 #include "yqlora/physics/PhysicsRuntime.hpp"
 #include "yqlora/physics/PhysicsSettings.hpp"
@@ -40,7 +41,7 @@ constexpr int kCollisionStepsPerStep = 1;
 struct PhysicsWorld::Impl {
     Impl(Scene& scene, PhysicsRuntime& physicsRuntime, const PhysicsSettings& settings)
         : runtime(physicsRuntime)
-        , bodies(scene, system.GetBodyInterface())
+        , bodies(scene, system.GetBodyInterface(), physicsRuntime.meshShapes())
     {
         // Среда запущена в PhysicsWorld::impl(), до создания членов Jolt.
         pairs.matrix = settings.collisions();
@@ -206,6 +207,11 @@ float PhysicsWorldAccess::bodyMass(const PhysicsWorld& world, NodeId owner)
     }
 
     return 1.0f / motion->GetInverseMass();
+}
+
+std::uint64_t PhysicsWorldAccess::meshShapesCooked(const PhysicsWorld& world)
+{
+    return world.m_impl ? world.m_impl->runtime.meshShapes().cooked() : 0;
 }
 
 void PhysicsWorldAccess::flush(PhysicsWorld& world)

@@ -202,6 +202,10 @@ add_library(yqlora SHARED
     src/physics/BodyPose.cpp
     src/physics/BoxCollider.cpp
     src/physics/CapsuleCollider.cpp
+    src/physics/ColliderShape.cpp
+    src/physics/ConvexCollider.cpp
+    src/physics/MeshCollider.cpp
+    src/physics/MeshShapeCache.cpp
     src/physics/Collider.cpp
     src/physics/CylinderCollider.cpp
     src/physics/JoltLayers.cpp

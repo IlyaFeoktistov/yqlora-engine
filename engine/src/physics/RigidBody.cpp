@@ -42,6 +42,30 @@ void RigidBody::setInterpolation(bool interpolation)
     changed();
 }
 
+void RigidBody::setContinuousCollision(bool continuous)
+{
+    m_continuousCollision = continuous;
+    changed();
+}
+
+void RigidBody::setLockPosition(const AxisLocks& locks)
+{
+    m_lockPosition = locks;
+    changed();
+}
+
+void RigidBody::setLockRotation(const AxisLocks& locks)
+{
+    m_lockRotation = locks;
+    changed();
+}
+
+void RigidBody::setStartAsleep(bool asleep)
+{
+    m_startAsleep = asleep;
+    changed();
+}
+
 void RigidBody::changed()
 {
     PhysicsWorldAccess::changed(*this);

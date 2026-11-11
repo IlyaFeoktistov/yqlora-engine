@@ -4,6 +4,7 @@
 #include "yqlora/physics/PhysicsRuntime.hpp"
 
 #include "yqlora/physics/JoltSetup.hpp"
+#include "yqlora/physics/MeshShapeCache.hpp"
 
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
@@ -36,6 +37,7 @@ struct PhysicsRuntime::State {
     JoltSetup setup;
     JPH::TempAllocatorImpl tempAllocator{kTempAllocatorBytes};
     JPH::JobSystemThreadPool jobs{JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, workerThreads()};
+    MeshShapeCache meshShapes;
 };
 
 PhysicsRuntime::PhysicsRuntime() = default;
@@ -64,6 +66,11 @@ JPH::JobSystem& PhysicsRuntime::jobs()
 JPH::TempAllocator& PhysicsRuntime::tempAllocator()
 {
     return state().tempAllocator;
+}
+
+MeshShapeCache& PhysicsRuntime::meshShapes()
+{
+    return state().meshShapes;
 }
 
 } // namespace yqlora

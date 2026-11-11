@@ -2,12 +2,15 @@
 
 #include "yqlora/physics/BoxCollider.hpp"
 #include "yqlora/physics/CapsuleCollider.hpp"
+#include "yqlora/physics/ConvexCollider.hpp"
 #include "yqlora/physics/CylinderCollider.hpp"
+#include "yqlora/physics/MeshCollider.hpp"
 #include "yqlora/physics/PhysicsSettings.hpp"
 #include "yqlora/physics/PhysicsWorld.hpp"
 #include "yqlora/physics/RigidBody.hpp"
 #include "yqlora/physics/SphereCollider.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
+#include "yqlora/render/MeshData.hpp"
 #include "yqlora/scene/Node3D.hpp"
 
 #include <vector>
@@ -28,7 +31,11 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .property("angularDamping", &RigidBody::angularDamping, &RigidBody::setAngularDamping)
         .min(0.0f)
         .property("gravityScale", &RigidBody::gravityScale, &RigidBody::setGravityScale)
-        .property("interpolation", &RigidBody::interpolation, &RigidBody::setInterpolation);
+        .property("interpolation", &RigidBody::interpolation, &RigidBody::setInterpolation)
+        .property("continuousCollision", &RigidBody::continuousCollision, &RigidBody::setContinuousCollision)
+        .property("lockPosition", &RigidBody::lockPosition, &RigidBody::setLockPosition)
+        .property("lockRotation", &RigidBody::lockRotation, &RigidBody::setLockRotation)
+        .property("startAsleep", &RigidBody::startAsleep, &RigidBody::setStartAsleep);
 
     // Несколько коллайдеров на узле складываются в одно тело.
     registry.registerComponent<Collider>()
@@ -47,6 +54,12 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .min(kMinColliderSize)
         .property("height", &CapsuleCollider::height, &CapsuleCollider::setHeight)
         .min(kMinColliderSize);
+    registry.registerComponent<ConvexCollider>()
+        .property("mesh", &ConvexCollider::mesh, &ConvexCollider::setMesh)
+        .resource(MeshData::kResourceKind);
+    registry.registerComponent<MeshCollider>()
+        .property("mesh", &MeshCollider::mesh, &MeshCollider::setMesh)
+        .resource(MeshData::kResourceKind);
     registry.registerComponent<CylinderCollider>()
         .property("radius", &CylinderCollider::radius, &CylinderCollider::setRadius)
         .min(kMinColliderSize)

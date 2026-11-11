@@ -13,8 +13,11 @@ class TempAllocator;
 
 namespace yqlora {
 
+class MeshShapeCache;
+
 // Среда Jolt, общая для всех физических миров одних служб движка (и копии
-// Play, которая делит их): система заданий и временный распределитель.
+// Play, которая делит их): система заданий, временный распределитель и
+// формы из мешей.
 // Создаётся при первом обращении, поэтому службы без физики ничего не
 // платят; заодно держит глобальную настройку Jolt (JoltSetup).
 class YQLORA_API PhysicsRuntime {
@@ -31,6 +34,8 @@ public:
 
     JPH::JobSystem& jobs();
     JPH::TempAllocator& tempAllocator();
+    // Формы из мешей, общие для миров этих служб (сцены редактора и Play).
+    MeshShapeCache& meshShapes();
 
     // Готова ли среда (было ли первое обращение).
     bool started() const

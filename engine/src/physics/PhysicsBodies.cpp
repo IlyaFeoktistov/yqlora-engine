@@ -7,8 +7,10 @@
 #include "yqlora/physics/Collider.hpp"
 #include "yqlora/physics/JoltMath.hpp"
 #include "yqlora/physics/JoltShapes.hpp"
+#include "yqlora/physics/MeshShapeCache.hpp"
 #include "yqlora/physics/PhysicsLayers.hpp"
 #include "yqlora/physics/RigidBody.hpp"
+#include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/Scene.hpp"
 #include "yqlora/scene/Transform3D.hpp"
@@ -18,6 +20,9 @@
 
 #include <algorithm>
 #include <functional>
+#include <type_traits>
+#include <utility>
+#include <variant>
 
 namespace yqlora {
 
@@ -44,6 +49,33 @@ JPH::EMotionType joltMotion(BodyMotion motion)
     }
 
     return JPH::EMotionType::Static;
+}
+
+// Оси, которые тело может менять: все, кроме запрещённых.
+JPH::EAllowedDOFs allowedDofs(const RigidBody& body)
+{
+    using Dofs = std::underlying_type_t<JPH::EAllowedDOFs>;
+    const auto bit = [](JPH::EAllowedDOFs dof) {
+        return static_cast<Dofs>(dof);
+    };
+    auto allowed = bit(JPH::EAllowedDOFs::All);
+    const AxisLocks& position = body.lockPosition();
+    const AxisLocks& rotation = body.lockRotation();
+    const std::pair<bool, JPH::EAllowedDOFs> locks[] = {
+        {position.x, JPH::EAllowedDOFs::TranslationX},
+        {position.y, JPH::EAllowedDOFs::TranslationY},
+        {position.z, JPH::EAllowedDOFs::TranslationZ},
+        {rotation.x, JPH::EAllowedDOFs::RotationX},
+        {rotation.y, JPH::EAllowedDOFs::RotationY},
+        {rotation.z, JPH::EAllowedDOFs::RotationZ},
+    };
+    for (const auto& [locked, dof] : locks) {
+        if (locked) {
+            allowed = static_cast<Dofs>(allowed & ~bit(dof));
+        }
+    }
+
+    return static_cast<JPH::EAllowedDOFs>(allowed);
 }
 
 int depthOf(const Node& node)
@@ -85,10 +117,17 @@ void forEachBodyCollider(
 
 } // namespace
 
-PhysicsBodies::PhysicsBodies(Scene& scene, JPH::BodyInterface& bodies)
+PhysicsBodies::PhysicsBodies(Scene& scene, JPH::BodyInterface& bodies, MeshShapeCache& meshShapes)
     : m_scene(scene)
     , m_interface(bodies)
+    , m_meshShapes(meshShapes)
+    , m_resources(scene.services().resources())
 {
+}
+
+bool PhysicsBodies::firstWarning(std::uint64_t id)
+{
+    return m_warned.insert(id).second;
 }
 
 PhysicsBodies::~PhysicsBodies()
@@ -174,12 +213,22 @@ void PhysicsBodies::flush()
         };
         walk(*root);
     }
-    // Дочерний коллайдер сдвинули относительно узла тела: форма другая.
+    // Форма другая: дочерний коллайдер сдвинули относительно узла тела,
+    // сменился масштаб узла тела, перевыгрузили меш.
     for (auto& [owner, body] : m_bodies) {
-        if (body.childRevisions.empty() || m_dirtyOwners.contains(owner)) {
+        if (m_dirtyOwners.contains(owner)) {
             continue;
         }
-        if (const Node* node = m_scene.find(owner); node && childRevisionsOf(*node) != body.childRevisions) {
+        const auto* node = dynamic_cast<const Node3D*>(m_scene.find(owner));
+        if (!node) {
+            continue;
+        }
+        const bool moved = !body.childRevisions.empty() && childRevisionsOf(*node) != body.childRevisions;
+        const bool scaled = axisScaleOf(node->worldMatrix()) != body.scale;
+        const bool reloaded = std::ranges::any_of(body.meshRevisions, [&](const auto& mesh) {
+            return MeshShapeCache::revisionOf(m_resources, mesh.first) != mesh.second;
+        });
+        if (moved || scaled || reloaded) {
             m_dirtyOwners.insert(owner);
         }
     }
@@ -210,45 +259,96 @@ void PhysicsBodies::rebuild(NodeId owner)
     const RigidBody* rigidBody = node ? activeBodyOn(*node) : nullptr;
     // Коллайдеры узла без своего RigidBody принадлежат телу выше, если оно есть.
     const bool ownsColliders = node3D && (rigidBody || ownerOf(*node) == owner);
-
-    const Mat4 ownerWorld = node3D ? node3D->worldMatrix() : Mat4(1.0f);
-    const Mat4 toOwner = glm::inverse(ownerWorld);
-    std::vector<PlacedShape> shapes;
-    if (ownsColliders) {
-        forEachBodyCollider(*node, rigidBody != nullptr, [&](const Collider& collider, const Node& colliderNode) {
-            const auto& colliderNode3D = static_cast<const Node3D&>(colliderNode);
-            const Mat4 local = toOwner * colliderNode3D.worldMatrix() * glm::translate(Mat4(1.0f), collider.center())
-                               * glm::mat4_cast(collider.rotation());
-            const BodyPose pose = bodyPoseOf(local);
-            shapes.push_back({collider.shape(), pose.position, pose.rotation});
-            m_colliderOwners[collider.id()] = owner;
-        });
-    }
-    if (!ownsColliders || (!rigidBody && shapes.empty())) {
+    if (!ownsColliders) {
         remove(owner);
 
         return;
     }
 
-    // Тело делается заново, а скорость переходит к новому.
+    JPH::EMotionType motion = rigidBody ? joltMotion(rigidBody->motion()) : JPH::EMotionType::Static;
+    JPH::EAllowedDOFs allowed = rigidBody ? allowedDofs(*rigidBody) : JPH::EAllowedDOFs::All;
+    if (motion == JPH::EMotionType::Dynamic && allowed == JPH::EAllowedDOFs::None) {
+        if (firstWarning(owner)) {
+            log::warn("Physics: body '{}' has every axis locked and stays static", node->name());
+        }
+        motion = JPH::EMotionType::Static;
+        allowed = JPH::EAllowedDOFs::All;
+    }
+
+    // Фигуры - в осях тела без масштаба: масштаб узлов уходит в их размеры.
+    const Mat4 ownerWorld = node3D->worldMatrix();
+    const BodyPose pose = bodyPoseOf(ownerWorld);
+    const Mat4 toBody = glm::inverse(glm::translate(Mat4(1.0f), pose.position) * glm::mat4_cast(pose.rotation));
+    std::vector<PlacedShape> shapes;
+    std::vector<std::pair<ResourceId, std::uint64_t>> meshes;
+    forEachBodyCollider(*node, rigidBody != nullptr, [&](const Collider& collider, const Node& colliderNode) {
+        const Mat4 local = toBody * static_cast<const Node3D&>(colliderNode).worldMatrix()
+                           * glm::translate(Mat4(1.0f), collider.center()) * glm::mat4_cast(collider.rotation());
+        const BodyPose place = bodyPoseOf(local);
+        const Vec3 scale = axisScaleOf(local);
+        ColliderShape shape = collider.shape();
+        PlacedShape placed{.shape = {}, .position = place.position, .rotation = place.rotation, .scale = Vec3(1.0f)};
+        if (auto* mesh = std::get_if<MeshShape>(&shape)) {
+            // Треугольники Jolt сталкивает только у неподвижных и кинематических тел.
+            if (!mesh->convex && motion == JPH::EMotionType::Dynamic) {
+                if (firstWarning(collider.id())) {
+                    log::warn(
+                        "Physics: a mesh collider on '{}' moves with a dynamic body, its convex hull is used",
+                        colliderNode.name()
+                    );
+                }
+                mesh->convex = true;
+            }
+            meshes.emplace_back(mesh->mesh, MeshShapeCache::revisionOf(m_resources, mesh->mesh));
+            placed.scale = scale;
+        } else {
+            bool uniformLost = false;
+            shape = scaledShape(shape, scale, uniformLost);
+            if (uniformLost && firstWarning(collider.id())) {
+                log::warn(
+                    "Physics: collider '{}' on '{}' cannot follow a non-uniform scale, it takes the largest axis",
+                    collider.typeName(),
+                    colliderNode.name()
+                );
+            }
+        }
+        placed.shape = shape;
+        shapes.push_back(std::move(placed));
+        m_colliderOwners[collider.id()] = owner;
+    });
+    if (!rigidBody && shapes.empty()) {
+        remove(owner);
+
+        return;
+    }
+
+    // Тело делается заново, а скорость переходит к новому. Новое не спит:
+    // изменённая форма могла упереться в соседей.
     JPH::Vec3 linearVelocity = JPH::Vec3::sZero();
     JPH::Vec3 angularVelocity = JPH::Vec3::sZero();
+    bool existed = false;
     if (const auto it = m_bodies.find(owner); it != m_bodies.end()) {
         linearVelocity = m_interface.GetLinearVelocity(it->second.id);
         angularVelocity = m_interface.GetAngularVelocity(it->second.id);
+        existed = true;
         remove(owner);
     }
 
-    const BodyPose pose = bodyPoseOf(ownerWorld);
-    const JPH::EMotionType motion = rigidBody ? joltMotion(rigidBody->motion()) : JPH::EMotionType::Static;
     const PhysicsObjectLayer layer = physicsObjectLayer(node->layer(), motion != JPH::EMotionType::Static);
+    const MeshShapeSource meshSource = [&](ResourceId mesh, bool convex) {
+        return m_meshShapes.shape(m_resources, mesh, convex);
+    };
     JPH::BodyCreationSettings
-        settings(joltBodyShape(shapes), toJolt(pose.position), toJolt(pose.rotation), motion, layer);
+        settings(joltBodyShape(shapes, meshSource), toJolt(pose.position), toJolt(pose.rotation), motion, layer);
     settings.mUserData = owner;
-    if (rigidBody) {
+    if (rigidBody && motion != JPH::EMotionType::Static) {
         settings.mLinearDamping = rigidBody->linearDamping();
         settings.mAngularDamping = rigidBody->angularDamping();
         settings.mGravityFactor = rigidBody->gravityScale();
+        settings.mAllowedDOFs = allowed;
+        if (rigidBody->continuousCollision()) {
+            settings.mMotionQuality = JPH::EMotionQuality::LinearCast;
+        }
         const float mass = rigidBody->mass();
         if (shapes.empty()) {
             settings.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
@@ -261,8 +361,9 @@ void PhysicsBodies::rebuild(NodeId owner)
             settings.mMassPropertiesOverride.mMass = mass;
         }
     }
-    const JPH::EActivation activation = motion == JPH::EMotionType::Static ? JPH::EActivation::DontActivate
-                                                                           : JPH::EActivation::Activate;
+    const bool asleep = !existed && rigidBody && rigidBody->startAsleep();
+    const JPH::EActivation activation = motion == JPH::EMotionType::Static || asleep ? JPH::EActivation::DontActivate
+                                                                                     : JPH::EActivation::Activate;
     const JPH::BodyID id = m_interface.CreateAndAddBody(settings, activation);
     if (id.IsInvalid()) {
         log::error("Physics: no room for the body of node '{}', the world is full", node->name());
@@ -282,6 +383,8 @@ void PhysicsBodies::rebuild(NodeId owner)
         .current = pose,
         .lastTarget = pose,
         .childRevisions = rigidBody ? childRevisionsOf(*node) : std::vector<std::uint64_t>{},
+        .scale = axisScaleOf(ownerWorld),
+        .meshRevisions = std::move(meshes),
     };
 }
 

@@ -18,6 +18,9 @@ struct BodyPose {
 // запомненным точное.
 YQLORA_API BodyPose bodyPoseOf(const Mat4& world);
 
+// Масштаб осей матрицы: длины её столбцов.
+YQLORA_API Vec3 axisScaleOf(const Mat4& world);
+
 // Мировая матрица с положением и поворотом pose и масштабом осей из world.
 YQLORA_API Mat4 worldWithPose(const Mat4& world, const BodyPose& pose);
 

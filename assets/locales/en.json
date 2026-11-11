@@ -107,6 +107,12 @@
         },
         "CylinderCollider": {
             "description": "A cylinder for collisions along Y."
+        },
+        "ConvexCollider": {
+            "description": "The convex hull of a mesh for collisions: for moving bodies of a complex shape."
+        },
+        "MeshCollider": {
+            "description": "The triangles of a mesh for collisions: floors, walls, terrain. Static and kinematic bodies only."
         }
     },
     "editor": {
@@ -553,7 +559,14 @@
         "interpolation": "Interpolation",
         "center": "Center",
         "radius": "Radius",
-        "height": "Height"
+        "height": "Height",
+        "continuousCollision": "Continuous collision",
+        "lockPosition": "Lock position",
+        "lockRotation": "Lock rotation",
+        "startAsleep": "Start asleep",
+        "x": "X",
+        "y": "Y",
+        "z": "Z"
     },
     "enum": {
         "Aces": "ACES",

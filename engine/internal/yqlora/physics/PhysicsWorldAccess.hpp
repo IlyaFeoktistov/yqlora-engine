@@ -4,6 +4,7 @@
 #include "yqlora/scene/NodeId.hpp"
 
 #include <cstddef>
+#include <cstdint>
 
 namespace yqlora {
 
@@ -25,6 +26,8 @@ struct YQLORA_API PhysicsWorldAccess {
     // Тела перестраиваются перед шагом, поэтому числа - на последний шаг.
     static std::size_t bodyCount(const PhysicsWorld& world);
     static float bodyMass(const PhysicsWorld& world, NodeId owner);
+    // Сколько форм из мешей приготовила среда мира.
+    static std::uint64_t meshShapesCooked(const PhysicsWorld& world);
     // Перестраивает изменённые тела сейчас, как перед шагом.
     static void flush(PhysicsWorld& world);
 };
