@@ -3,7 +3,7 @@
 [Русская версия](physics.ru.md)
 
 Step 6 of the MVP: rigid bodies, colliders, contacts and triggers, queries,
-a character controller and joints on
+a character controller, joints and body chains on
 [Jolt Physics](https://github.com/jrouwe/JoltPhysics) (MIT).
 
 Status marks: see [README](README.md).
@@ -237,6 +237,48 @@ axles, ragdolls, things hanging from a ceiling.
   link does not stretch more than 1 percent with the default iterations;
   "Create > Chain" is one undo step.
 
+## Body chains [planned, step 6]
+
+A long body that bends along its length and moves by bending: a snake, a
+worm, a tail, a tentacle. It is the established setup for such creatures
+in a rigid body engine: a row of capsules linked by swing-twist joints with
+motors, and grip against the ground that is stronger sideways than along
+the body.
+
+- **`PhysicsChain`** (on a `Node3D`, instead of a `RigidBody`): `segments`
+  capsules of `radius` laid along the local Z axis of the node over
+  `length`, the mass (`mass` in all) spread over them. Each link is a
+  dynamic body owned by the component; neighbours are linked by a Jolt
+  `SwingTwistConstraint` with `bendLimit` (the swing cone, degrees) and
+  `twistLimit`; the links of one chain do not collide with each other (a
+  Jolt group filter), the chain collides with the world by the layer of
+  its node.
+- **What is seen**: if the node has `segments` child nodes (made by
+  "Create > Body chain" with a mesh on each, or by hand), each follows its
+  link after every step, with interpolation like a body. With skinning
+  (after the MVP, see [animation](animation.md)) the links drive the bones
+  of one bending mesh instead.
+- **Muscles**: every joint has a motor towards a target bend (two angles,
+  sideways and up-down) with `stiffness` (spring frequency) and
+  `maxTorque`. `setBend(index, side, up)`, `setBends(...)` for the whole
+  chain, `bend(index)`, `segmentCount()`, `linkPosition(index)` and
+  `linkVelocity(index)` from code; `relax()` turns the motors off (a dead
+  snake falls limp).
+- **Grip**: `sideGrip` and `forwardGrip` (0 to 1) damp the velocity of a
+  link touching the ground across and along its axis. A snake crawls
+  forward only because sideways slipping is harder than forward slipping,
+  so this is a property of the engine, not of each game.
+- **Body chains are joints and bodies of this file**: queries, contacts
+  (with the link index in `Collision`), layers and materials work for
+  links as for any body.
+
+**Where the engine ends and the game begins.** The engine gives the chain,
+its limits, the muscles, the grip and the API to set bends. How the
+creature moves is the game: a travelling wave of bends along the body for a
+snake (side to side) or a worm (up and down), steering, speed. A ready
+"crawl forward" behaviour with its parameters is a plugin or an example
+script, not the engine.
+
 ## From code [planned, step 6]
 
 Everything set in the inspector is a property with a setter (see
@@ -340,14 +382,25 @@ Everything set in the inspector is a property with a setter (see
 
 - The joints of "Joints" above with their tests.
 
-### PH.8 Editor
+### PH.8 Body chains
+
+- `PhysicsChain` with its links, joints, group filter, segment nodes
+  following the links, muscles, grip; "Create > Body chain".
+- Tests: a chain of 10 links dropped on the ground lies along it without
+  links passing through each other; a bend beyond `bendLimit` is stopped
+  at the limit; the motors reach a target bend within tolerance; a
+  travelling wave of bends with `sideGrip` above `forwardGrip` moves the
+  chain forward along its axis, and with equal grip it hardly moves;
+  `relax()` lets the chain fall limp; segment nodes follow their links.
+
+### PH.9 Editor
 
 - Collider gizmos and handles, "Show colliders", fitting to the mesh,
   drops onto physics fields; joint gizmos.
 - Tests (logic without the interface): a new collider fits the mesh bounds
   of its node; a handle drag is one undo step.
 
-### PH.9 Documents
+### PH.10 Documents
 
 This file, frame (physics in the frame), scene (bodies and colliders),
 project settings (Physics), scripting (the API), the guide "Physics",

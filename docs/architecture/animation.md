@@ -162,6 +162,15 @@ A panel at the bottom, a tab next to Files and Log.
 - Animations from glTF as nested resources of a model (`animation:Name`)
   with tracks of node transforms, then skinning (bones, weights in
   `Vertex`, skinned meshes) and morph targets.
+- **Ragdolls**, with skinning, since they need a skeleton: a body (capsule
+  or box) on each bone and `SwingTwist` joints with limits between them
+  (Jolt `Ragdoll`), set up from the skeleton of a model with one command
+  and tuned in the inspector. Motors make it active: the bodies follow the
+  pose of the animation and still react to hits, so a character stumbles
+  instead of passing through; turning the motors off, or a blend from the
+  animated pose, makes it fall limp. A body chain of
+  [physics](physics.md#body-chains-planned-step-6) drives the bones of one
+  bending mesh the same way.
 - Blending and cross fading (`player.crossFade(run, 0.3f)`), layers, a state
   machine resource with transitions by parameters.
 - Tracks of material values through `MaterialOverrides`, tracks of whole
