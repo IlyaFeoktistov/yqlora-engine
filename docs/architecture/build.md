@@ -74,6 +74,21 @@ platform; nothing here is new.
   borderless full screen, exclusive full screen, resizable, vsync from
   Graphics) is the default; a player's choice in the settings menu of the
   game is set through `display()` and kept in the user data folder.
+- **Export and import**: a project or a scene can be carried to another
+  project or another machine as one archive of sources (`.yexport`, a zip
+  with paths relative to the project folder, so any archiver opens it).
+  Project export is the whole folder without the cache (`.build/`) and the
+  user settings. Scene or prefab export is the file itself and everything
+  reachable from it by the same dependency walk as the package (prefabs,
+  models, materials, physics materials, textures, shaders), together with
+  the `.meta` files and the sources of scripts whose components are in
+  the scene. The archive holds a file list with IDs and a format version.
+  Import (Files, "Import archive") unpacks into a chosen project folder
+  keeping the IDs, so references between the files stay intact; an ID
+  already taken by another file in the project gets a new value, and
+  references to it in the imported files are rewritten; the same file
+  with the same ID and contents is skipped. Before importing, a window
+  shows what will be added, skipped and given a new ID.
 - **The built folder**: the player renamed to the game, the game module,
   the engine library, SDL, the package, `licenses.txt` (the engine and its
   libraries) and, on Windows, the icon of the game in the executable.
@@ -131,16 +146,28 @@ what a save holds and when it is written, what its settings menu offers.
   files; a second build with no change reuses the cache; a failed module
   build stops with the compiler errors in the log.
 
-### B.6 Loading in the background
+### B.6 Export and import
+
+- The `.yexport` archive (writer and reader, format version), project
+  export and scene or prefab export with dependencies and scripts, import
+  keeping IDs, new IDs for taken ones with rewritten references, the
+  import preview window; items in Files and the Project menu.
+- Tests: a scene export holds exactly its dependencies and the scripts of
+  its components; a scene imported into an empty project opens with the
+  same references; an ID taken by another file is replaced and references
+  to it are rewritten; importing the same archive again changes nothing;
+  project export leaves out the cache.
+
+### B.7 Loading in the background
 
 - `loadAsync`, loaders on worker threads, progress.
 - Tests: a scene with 50 textures loads while frames keep running; the
   progress goes from 0 to 1; switching away during a load cancels it
   without leaks (asan).
 
-### B.7 Documents
+### B.8 Documents
 
 This file, frame (scene changes, global nodes), resources (cooking, the
-cache, the package), project (the cache folder), project settings
+cache, the package, export and import), project (the cache folder), project settings
 (Display, Build), scripting (`scenes()`, `saveData()`, `display()`), the
 guide "Building a game", README.
