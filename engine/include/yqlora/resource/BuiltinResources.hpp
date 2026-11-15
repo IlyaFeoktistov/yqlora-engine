@@ -34,6 +34,10 @@ inline constexpr ResourceId kDefaultSkyMaterial = 0x203;
 // источники окружающего света Gradient и Color.
 inline constexpr ResourceId kGradientSkyMaterial = 0x204;
 
+// Физический материал по умолчанию раздела Physics настроек проекта:
+// значения PhysicsMaterialData{}.
+inline constexpr ResourceId kDefaultPhysicsMaterial = 0x301;
+
 inline constexpr ResourceId kFirstProjectId = 1024;
 
 inline bool isBuiltin(ResourceId id)

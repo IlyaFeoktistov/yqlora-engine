@@ -201,4 +201,19 @@ void describeValue(Property& property)
     }
 }
 
+// Описание записи T одним свойством без объекта: для данных, которые сами
+// запись (физический материал) - их файл и инспектор берут поля отсюда.
+template <Record T>
+const Property& recordProperty()
+{
+    static const Property property = [] {
+        Property described = Property::field(std::string(), PropertyType::Record);
+        describeValue<T>(described);
+
+        return described;
+    }();
+
+    return property;
+}
+
 } // namespace yqlora

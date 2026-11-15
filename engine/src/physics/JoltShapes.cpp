@@ -47,38 +47,41 @@ JPH::RefConst<JPH::Shape> created(const JPH::ShapeSettings& settings)
 struct ShapeOf {
     const MeshShapeSource& meshes;
     Vec3 scale;
+    const JPH::PhysicsMaterial* material;
 
     JPH::RefConst<JPH::Shape> operator()(const BoxShape& box) const
     {
         const float smallest = std::min({box.halfExtents.x, box.halfExtents.y, box.halfExtents.z});
 
-        return created(JPH::BoxShapeSettings(toJolt(box.halfExtents), convexRadius(smallest)));
+        return created(JPH::BoxShapeSettings(toJolt(box.halfExtents), convexRadius(smallest), material));
     }
 
     JPH::RefConst<JPH::Shape> operator()(const SphereShape& sphere) const
     {
-        return created(JPH::SphereShapeSettings(sphere.radius));
+        return created(JPH::SphereShapeSettings(sphere.radius, material));
     }
 
     JPH::RefConst<JPH::Shape> operator()(const CapsuleShape& capsule) const
     {
         if (capsule.halfHeight < kMinCapsuleHalfHeight) {
-            return created(JPH::SphereShapeSettings(capsule.radius));
+            return created(JPH::SphereShapeSettings(capsule.radius, material));
         }
 
-        return created(JPH::CapsuleShapeSettings(capsule.halfHeight, capsule.radius));
+        return created(JPH::CapsuleShapeSettings(capsule.halfHeight, capsule.radius, material));
     }
 
     JPH::RefConst<JPH::Shape> operator()(const CylinderShape& cylinder) const
     {
         const float smallest = std::min(cylinder.halfHeight, cylinder.radius);
 
-        return created(JPH::CylinderShapeSettings(cylinder.halfHeight, cylinder.radius, convexRadius(smallest)));
+        return created(
+            JPH::CylinderShapeSettings(cylinder.halfHeight, cylinder.radius, convexRadius(smallest), material)
+        );
     }
 
     JPH::RefConst<JPH::Shape> operator()(const MeshShape& mesh) const
     {
-        JPH::RefConst<JPH::Shape> shape = meshes(mesh.mesh, mesh.convex);
+        JPH::RefConst<JPH::Shape> shape = meshes(mesh.mesh, mesh.convex, material);
         if (!shape || scale == Vec3(1.0f)) {
             return shape;
         }
@@ -98,7 +101,10 @@ JPH::RefConst<JPH::Shape> joltBodyShape(std::span<const PlacedShape> shapes, con
 {
     std::vector<std::pair<const PlacedShape*, JPH::RefConst<JPH::Shape>>> made;
     for (const PlacedShape& placed : shapes) {
-        if (JPH::RefConst<JPH::Shape> shape = std::visit(ShapeOf{meshes, placed.scale}, placed.shape)) {
+        if (JPH::RefConst<JPH::Shape> shape = std::visit(
+                ShapeOf{meshes, placed.scale, placed.material},
+                placed.shape
+            )) {
             made.emplace_back(&placed, std::move(shape));
         }
     }

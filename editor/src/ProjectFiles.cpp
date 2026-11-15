@@ -8,6 +8,7 @@
 #include "yqlora/editor/NewScene.hpp"
 #include "yqlora/editor/ProjectSetup.hpp"
 #include "yqlora/material/MaterialFile.hpp"
+#include "yqlora/physics/PhysicsMaterialFile.hpp"
 #include "yqlora/platform/Files.hpp"
 #include "yqlora/project/Project.hpp"
 #include "yqlora/resource/ResourceDatabase.hpp"
@@ -107,6 +108,14 @@ const NewResourceType kNewResourceTypes[] = {
      false,
      [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext&) {
          return files.createMaterial(folder, name, MaterialData{});
+     }},
+    {PhysicsMaterialData::kResourceKind,
+     "editor.files.newPhysicsMaterial",
+     "New Physics Material",
+     kPhysicsMaterialFileExtension,
+     false,
+     [](ProjectFiles& files, const fs::path& folder, std::string_view name, const NewResourceContext&) {
+         return files.createPhysicsMaterial(folder, name, PhysicsMaterialData{});
      }},
 };
 
@@ -392,26 +401,49 @@ std::optional<fs::path> ProjectFiles::createShader(
     return relative;
 }
 
-std::optional<fs::path> ProjectFiles::createMaterial(
+std::optional<fs::path> ProjectFiles::createFile(
+    std::string_view kind,
     const fs::path& folder,
     std::string_view name,
-    const MaterialData& data
+    const std::function<bool(const fs::path&)>& write
 )
 {
-    const NewResourceType& type = *findNewResourceType(MaterialData::kResourceKind);
+    const NewResourceType& type = *findNewResourceType(kind);
     const fs::path relative = folder / fromUtf8(occupiedFileName(type, name));
     std::error_code ec;
     if (!isValidResourceName(type, name) || !canModify(relative) || fs::exists(m_project.directory() / relative, ec)) {
         return std::nullopt;
     }
-    if (!writeMaterialFile(m_project.directory() / relative, data)) {
-        log::error("Cannot write material '{}'", toUtf8(relative));
+    if (!write(m_project.directory() / relative)) {
+        log::error("Cannot write '{}'", toUtf8(relative));
 
         return std::nullopt;
     }
     m_project.resources().add(relative);
 
     return relative;
+}
+
+std::optional<fs::path> ProjectFiles::createMaterial(
+    const fs::path& folder,
+    std::string_view name,
+    const MaterialData& data
+)
+{
+    return createFile(MaterialData::kResourceKind, folder, name, [&](const fs::path& file) {
+        return writeMaterialFile(file, data);
+    });
+}
+
+std::optional<fs::path> ProjectFiles::createPhysicsMaterial(
+    const fs::path& folder,
+    std::string_view name,
+    const PhysicsMaterialData& data
+)
+{
+    return createFile(PhysicsMaterialData::kResourceKind, folder, name, [&](const fs::path& file) {
+        return writePhysicsMaterialFile(file, data);
+    });
 }
 
 std::optional<fs::path> ProjectFiles::rename(const fs::path& path, const std::string& newName)

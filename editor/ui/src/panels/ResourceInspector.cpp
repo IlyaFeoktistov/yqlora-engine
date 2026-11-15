@@ -3,6 +3,7 @@
 #include "yqlora/editor/ui/core/EditorContext.hpp"
 #include "yqlora/editor/ui/inspectors/MaterialInspector.hpp"
 #include "yqlora/editor/ui/inspectors/ModelInspector.hpp"
+#include "yqlora/editor/ui/inspectors/PhysicsMaterialInspector.hpp"
 #include "yqlora/editor/ui/inspectors/ShaderInspector.hpp"
 #include "yqlora/editor/ui/inspectors/TextureInspector.hpp"
 #include "yqlora/editor/ui/style/ResourceIcons.hpp"
@@ -12,6 +13,7 @@
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/import/ModelData.hpp"
 #include "yqlora/material/MaterialData.hpp"
+#include "yqlora/physics/PhysicsMaterialData.hpp"
 #include "yqlora/render/TextureData.hpp"
 #include "yqlora/shader/ShaderData.hpp"
 
@@ -27,6 +29,7 @@ ResourceInspector::ResourceInspector()
     m_inspectors.emplace(TextureData::kResourceKind, std::make_unique<TextureInspector>());
     m_inspectors.emplace(MaterialData::kResourceKind, std::make_unique<MaterialInspector>());
     m_inspectors.emplace(ShaderData::kResourceKind, std::make_unique<ShaderInspector>());
+    m_inspectors.emplace(PhysicsMaterialData::kResourceKind, std::make_unique<PhysicsMaterialInspector>());
 }
 
 ResourceInspector::~ResourceInspector() = default;

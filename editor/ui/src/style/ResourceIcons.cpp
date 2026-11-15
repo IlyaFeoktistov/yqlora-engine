@@ -5,6 +5,7 @@
 #include "yqlora/editor/ProjectFiles.hpp"
 #include "yqlora/import/ModelData.hpp"
 #include "yqlora/material/MaterialData.hpp"
+#include "yqlora/physics/PhysicsMaterialData.hpp"
 #include "yqlora/render/MeshData.hpp"
 #include "yqlora/render/TextureData.hpp"
 #include "yqlora/scene/Prefab.hpp"
@@ -29,6 +30,7 @@ constexpr std::pair<std::string_view, const char*> kIcons[] = {
     {ShaderData::kResourceKind, icons::kShaderFile},
     {kSkyShaderKind, icons::kSkyShader},
     {MaterialData::kResourceKind, icons::kMaterialFile},
+    {PhysicsMaterialData::kResourceKind, icons::kPhysicsMaterial},
 };
 
 } // namespace

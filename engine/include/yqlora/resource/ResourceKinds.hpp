@@ -15,6 +15,7 @@ inline constexpr std::string_view kShader = "shader";
 inline constexpr std::string_view kMaterial = "material";
 inline constexpr std::string_view kScene = "scene";
 inline constexpr std::string_view kPrefab = "prefab";
+inline constexpr std::string_view kPhysicsMaterial = "physicsMaterial";
 
 // Ресурс вида kind годится полю вида fieldKind: тот же вид, а полю префаба -
 // ещё и модель (модель - префаб, который только читается из файла).

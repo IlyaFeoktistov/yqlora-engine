@@ -5,6 +5,7 @@
 
 #include "yqlora/physics/JoltSetup.hpp"
 #include "yqlora/physics/MeshShapeCache.hpp"
+#include "yqlora/physics/PhysicsMaterialCache.hpp"
 
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Core/TempAllocator.h>
@@ -37,6 +38,8 @@ struct PhysicsRuntime::State {
     JoltSetup setup;
     JPH::TempAllocatorImpl tempAllocator{kTempAllocatorBytes};
     JPH::JobSystemThreadPool jobs{JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, workerThreads()};
+    // Формы держат материалы: материалы уходят после форм.
+    PhysicsMaterialCache materials;
     MeshShapeCache meshShapes;
 };
 
@@ -71,6 +74,11 @@ JPH::TempAllocator& PhysicsRuntime::tempAllocator()
 MeshShapeCache& PhysicsRuntime::meshShapes()
 {
     return state().meshShapes;
+}
+
+PhysicsMaterialCache& PhysicsRuntime::materials()
+{
+    return state().materials;
 }
 
 } // namespace yqlora

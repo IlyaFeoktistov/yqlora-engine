@@ -17,6 +17,15 @@ void PhysicsSettings::setPositionSteps(int steps)
     m_positionSteps = std::clamp(steps, kMinSolverSteps, kMaxSolverSteps);
 }
 
+ResourceId PhysicsSettings::materialFor(Ref<PhysicsMaterialData> material) const
+{
+    if (material.id != 0) {
+        return material.id;
+    }
+
+    return m_defaultMaterial.id != 0 ? m_defaultMaterial.id : builtin::kDefaultPhysicsMaterial;
+}
+
 const PhysicsSettings& physicsSettingsOf(const EngineServices& services)
 {
     static const PhysicsSettings defaults;

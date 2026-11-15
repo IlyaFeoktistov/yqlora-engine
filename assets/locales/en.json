@@ -88,7 +88,7 @@
             "description": "The physics world of the scene: bodies, collisions and their steps."
         },
         "PhysicsSettings": {
-            "description": "Physics: gravity, solver iterations and which layers collide."
+            "description": "Physics: gravity, solver iterations, the default physics material and which layers collide."
         },
         "RigidBody": {
             "description": "A rigid body: the node moves by forces and collisions, or is moved by code (kinematic), or stays put (static)."
@@ -278,6 +278,7 @@
             "newShader": "Shader",
             "newSkyShader": "Sky Shader",
             "newMaterial": "Material",
+            "newPhysicsMaterial": "Physics Material",
             "scriptName": "Class name (Latin letters, digits and _):",
             "name": "Name:",
             "create": "Create",
@@ -389,7 +390,8 @@
             "shader": "Shader",
             "model": "Model",
             "prefab": "Prefab",
-            "material": "Material"
+            "material": "Material",
+            "physicsMaterial": "Physics material"
         },
         "prefab": {
             "revert": "Revert to prefab",
@@ -564,6 +566,12 @@
         "lockPosition": "Lock position",
         "lockRotation": "Lock rotation",
         "startAsleep": "Start asleep",
+        "material": "Physics material",
+        "defaultMaterial": "Default physics material",
+        "friction": "Friction",
+        "restitution": "Restitution",
+        "frictionCombine": "Friction combine",
+        "restitutionCombine": "Restitution combine",
         "x": "X",
         "y": "Y",
         "z": "Z"
@@ -592,7 +600,11 @@
         "Refuse": "Refuse",
         "Static": "Static",
         "Kinematic": "Kinematic",
-        "Dynamic": "Dynamic"
+        "Dynamic": "Dynamic",
+        "Average": "Average",
+        "Minimum": "Minimum",
+        "Multiply": "Multiply",
+        "Maximum": "Maximum"
     },
     "group": {
         "ambientLight": "Ambient light",

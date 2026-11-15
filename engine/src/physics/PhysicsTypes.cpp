@@ -42,7 +42,8 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .requiresNode<Node3D>()
         .allowMultiple()
         .property("center", &Collider::center, &Collider::setCenter)
-        .property("rotation", &Collider::rotationDegrees, &Collider::setRotationDegrees, PropertyHint::Angle);
+        .property("rotation", &Collider::rotationDegrees, &Collider::setRotationDegrees, PropertyHint::Angle)
+        .property("material", &Collider::material, &Collider::setMaterial);
     registry.registerComponent<BoxCollider>()
         .property("size", &BoxCollider::size, &BoxCollider::setSize)
         .min(kMinColliderSize);
@@ -72,6 +73,7 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .range(kMinSolverSteps, kMaxSolverSteps)
         .property("positionSteps", &PhysicsSettings::positionSteps, &PhysicsSettings::setPositionSteps)
         .range(kMinSolverSteps, kMaxSolverSteps)
+        .property("defaultMaterial", &PhysicsSettings::defaultMaterial, &PhysicsSettings::setDefaultMaterial)
         // В файле - пары слоёв, которые не сталкиваются; в окне - таблица.
         .property(
             "ignoredCollisions",

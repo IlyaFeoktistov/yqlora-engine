@@ -73,8 +73,8 @@ bool EditorSession::open(Project project, const std::filesystem::path& gameLibra
 
 void EditorSession::close()
 {
-    // Неоконченная правка материала дописывается в файл, пока проект открыт.
-    m_materialEditing.finish();
+    // Неоконченная правка ресурса дописывается в файл, пока проект открыт.
+    m_resourceEditing.finish();
     stop();
     m_document.reset(0);
     m_history.clear();

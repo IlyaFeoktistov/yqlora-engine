@@ -689,7 +689,7 @@ that shadow maps do not give.
   KTX2/basisu, WebP and other `KHR_materials_*` (one line per file with the
   list); `extensionsRequired` that are not supported (Draco) fail the load.
 - A material of a model is read-only: its values come from the file, and
-  `MaterialEditing` refuses nested resources (their path is the model
+  `ResourceEditing` refuses nested resources (their path is the model
   file). To change it, the inspector offers "Make a copy", which writes a
   `.ymat` next to the model through the create window; the copy refers to
   the nested textures of the model and is selected. A texture of a model
@@ -872,7 +872,7 @@ that shadow maps do not give.
   field (shaders only), blend and cull, the fields of the `Material` block
   with the widgets of their annotations (colour, range, integer, vector),
   texture fields (textures only, with a preview). An edit goes through
-  `MaterialEditing`: the material in the cache is replaced at once
+  `ResourceEditing`: the material in the cache is replaced at once
   (`ResourceCache::replace`, a new revision), so every object with it and
   the preview change while a slider moves; the file is written atomically
   when the edit ends and at most `kWritesPerSecond` (2) times a second
@@ -1042,7 +1042,7 @@ Four parts, a commit per part; the contract is in
   0 it casts the whole quad.
 - **5.7d Editor**: dropping fills the slots (a model and one nested mesh);
   material and texture of a model read-only in the inspector and in
-  `MaterialEditing`; "Make a copy"; Files shows nested materials and
+  `ResourceEditing`; "Make a copy"; Files shows nested materials and
   textures. Tests: dropping fills the slots; the copy holds the same
   values; editing a model material does not write the model file.
 

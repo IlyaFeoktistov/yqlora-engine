@@ -44,4 +44,7 @@ bool drawPropertyTable(
     const PropertyChanged& changed
 );
 
+// Поля записи без объекта таблицей, как свойства (drawRecordFields).
+PropertyResult drawRecordTable(const PropertyEditorContext& widgets, const Property& record, const RecordValue& value);
+
 } // namespace yqlora::editor

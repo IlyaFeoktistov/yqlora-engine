@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -17,6 +18,7 @@ namespace yqlora {
 class Project;
 class SceneSerializer;
 struct MaterialData;
+struct PhysicsMaterialData;
 enum class ShaderKind : std::uint8_t;
 
 } // namespace yqlora
@@ -178,6 +180,14 @@ public:
         const MaterialData& data
     );
 
+    // Физический материал name.yphysmat в папке folder со значениями data.
+    // nullopt, если имя не годится, занято или файл не записался.
+    std::optional<std::filesystem::path> createPhysicsMaterial(
+        const std::filesystem::path& folder,
+        std::string_view name,
+        const PhysicsMaterialData& data
+    );
+
     // Переименовывает файл или папку в той же папке. Возвращает новый путь;
     // nullopt, если имя недопустимо, занято или путь трогать нельзя.
     std::optional<std::filesystem::path> rename(const std::filesystem::path& path, const std::string& newName);
@@ -189,6 +199,15 @@ public:
     bool canModify(const std::filesystem::path& path) const;
 
 private:
+    // Новый файл name вида kind в папке folder, который пишет write (полный
+    // путь); nullopt, если имя не годится, занято или файл не записался.
+    std::optional<std::filesystem::path> createFile(
+        std::string_view kind,
+        const std::filesystem::path& folder,
+        std::string_view name,
+        const std::function<bool(const std::filesystem::path&)>& write
+    );
+
     Project& m_project;
 };
 

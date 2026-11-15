@@ -3,11 +3,11 @@
 #include "yqlora/editor/Command.hpp"
 #include "yqlora/editor/EditHistory.hpp"
 #include "yqlora/editor/GameLibrary.hpp"
-#include "yqlora/editor/MaterialEditing.hpp"
 #include "yqlora/editor/Pings.hpp"
 #include "yqlora/editor/PlayMode.hpp"
 #include "yqlora/editor/PrefabEditing.hpp"
 #include "yqlora/editor/PreviewLighting.hpp"
+#include "yqlora/editor/ResourceEditing.hpp"
 #include "yqlora/editor/SceneDocument.hpp"
 #include "yqlora/editor/SceneEditing.hpp"
 #include "yqlora/editor/Selection.hpp"
@@ -120,10 +120,10 @@ public:
         return m_services;
     }
 
-    // Правка файлов материалов в инспекторе, см. MaterialEditing.
-    MaterialEditing& materialEditing()
+    // Правка файлов ресурсов в инспекторе, см. ResourceEditing.
+    ResourceEditing& resourceEditing()
     {
-        return m_materialEditing;
+        return m_resourceEditing;
     }
 
     // Просьбы показать цель ссылки в дереве и в "Файлах", см. Pings.
@@ -236,7 +236,7 @@ public:
     void update(float deltaSeconds, const Input& input)
     {
         updateModified(deltaSeconds);
-        m_materialEditing.update(deltaSeconds);
+        m_resourceEditing.update(deltaSeconds);
         m_play.update(deltaSeconds, input);
         // Сцену документа правят между кадрами: мировые матрицы одним проходом.
         m_document.scene().updateTransforms();
@@ -281,7 +281,7 @@ private:
     SceneEditing m_editing{*this};
     PrefabEditing m_prefabEditing{*this};
     PreviewLighting m_previewLighting{m_services};
-    MaterialEditing m_materialEditing{*this};
+    ResourceEditing m_resourceEditing{*this};
     Pings m_pings;
     SettingsEditing m_settingsEditing{*this};
 };

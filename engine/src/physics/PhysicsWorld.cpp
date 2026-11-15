@@ -6,9 +6,11 @@
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/core/Log.hpp"
 #include "yqlora/physics/JoltLayers.hpp"
+#include "yqlora/physics/JoltMaterials.hpp"
 #include "yqlora/physics/JoltMath.hpp"
 #include "yqlora/physics/MeshShapeCache.hpp"
 #include "yqlora/physics/PhysicsBodies.hpp"
+#include "yqlora/physics/PhysicsMaterialCache.hpp"
 #include "yqlora/physics/PhysicsRuntime.hpp"
 #include "yqlora/physics/PhysicsSettings.hpp"
 #include "yqlora/physics/PhysicsWorldAccess.hpp"
@@ -41,7 +43,7 @@ constexpr int kCollisionStepsPerStep = 1;
 struct PhysicsWorld::Impl {
     Impl(Scene& scene, PhysicsRuntime& physicsRuntime, const PhysicsSettings& settings)
         : runtime(physicsRuntime)
-        , bodies(scene, system.GetBodyInterface(), physicsRuntime.meshShapes())
+        , bodies(scene, system.GetBodyInterface(), physicsRuntime.meshShapes(), physicsRuntime.materials())
     {
         // Среда запущена в PhysicsWorld::impl(), до создания членов Jolt.
         pairs.matrix = settings.collisions();
@@ -54,6 +56,9 @@ struct PhysicsWorld::Impl {
             objectVsBroadPhase,
             pairs
         );
+        // Трение и упругость пары - из материалов подфигур контакта.
+        system.SetCombineFriction(combineJoltFriction);
+        system.SetCombineRestitution(combineJoltRestitution);
     }
 
     PhysicsRuntime& runtime;
@@ -64,6 +69,8 @@ struct PhysicsWorld::Impl {
     JPH::PhysicsSystem system;
     // После системы: уходит раньше неё, убирая свои тела.
     PhysicsBodies bodies;
+    // Поколение материалов, которое мир уже видел (PhysicsMaterialCache::generation).
+    std::uint64_t materials = 0;
     // Ошибки шага, о которых лог уже сказал: каждая - один раз.
     JPH::EPhysicsUpdateError reported = JPH::EPhysicsUpdateError::None;
 };
@@ -121,6 +128,12 @@ void PhysicsWorld::afterFixedUpdate(float stepSeconds)
     world.system.SetPhysicsSettings(solver);
 
     world.bodies.flush();
+    PhysicsMaterialCache& materials = world.runtime.materials();
+    materials.refresh(scene().services().resources());
+    if (materials.generation() != world.materials) {
+        world.materials = materials.generation();
+        world.bodies.wakeAll();
+    }
     world.bodies.beforeStep(stepSeconds);
     const JPH::EPhysicsUpdateError errors = world.system.Update(
         stepSeconds,

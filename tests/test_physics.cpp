@@ -14,6 +14,7 @@
 #include <yqlora/physics/PhysicsWorld.hpp>
 #include <yqlora/physics/PhysicsWorldAccess.hpp>
 #include <yqlora/project/Project.hpp>
+#include <yqlora/resource/BuiltinResources.hpp>
 #include <yqlora/scene/Node3D.hpp>
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
@@ -164,6 +165,7 @@ TEST_CASE("PhysicsSettings: gravity, iterations and the collision matrix survive
         physics.setGravity({0.0f, -3.7f, 0.0f});
         physics.setVelocitySteps(kMaxSolverSteps + 1);
         physics.setPositionSteps(4);
+        physics.setDefaultMaterial({builtin::kFirstProjectId});
         physics.collisions().setCollides(kPlayers, kWalls, false);
         REQUIRE(project.settings().save(physics));
     }
@@ -172,6 +174,7 @@ TEST_CASE("PhysicsSettings: gravity, iterations and the collision matrix survive
     CHECK(physics.gravity() == Vec3{0.0f, -3.7f, 0.0f});
     CHECK(physics.velocitySteps() == kMaxSolverSteps);
     CHECK(physics.positionSteps() == 4);
+    CHECK(physics.defaultMaterial().id == builtin::kFirstProjectId);
     CHECK_FALSE(physics.collisions().collides(kWalls, kPlayers));
     CHECK(physics.collisions().ignoredPairs().size() == 1);
 }

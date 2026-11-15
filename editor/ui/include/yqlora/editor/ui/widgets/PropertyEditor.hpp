@@ -94,6 +94,11 @@ PropertyResult drawProperty(
 );
 PropertyResult drawProperty(const Property& property, SettingsSection& section, const PropertyEditorContext& context);
 
+// Поля записи без объекта (данные ресурса, который сам запись, см.
+// recordProperty) строками таблицы свойств, по строке на поле. В
+// result.value - вся запись с правкой.
+PropertyResult drawRecordFields(const Property& record, const RecordValue& value, const PropertyEditorContext& context);
+
 // Подпись свойства: его displayName, иначе перевод ключа property.<имя>,
 // а без перевода - имя с заглавной буквы.
 std::string propertyLabel(const Property& property);

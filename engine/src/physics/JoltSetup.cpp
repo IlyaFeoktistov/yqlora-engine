@@ -4,6 +4,7 @@
 #include "yqlora/physics/JoltSetup.hpp"
 
 #include "yqlora/core/Log.hpp"
+#include "yqlora/physics/JoltMaterials.hpp"
 
 #include <Jolt/Core/Factory.h>
 #include <Jolt/RegisterTypes.h>
@@ -63,6 +64,9 @@ JoltSetup::JoltSetup()
         std::abort();
     }
     JPH::Factory::sInstance = new JPH::Factory();
+    // До RegisterTypes: свой материал по умолчанию он не заменяет, а
+    // сведение трения и упругости считает все материалы фигур нашими.
+    JPH::PhysicsMaterial::sDefault = new JoltPhysicsMaterial(PhysicsMaterialData{});
     JPH::RegisterTypes();
 }
 

@@ -8,13 +8,13 @@
 #include <yqlora/core/JsonFile.hpp>
 #include <yqlora/core/JsonId.hpp>
 #include <yqlora/editor/EditorSession.hpp>
-#include <yqlora/editor/MaterialEditing.hpp>
 #include <yqlora/editor/MaterialPreview.hpp>
 #include <yqlora/editor/ModelInspection.hpp>
 #include <yqlora/editor/Picking.hpp>
 #include <yqlora/editor/ProjectFiles.hpp>
 #include <yqlora/editor/ProjectSetup.hpp>
 #include <yqlora/editor/ResourceChoices.hpp>
+#include <yqlora/editor/ResourceEditing.hpp>
 #include <yqlora/editor/ResourceInspection.hpp>
 #include <yqlora/editor/ResourceLabel.hpp>
 #include <yqlora/editor/TextureInspection.hpp>
@@ -24,6 +24,8 @@
 #include <yqlora/input/Input.hpp>
 #include <yqlora/material/MaterialFile.hpp>
 #include <yqlora/math/Ray.hpp>
+#include <yqlora/physics/PhysicsMaterialData.hpp>
+#include <yqlora/physics/PhysicsMaterialFile.hpp>
 #include <yqlora/project/GeneralSettings.hpp>
 #include <yqlora/project/Project.hpp>
 #include <yqlora/render/BuiltinMeshes.hpp>
@@ -269,15 +271,15 @@ TEST_CASE_FIXTURE(Fixture, "A model material is read-only; its copy is a materia
 {
     const ResourceId wood = mesh("material:Wood");
     const auto written = fs::last_write_time(modelFile());
-    MaterialEditing& editing = session.materialEditing();
-    REQUIRE(editing.material(wood));
-    const auto values = editing.material(wood)->values;
+    ResourceEditing& editing = session.resourceEditing();
+    REQUIRE(editing.find<MaterialData>(wood));
+    const auto values = editing.find<MaterialData>(wood)->values;
     CHECK_FALSE(editing.editable(wood));
-    CHECK_FALSE(editing.change(wood, [](MaterialData& material) {
+    CHECK_FALSE(editing.change<MaterialData>(wood, [](MaterialData& material) {
         material.values["roughness"] = {0.1f};
     }));
     CHECK_FALSE(editing.pending());
-    CHECK(editing.material(wood)->values == values);
+    CHECK(editing.find<MaterialData>(wood)->values == values);
     CHECK(fs::last_write_time(modelFile()) == written);
 
     // Копия рядом с моделью: имя предлагается по ключу материала.
@@ -285,15 +287,15 @@ TEST_CASE_FIXTURE(Fixture, "A model material is read-only; its copy is a materia
     const NewResourceType& type = *findNewResourceType(MaterialData::kResourceKind);
     CHECK(files.suggestName(type, "models", "Wood") == "Wood");
     const std::uint64_t revision = session.project()->resources().filesRevision();
-    const auto copy = files.createMaterial("models", "Wood", *editing.material(wood));
+    const auto copy = files.createMaterial("models", "Wood", *editing.find<MaterialData>(wood));
     REQUIRE(copy);
     CHECK(session.project()->resources().filesRevision() > revision);
     CHECK(files.suggestName(type, "models", "Wood") == "Wood 2");
     const ResourceId copied = session.project()->resources().id(*copy);
-    REQUIRE(editing.material(copied));
+    REQUIRE(editing.find<MaterialData>(copied));
     CHECK(editing.editable(copied));
-    const MaterialData& original = *editing.material(wood);
-    const MaterialData& result = *editing.material(copied);
+    const MaterialData& original = *editing.find<MaterialData>(wood);
+    const MaterialData& result = *editing.find<MaterialData>(copied);
     CHECK(result.shader == original.shader);
     CHECK(result.blend == original.blend);
     CHECK(result.cull == original.cull);
@@ -593,7 +595,7 @@ TEST_CASE_FIXTURE(Fixture, "resourceChoices: nested resources follow the file or
 
 TEST_CASE_FIXTURE(
     Fixture,
-    "MaterialEditing: an edit reaches the cache at once, the file is written when it ends or twice a second"
+    "ResourceEditing: an edit reaches the cache at once, the file is written when it ends or twice a second"
 )
 {
     ProjectFiles files(*session.project());
@@ -606,30 +608,58 @@ TEST_CASE_FIXTURE(
 
         return materialFromJson(*readJsonFile(file), error)->values;
     };
-    MaterialEditing& editing = session.materialEditing();
-    REQUIRE(editing.material(wood));
+    ResourceEditing& editing = session.resourceEditing();
+    REQUIRE(editing.find<MaterialData>(wood));
     const std::uint64_t revision = session.resources().get<MaterialData>(wood).revision;
 
-    REQUIRE(editing.change(wood, [](MaterialData& material) {
+    REQUIRE(editing.change<MaterialData>(wood, [](MaterialData& material) {
         material.values["roughness"] = {0.2f};
     }));
     CHECK(session.resources().get<MaterialData>(wood).revision > revision);
-    CHECK(editing.material(wood)->values.at("roughness")[0] == doctest::Approx(0.2f));
+    CHECK(editing.find<MaterialData>(wood)->values.at("roughness")[0] == doctest::Approx(0.2f));
     CHECK(onDisk().empty());
     // Перетаскивание идёт: файл не пишется каждый кадр, но и не ждёт конца.
     editing.update(0.1f);
     CHECK(onDisk().empty());
-    editing.update(1.0f / MaterialEditing::kWritesPerSecond);
+    editing.update(1.0f / ResourceEditing::kWritesPerSecond);
     CHECK(onDisk().at("roughness")[0] == doctest::Approx(0.2f));
 
-    REQUIRE(editing.change(wood, [](MaterialData& material) {
+    REQUIRE(editing.change<MaterialData>(wood, [](MaterialData& material) {
         material.values["roughness"] = {0.7f};
     }));
     CHECK(editing.pending());
     REQUIRE(editing.finish());
     CHECK_FALSE(editing.pending());
     CHECK(onDisk().at("roughness")[0] == doctest::Approx(0.7f));
-    CHECK_FALSE(editing.change(builtin::kDefaultMaterial, [](MaterialData&) {
+    CHECK_FALSE(editing.change<MaterialData>(builtin::kDefaultMaterial, [](MaterialData&) {
+    }));
+}
+
+TEST_CASE_FIXTURE(Fixture, "ResourceEditing: a physics material made in Files is edited and written the same way")
+{
+    ProjectFiles files(*session.project());
+    const NewResourceType& type = *findNewResourceType(PhysicsMaterialData::kResourceKind);
+    const auto created = type.create(files, {}, "Ice", {serializer, {}});
+    REQUIRE(created);
+    CHECK(created->extension() == kPhysicsMaterialFileExtension);
+    const ResourceId ice = session.project()->resources().id(*created);
+    ResourceEditing& editing = session.resourceEditing();
+    REQUIRE(editing.find<PhysicsMaterialData>(ice));
+    CHECK(*editing.find<PhysicsMaterialData>(ice) == PhysicsMaterialData{});
+    CHECK(editing.editable(ice));
+
+    REQUIRE(editing.change<PhysicsMaterialData>(ice, [](PhysicsMaterialData& material) {
+        material.friction = 0.05f;
+        material.frictionCombine = PhysicsCombine::Minimum;
+    }));
+    REQUIRE(editing.finish());
+    std::string error;
+    const auto onDisk = physicsMaterialFromJson(*readJsonFile(directory / *created), error);
+    REQUIRE(onDisk);
+    CHECK(onDisk->friction == doctest::Approx(0.05f));
+    CHECK(onDisk->frictionCombine == PhysicsCombine::Minimum);
+    CHECK_FALSE(editing.editable(builtin::kDefaultPhysicsMaterial));
+    CHECK_FALSE(editing.change<MaterialData>(ice, [](MaterialData&) {
     }));
 }
 

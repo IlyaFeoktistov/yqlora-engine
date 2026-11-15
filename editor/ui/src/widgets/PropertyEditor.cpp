@@ -629,6 +629,28 @@ PropertyResult drawProperty(const Property& property, SettingsSection& section, 
     return drawPropertyRow(property, section, context, nullptr);
 }
 
+PropertyResult drawRecordFields(const Property& record, const RecordValue& value, const PropertyEditorContext& context)
+{
+    PropertyResult result;
+    RecordValue edited = value;
+    const auto& fields = record.fields();
+    for (std::size_t i = 0; i < fields.size() && i < edited.fields.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        rowLabel(fields[i], edited.fields[i], result);
+        ImGui::TableNextColumn();
+        valueField(fields[i], fields[i].type(), edited.fields[i], context, result);
+        if (result.changed) {
+            clampToRange(fields[i], edited.fields[i]);
+        }
+        ImGui::PopID();
+    }
+    result.value = std::move(edited);
+
+    return result;
+}
+
 std::string propertyLabel(const Property& property)
 {
     if (!property.attributes().displayName.empty()) {

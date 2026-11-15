@@ -135,4 +135,21 @@ bool drawPropertyTable(
     return drawTable(registry, widgets, type, section, changed, nullptr);
 }
 
+PropertyResult drawRecordTable(const PropertyEditorContext& widgets, const Property& record, const RecordValue& value)
+{
+    std::vector<const Property*> fields;
+    for (const Property& field : record.fields()) {
+        fields.push_back(&field);
+    }
+    if (fields.empty() || !ImGui::BeginTable("record", kColumnCount)) {
+        return {};
+    }
+    ImGui::TableSetupColumn("label", ImGuiTableColumnFlags_WidthFixed, labelColumnWidth(fields));
+    ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
+    PropertyResult result = drawRecordFields(record, value, widgets);
+    ImGui::EndTable();
+
+    return result;
+}
+
 } // namespace yqlora::editor

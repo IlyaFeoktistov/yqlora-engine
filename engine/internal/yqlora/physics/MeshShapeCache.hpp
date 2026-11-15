@@ -4,25 +4,33 @@
 
 #include "yqlora/resource/ResourceId.hpp"
 
+#include <Jolt/Physics/Collision/PhysicsMaterial.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 
 #include <cstdint>
 #include <map>
-#include <utility>
+#include <tuple>
 
 namespace yqlora {
 
 class ResourceCache;
 
-// Формы Jolt из мешей, приготовленные один раз на меш и его ревизию и общие
-// для всех коллайдеров с этим мешем: треугольники (MeshShape) или выпуклая
-// оболочка (ConvexHullShape). Новая ревизия меша (перевыгрузка) готовит
+// Формы Jolt из мешей, приготовленные один раз на меш, его ревизию и
+// физический материал и общие для всех коллайдеров с этим мешем и
+// материалом: треугольники (MeshShape) или выпуклая оболочка
+// (ConvexHullShape). Объект материала постоянный на всю жизнь среды
+// (PhysicsMaterialCache), поэтому правка материала форму не меняет. Новая ревизия меша (перевыгрузка) готовит
 // форму заново, а старая уходит, когда её не держит ни одно тело. Только
 // главный поток.
 class MeshShapeCache {
 public:
     // nullptr - меша нет, он пуст или Jolt его не принял (тогда сообщение в лог).
-    JPH::RefConst<JPH::Shape> shape(ResourceCache& resources, ResourceId mesh, bool convex);
+    JPH::RefConst<JPH::Shape> shape(
+        ResourceCache& resources,
+        ResourceId mesh,
+        bool convex,
+        const JPH::PhysicsMaterial* material
+    );
 
     // Ревизия меша, из которой форма готовилась бы сейчас; 0 - меша нет.
     static std::uint64_t revisionOf(ResourceCache& resources, ResourceId mesh);
@@ -39,7 +47,7 @@ private:
         JPH::RefConst<JPH::Shape> shape;
     };
 
-    std::map<std::pair<ResourceId, bool>, Entry> m_entries;
+    std::map<std::tuple<ResourceId, bool, const JPH::PhysicsMaterial*>, Entry> m_entries;
     std::uint64_t m_cooked = 0;
 };
 

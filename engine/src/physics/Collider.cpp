@@ -18,6 +18,12 @@ void Collider::setRotationDegrees(const Vec3& degrees)
     changed();
 }
 
+void Collider::setMaterial(Ref<PhysicsMaterialData> material)
+{
+    m_material = material;
+    changed();
+}
+
 Quat Collider::rotation() const
 {
     return Quat(glm::radians(m_rotationDegrees));

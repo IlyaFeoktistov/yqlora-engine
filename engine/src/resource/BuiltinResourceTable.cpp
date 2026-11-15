@@ -1,6 +1,7 @@
 #include "yqlora/resource/BuiltinResourceTable.hpp"
 
 #include "yqlora/material/MaterialData.hpp"
+#include "yqlora/physics/PhysicsMaterialData.hpp"
 #include "yqlora/render/BuiltinMeshes.hpp"
 #include "yqlora/shader/BuiltinShaders.hpp"
 
@@ -52,6 +53,10 @@ std::span<const BuiltinResourceEntry> builtinResourceTable()
              "Gradient Sky",
              material(builtin::kGradientSkyShader)}
         );
+
+        entries.push_back({builtin::kDefaultPhysicsMaterial, PhysicsMaterialData::kResourceKind, "Default", [] {
+                               return std::shared_ptr<const void>(std::make_shared<const PhysicsMaterialData>());
+                           }});
 
         return entries;
     }();

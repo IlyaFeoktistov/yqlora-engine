@@ -3,6 +3,8 @@
 #include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/physics/ColliderShape.hpp"
+#include "yqlora/physics/PhysicsMaterialData.hpp"
+#include "yqlora/reflection/Property.hpp"
 #include "yqlora/scene/Component.hpp"
 
 namespace yqlora {
@@ -37,6 +39,15 @@ public:
 
     Quat rotation() const;
 
+    // Трение и упругость поверхности; пусто - материал по умолчанию из
+    // раздела Physics настроек проекта.
+    Ref<PhysicsMaterialData> material() const
+    {
+        return m_material;
+    }
+
+    void setMaterial(Ref<PhysicsMaterialData> material);
+
     // Фигура в собственных осях коллайдера.
     virtual ColliderShape shape() const = 0;
 
@@ -52,6 +63,7 @@ protected:
 private:
     Vec3 m_center{0.0f};
     Vec3 m_rotationDegrees{0.0f};
+    Ref<PhysicsMaterialData> m_material;
 };
 
 } // namespace yqlora

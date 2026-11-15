@@ -25,6 +25,7 @@ namespace yqlora {
 
 class Component;
 class MeshShapeCache;
+class PhysicsMaterialCache;
 class Node;
 class ResourceCache;
 class Scene;
@@ -36,7 +37,12 @@ class Scene;
 // перестраиваются в flush, перед шагом. Устройство - docs/architecture/physics.md.
 class PhysicsBodies {
 public:
-    PhysicsBodies(Scene& scene, JPH::BodyInterface& bodies, MeshShapeCache& meshShapes);
+    PhysicsBodies(
+        Scene& scene,
+        JPH::BodyInterface& bodies,
+        MeshShapeCache& meshShapes,
+        PhysicsMaterialCache& materials
+    );
     ~PhysicsBodies();
 
     PhysicsBodies(const PhysicsBodies&) = delete;
@@ -49,7 +55,8 @@ public:
 
     // Перестраивает изменённые тела и те, у которых дочерний коллайдер
     // сдвинулся относительно узла тела, сменился масштаб узла тела или
-    // перевыгружен меш коллайдера.
+    // перевыгружен меш коллайдера; сменился материал по умолчанию в
+    // настройках - все тела.
     void flush();
 
     // Перед шагом: узлы, сдвинутые кодом или редактором, переносят свои тела
@@ -65,6 +72,9 @@ public:
     {
         return m_bodies.size();
     }
+
+    // Будит все подвижные тела: сменились значения их материалов.
+    void wakeAll();
 
     // Тело узла-хозяина; невалидный ID, если у узла тела нет.
     JPH::BodyID bodyOf(NodeId owner) const;
@@ -107,7 +117,10 @@ private:
     Scene& m_scene;
     JPH::BodyInterface& m_interface;
     MeshShapeCache& m_meshShapes;
+    PhysicsMaterialCache& m_materials;
     ResourceCache& m_resources;
+    // Материал по умолчанию, с которым построены тела.
+    ResourceId m_defaultMaterial = 0;
     std::unordered_set<std::uint64_t> m_warned;
     std::unordered_map<NodeId, Body> m_bodies;
     // Хозяева тел в порядке глубины узлов.

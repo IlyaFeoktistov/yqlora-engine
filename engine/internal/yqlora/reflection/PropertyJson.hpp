@@ -3,6 +3,7 @@
 #include "yqlora/core/Export.hpp"
 #include "yqlora/core/Log.hpp"
 #include "yqlora/reflection/Property.hpp"
+#include "yqlora/reflection/Record.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 
 #include <nlohmann/json.hpp>
@@ -96,6 +97,29 @@ void propertiesFromJson(const TypeRegistry& registry, const TypeInfo& type, Obje
         }
         property->set(object, *value);
     }
+}
+
+// Запись T объектом JSON по именам полей.
+template <Record T>
+nlohmann::json recordToJson(const T& value)
+{
+    return valueToJson(recordProperty<T>(), PropertyStorage<T>::store(value));
+}
+
+// Поля, которых в объекте нет, - по умолчанию T{}. nullopt, если поле не
+// того типа или такого значения перечисления нет.
+template <Record T>
+std::optional<T> recordFromJson(const nlohmann::json& json)
+{
+    if (!json.is_object()) {
+        return std::nullopt;
+    }
+    const auto value = valueFromJson(json, recordProperty<T>());
+    if (!value) {
+        return std::nullopt;
+    }
+
+    return PropertyStorage<T>::load(std::get<RecordValue>(*value));
 }
 
 } // namespace yqlora

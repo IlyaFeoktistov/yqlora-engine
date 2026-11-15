@@ -94,6 +94,7 @@ add_library(yqlora SHARED
     src/import/GltfMeshes.cpp
     src/import/GltfNodes.cpp
     src/import/MaterialLoader.cpp
+    src/import/PhysicsMaterialLoader.cpp
     src/import/ModelPrefab.cpp
     src/import/OrmPacking.cpp
     src/import/ImageLoader.cpp
@@ -209,6 +210,7 @@ add_library(yqlora SHARED
     src/physics/Collider.cpp
     src/physics/CylinderCollider.cpp
     src/physics/JoltLayers.cpp
+    src/physics/JoltMaterials.cpp
     src/physics/JoltShapes.cpp
     src/physics/PhysicsBodies.cpp
     src/physics/RigidBody.cpp
@@ -216,6 +218,9 @@ add_library(yqlora SHARED
     src/physics/JoltSetup.cpp
     src/physics/LayerCollisionMatrix.cpp
     src/physics/PhysicsLayers.cpp
+    src/physics/PhysicsMaterialData.cpp
+    src/physics/PhysicsMaterialCache.cpp
+    src/physics/PhysicsMaterialFile.cpp
     src/physics/PhysicsRuntime.cpp
     src/physics/PhysicsSettings.cpp
     src/physics/PhysicsTypes.cpp

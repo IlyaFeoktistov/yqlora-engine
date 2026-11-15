@@ -9,6 +9,8 @@
 #include "yqlora/physics/JoltShapes.hpp"
 #include "yqlora/physics/MeshShapeCache.hpp"
 #include "yqlora/physics/PhysicsLayers.hpp"
+#include "yqlora/physics/PhysicsMaterialCache.hpp"
+#include "yqlora/physics/PhysicsSettings.hpp"
 #include "yqlora/physics/RigidBody.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/scene/Node3D.hpp"
@@ -117,11 +119,18 @@ void forEachBodyCollider(
 
 } // namespace
 
-PhysicsBodies::PhysicsBodies(Scene& scene, JPH::BodyInterface& bodies, MeshShapeCache& meshShapes)
+PhysicsBodies::PhysicsBodies(
+    Scene& scene,
+    JPH::BodyInterface& bodies,
+    MeshShapeCache& meshShapes,
+    PhysicsMaterialCache& materials
+)
     : m_scene(scene)
     , m_interface(bodies)
     , m_meshShapes(meshShapes)
+    , m_materials(materials)
     , m_resources(scene.services().resources())
+    , m_defaultMaterial(physicsSettingsOf(scene.services()).materialFor({}))
 {
 }
 
@@ -213,6 +222,15 @@ void PhysicsBodies::flush()
         };
         walk(*root);
     }
+    // Материалы коллайдеров без своего - в фигурах, поэтому новый материал
+    // по умолчанию перестраивает тела.
+    const ResourceId defaultMaterial = physicsSettingsOf(m_scene.services()).materialFor({});
+    if (defaultMaterial != m_defaultMaterial) {
+        m_defaultMaterial = defaultMaterial;
+        for (const auto& [owner, body] : m_bodies) {
+            m_dirtyOwners.insert(owner);
+        }
+    }
     // Форма другая: дочерний коллайдер сдвинули относительно узла тела,
     // сменился масштаб узла тела, перевыгрузили меш.
     for (auto& [owner, body] : m_bodies) {
@@ -279,6 +297,7 @@ void PhysicsBodies::rebuild(NodeId owner)
     const Mat4 ownerWorld = node3D->worldMatrix();
     const BodyPose pose = bodyPoseOf(ownerWorld);
     const Mat4 toBody = glm::inverse(glm::translate(Mat4(1.0f), pose.position) * glm::mat4_cast(pose.rotation));
+    const PhysicsSettings& physics = physicsSettingsOf(m_scene.services());
     std::vector<PlacedShape> shapes;
     std::vector<std::pair<ResourceId, std::uint64_t>> meshes;
     forEachBodyCollider(*node, rigidBody != nullptr, [&](const Collider& collider, const Node& colliderNode) {
@@ -287,7 +306,13 @@ void PhysicsBodies::rebuild(NodeId owner)
         const BodyPose place = bodyPoseOf(local);
         const Vec3 scale = axisScaleOf(local);
         ColliderShape shape = collider.shape();
-        PlacedShape placed{.shape = {}, .position = place.position, .rotation = place.rotation, .scale = Vec3(1.0f)};
+        PlacedShape placed{
+            .shape = {},
+            .material = m_materials.material(m_resources, physics.materialFor(collider.material())),
+            .position = place.position,
+            .rotation = place.rotation,
+            .scale = Vec3(1.0f),
+        };
         if (auto* mesh = std::get_if<MeshShape>(&shape)) {
             // Треугольники Jolt сталкивает только у неподвижных и кинематических тел.
             if (!mesh->convex && motion == JPH::EMotionType::Dynamic) {
@@ -335,8 +360,8 @@ void PhysicsBodies::rebuild(NodeId owner)
     }
 
     const PhysicsObjectLayer layer = physicsObjectLayer(node->layer(), motion != JPH::EMotionType::Static);
-    const MeshShapeSource meshSource = [&](ResourceId mesh, bool convex) {
-        return m_meshShapes.shape(m_resources, mesh, convex);
+    const MeshShapeSource meshSource = [&](ResourceId mesh, bool convex, const JPH::PhysicsMaterial* material) {
+        return m_meshShapes.shape(m_resources, mesh, convex, material);
     };
     JPH::BodyCreationSettings
         settings(joltBodyShape(shapes, meshSource), toJolt(pose.position), toJolt(pose.rotation), motion, layer);
@@ -473,6 +498,15 @@ void PhysicsBodies::interpolate(float fraction)
         if (node && target != body.lastTarget) {
             writePose(*node, body, target);
             body.lastTarget = target;
+        }
+    }
+}
+
+void PhysicsBodies::wakeAll()
+{
+    for (const auto& [owner, body] : m_bodies) {
+        if (body.motion != JPH::EMotionType::Static) {
+            m_interface.ActivateBody(body.id);
         }
     }
 }

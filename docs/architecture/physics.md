@@ -117,13 +117,26 @@ is wired as its documentation and samples recommend; nothing here is new.
   take the largest axis and the log says so once.
 - **Shapes of meshes are cooked once** per mesh and revision and shared by
   all colliders with that mesh; a re-export rebuilds them.
-- **`PhysicsMaterial`**, a resource (`.ymat` is taken by render materials,
-  so `.yphysmat`): `friction`, `restitution` and how two values combine
-  (average, minimum, maximum, multiply). Per collider, combined in the
-  contact listener (`OnContactAdded`, since Jolt has one combine function
-  per world); when the two modes differ, the higher one in maximum,
-  multiply, minimum, average is used, so the result does not depend on
-  which body is first. Without a material the project default is used.
+- **Physics material** (`PhysicsMaterialData`), a resource (`.ymat` is
+  taken by render materials, so `.yphysmat`, format "PhysicsMaterial"
+  version 1): `friction` (0.6 by default), `restitution` (0, at most 1)
+  and how two values combine (`Average`, `Minimum`, `Multiply`,
+  `Maximum`). The data is a reflection record, so the file and the
+  inspector take the fields from one description. `Collider::material` is
+  the collider's own material; empty means the default material of the
+  Physics section (`defaultMaterial`, the built-in "Default" at first).
+  When the two modes differ, the higher one in maximum, multiply, minimum,
+  average is used, so the result does not depend on which body is first.
+- **Materials in Jolt**: every collider shape carries its material (a
+  `JPH::PhysicsMaterial` subclass; mesh triangles share one, and mesh
+  shapes are cooked per mesh and material), and the world's combine
+  functions (`SetCombineFriction`, `SetCombineRestitution`) read the
+  materials of both sub-shapes of a contact. There is one material object
+  per resource for the life of the runtime: editing or reloading the
+  resource changes its values before the step, bodies are not rebuilt,
+  and a world that sees the change wakes its bodies so sleeping ones feel
+  the new friction. Changing the default material in the settings
+  rebuilds bodies: the material is in their shapes.
 
 ## Contacts and triggers [planned, step 6]
 
@@ -370,10 +383,18 @@ Everything set in the inspector is a property with a setter (see
 
 ### PH.3 Physics materials
 
-- `PhysicsMaterial` resource and its loader, combine modes in the contact
-  listener, the project default.
-- Tests: a box slides further on ice than on rubber; a ball bounces to the
-  height its restitution gives; the combine modes.
+- The physics material resource, its loader and the built-in default,
+  materials on shapes and the world's combine functions, the project
+  default; in the editor, creation in Files, an inspector from the record
+  fields, and editing resource files through one `ResourceEditing` for
+  render and physics materials.
+- Tests: a box slides down an icy slope and holds on a rubber one; a ball
+  bounces to the height its restitution gives; the combine modes in either
+  order; a file with a wrong field is refused, out-of-range numbers are
+  held in range; a collider without a material takes the project value,
+  and changing it in Play acts at once; an edited material acts from the
+  next step and wakes a sleeping body; editing and writing the file in the
+  editor.
 
 ### PH.4 Contacts and triggers
 

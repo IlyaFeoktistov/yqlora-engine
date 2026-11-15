@@ -86,8 +86,8 @@ void MaterialInspector::reset()
 
 void MaterialInspector::draw(EditorContext& context, ResourceId id)
 {
-    MaterialEditing& editing = context.session.materialEditing();
-    const MaterialData* material = editing.material(id);
+    ResourceEditing& editing = context.session.resourceEditing();
+    const MaterialData* material = editing.find<MaterialData>(id);
     if (!material) {
         return;
     }
@@ -169,26 +169,26 @@ void MaterialInspector::drawPreview(EditorContext& context, ResourceId id)
 
 void MaterialInspector::drawState(EditorContext& context, ResourceId id, const MaterialData& material)
 {
-    MaterialEditing& editing = context.session.materialEditing();
+    ResourceEditing& editing = context.session.resourceEditing();
     const PropertyEditorContext fields = propertyEditorContext(context);
     ResourceRef shader{material.shader};
     ImGui::TextUnformatted(tr("editor.material.shader").c_str());
     if (resourceField(kinds::kShader, {}, shader, fields)) {
-        editing.change(id, [&](MaterialData& edited) {
+        editing.change<MaterialData>(id, [&](MaterialData& edited) {
             edited.shader = shader.id;
         });
         editing.finish();
     }
     MaterialBlend blend = material.blend;
     if (enumCombo(tr("editor.material.blend").c_str(), blend)) {
-        editing.change(id, [&](MaterialData& edited) {
+        editing.change<MaterialData>(id, [&](MaterialData& edited) {
             edited.blend = blend;
         });
         editing.finish();
     }
     MaterialCull cull = material.cull;
     if (enumCombo(tr("editor.material.cull").c_str(), cull)) {
-        editing.change(id, [&](MaterialData& edited) {
+        editing.change<MaterialData>(id, [&](MaterialData& edited) {
             edited.cull = cull;
         });
         editing.finish();
@@ -202,7 +202,7 @@ void MaterialInspector::drawFields(
     const ShaderData& shader
 )
 {
-    MaterialEditing& editing = context.session.materialEditing();
+    ResourceEditing& editing = context.session.resourceEditing();
     ImGui::SeparatorText(tr("editor.material.values").c_str());
     for (const MaterialField& field : shader.fields) {
         if (field.hidden) {
@@ -211,7 +211,7 @@ void MaterialInspector::drawFields(
         const std::span<const float> stored = materialValue(material, field);
         std::vector<float> value(stored.begin(), stored.end());
         if (fieldWidget(field, value)) {
-            editing.change(id, [&](MaterialData& edited) {
+            editing.change<MaterialData>(id, [&](MaterialData& edited) {
                 edited.values[field.name] = value;
             });
         }
@@ -229,7 +229,7 @@ void MaterialInspector::drawTextures(
     const ShaderData& shader
 )
 {
-    MaterialEditing& editing = context.session.materialEditing();
+    ResourceEditing& editing = context.session.resourceEditing();
     const PropertyEditorContext fields = propertyEditorContext(context);
     if (std::ranges::all_of(shader.textures, &MaterialTexture::hidden)) {
         return;
@@ -243,7 +243,7 @@ void MaterialInspector::drawTextures(
         ImGui::TextUnformatted((texture.label.empty() ? texture.name : tr(texture.label)).c_str());
         ResourceRef value{materialTexture(material, texture)};
         if (resourceField(kinds::kTexture, {}, value, fields)) {
-            editing.change(id, [&](MaterialData& edited) {
+            editing.change<MaterialData>(id, [&](MaterialData& edited) {
                 if (value.id == 0) {
                     edited.textures.erase(texture.name);
                 } else {

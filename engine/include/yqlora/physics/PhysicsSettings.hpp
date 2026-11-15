@@ -3,7 +3,10 @@
 #include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/physics/LayerCollisionMatrix.hpp"
+#include "yqlora/physics/PhysicsMaterialData.hpp"
 #include "yqlora/project/SettingsSection.hpp"
+#include "yqlora/reflection/Property.hpp"
+#include "yqlora/resource/BuiltinResources.hpp"
 
 namespace yqlora {
 
@@ -19,8 +22,8 @@ inline constexpr int kDefaultPositionSteps = 2;
 inline constexpr int kMinSolverSteps = 1;
 inline constexpr int kMaxSolverSteps = 255;
 
-// Раздел Physics настроек проекта: гравитация, итерации решателя и какие
-// слои сталкиваются. Применяется сразу, в том числе во время Play: мир
+// Раздел Physics настроек проекта: гравитация, итерации решателя, материал
+// коллайдеров без своего и какие слои сталкиваются. Применяется сразу, в том числе во время Play: мир
 // читает его перед каждым шагом.
 class YQLORA_API PhysicsSettings final : public SettingsSection {
 public:
@@ -50,6 +53,20 @@ public:
     void setVelocitySteps(int steps);
     void setPositionSteps(int steps);
 
+    // Материал коллайдеров без своего; пусто - встроенный по умолчанию.
+    Ref<PhysicsMaterialData> defaultMaterial() const
+    {
+        return m_defaultMaterial;
+    }
+
+    void setDefaultMaterial(Ref<PhysicsMaterialData> material)
+    {
+        m_defaultMaterial = material;
+    }
+
+    // Материал коллайдера с материалом material: свой или по умолчанию.
+    ResourceId materialFor(Ref<PhysicsMaterialData> material) const;
+
     LayerCollisionMatrix& collisions()
     {
         return m_collisions;
@@ -64,6 +81,7 @@ private:
     Vec3 m_gravity = kDefaultGravity;
     int m_velocitySteps = kDefaultVelocitySteps;
     int m_positionSteps = kDefaultPositionSteps;
+    Ref<PhysicsMaterialData> m_defaultMaterial{builtin::kDefaultPhysicsMaterial};
     LayerCollisionMatrix m_collisions;
 };
 
