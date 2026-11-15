@@ -57,3 +57,10 @@ Status marks: see [README](README.md).
 
 - Translations for games (texts of the HUD, a language setting of the game)
   come with the player interface **[planned, step 8]**.
+- **The log in the user's language** **[planned, step 8]**: engine and
+  editor messages are written as a translation key with arguments
+  (`log::warn("log.physics.meshHull", node)`), and the text in the current
+  language is made once, when the message is output. Lines already output
+  do not change when the language changes: the log buffer and the file
+  hold finished text. A key without a translation is output in English,
+  like any `tr`.
