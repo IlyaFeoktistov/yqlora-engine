@@ -572,6 +572,13 @@
         "restitution": "Упругость",
         "frictionCombine": "Сведение трения",
         "restitutionCombine": "Сведение упругости",
+        "isTrigger": "Триггер",
+        "detectStatic": "Видеть неподвижные",
+        "onCollisionEnter": "При столкновении",
+        "onCollisionStay": "Пока касается",
+        "onCollisionExit": "После столкновения",
+        "onTriggerEnter": "При входе",
+        "onTriggerExit": "При выходе",
         "x": "X",
         "y": "Y",
         "z": "Z"

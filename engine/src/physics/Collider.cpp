@@ -24,6 +24,18 @@ void Collider::setMaterial(Ref<PhysicsMaterialData> material)
     changed();
 }
 
+void Collider::setTrigger(bool trigger)
+{
+    m_isTrigger = trigger;
+    changed();
+}
+
+void Collider::setDetectStatic(bool detect)
+{
+    m_detectStatic = detect;
+    changed();
+}
+
 Quat Collider::rotation() const
 {
     return Quat(glm::radians(m_rotationDegrees));

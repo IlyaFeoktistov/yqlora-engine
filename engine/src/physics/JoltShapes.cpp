@@ -97,7 +97,7 @@ bool atOrigin(const PlacedShape& placed)
 
 } // namespace
 
-JPH::RefConst<JPH::Shape> joltBodyShape(std::span<const PlacedShape> shapes, const MeshShapeSource& meshes)
+BodyShape joltBodyShape(std::span<const PlacedShape> shapes, const MeshShapeSource& meshes)
 {
     std::vector<std::pair<const PlacedShape*, JPH::RefConst<JPH::Shape>>> made;
     for (const PlacedShape& placed : shapes) {
@@ -109,22 +109,38 @@ JPH::RefConst<JPH::Shape> joltBodyShape(std::span<const PlacedShape> shapes, con
         }
     }
     if (made.empty()) {
-        return new JPH::EmptyShape();
+        return {new JPH::EmptyShape()};
     }
     if (made.size() == 1) {
         const auto& [placed, shape] = made.front();
         if (atOrigin(*placed)) {
-            return shape;
+            return {shape, placed->part};
         }
 
-        return created(JPH::RotatedTranslatedShapeSettings(toJolt(placed->position), toJolt(placed->rotation), shape));
+        return {
+            created(JPH::RotatedTranslatedShapeSettings(toJolt(placed->position), toJolt(placed->rotation), shape)),
+            placed->part,
+        };
     }
+    // Части составной формы Jolt переставляет, поэтому номер коллайдера - в
+    // данных части, а не её место.
     JPH::StaticCompoundShapeSettings compound;
     for (const auto& [placed, shape] : made) {
-        compound.AddShape(toJolt(placed->position), toJolt(placed->rotation), shape);
+        compound.AddShape(toJolt(placed->position), toJolt(placed->rotation), shape, placed->part);
     }
 
-    return created(compound);
+    return {created(compound)};
+}
+
+std::uint32_t bodyPartOf(const JPH::Shape& shape, const JPH::SubShapeID& part)
+{
+    if (shape.GetSubType() != JPH::EShapeSubType::StaticCompound) {
+        return kSolePart;
+    }
+    const auto& compound = static_cast<const JPH::StaticCompoundShape&>(shape);
+    JPH::SubShapeID remainder;
+
+    return compound.GetCompoundUserData(compound.GetSubShapeIndexFromID(part, remainder));
 }
 
 } // namespace yqlora

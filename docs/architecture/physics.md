@@ -68,8 +68,9 @@ is wired as its documentation and samples recommend; nothing here is new.
   applied at once (the editor), also over a script's value.
 - **Units**: metres, kilograms, seconds; gravity -9.81 along Y by default.
 - **Contacts are reported on the main thread**: Jolt calls its listener
-  on worker threads, so the listener only records pairs into a buffer, and
-  `PhysicsWorld` emits the events after the step, in a stable order.
+  on worker threads, so the listener only records touches into a buffer,
+  and `PhysicsContacts` emits the events after the step, in a stable
+  order.
 - **Keeping bodies in step with the tree**: what a body is made of
   changes when a collider or a body enters or leaves the scene, is enabled
   or disabled, a property of it is set, or a branch is moved to another
@@ -140,19 +141,45 @@ is wired as its documentation and samples recommend; nothing here is new.
 
 ## Contacts and triggers [planned, step 6]
 
-- **Events** (see [events](events.md)) on `RigidBody`: `onCollisionEnter`,
-  `onCollisionStay`, `onCollisionExit`, with a `Collision` record (the
-  other node and collider, contact points and normals, the relative
-  velocity, the impulse). On a trigger collider: `onTriggerEnter`,
-  `onTriggerExit` with the other node. Events of a body include those of
-  its child colliders, with the collider in the record.
-- **Triggers** are Jolt sensors: they report and do not push. A trigger
-  sees static bodies only when asked (`detectStatic`), as Jolt sensors
-  skip them by default.
+- **Collision events** (see [events](events.md)) on `RigidBody`:
+  `onCollisionEnter`, `onCollisionStay`, `onCollisionExit` per collider
+  pair, with a `Collision` record: the other body's node, its own collider
+  and the other collider (`ComponentRef<Collider>`; a body is made of its
+  descendants' colliders too, so a child collider's event reaches the
+  body with that collider in the record), the contact points in the world,
+  the normal (where the other body pushes this one), this body's velocity
+  relative to the other at the contact point, and the impact impulse. Both
+  sides with a `RigidBody` get it; a wall made only of colliders gets no
+  events. The impulse is (1 + e) times the approach speed along the normal
+  times the reduced mass of the pair, without rotation (Jolt does not hand
+  out the solver impulse): for the strength of a hit in sound and damage;
+  it is 0 for stay and exit, and an exit has no points.
+- **Triggers**: `Collider::isTrigger` turns a collider into a zone that
+  pushes nothing. A Jolt sensor is a whole body, not a part of a shape, so
+  each trigger has its own kinematic sensor body, placed where the
+  collider is every step and left out of the body's shape and mass. The
+  sensor never sleeps: otherwise a body falling asleep inside the zone
+  would leave it. `onTriggerEnter` and `onTriggerExit` on the trigger
+  collider with the other body's node: enter when the body's first
+  collider touches the zone, exit when its last one leaves; a body on the
+  trigger's own node and other triggers do not count. A trigger sees
+  static and kinematic bodies only when asked (`detectStatic`): a zone on
+  a large floor would otherwise count every contact with it.
+- **How enters and exits are found**: the Jolt listener records the step's
+  touches (new and continuing) into a buffer, and `PhysicsContacts`
+  compares them with the previous ones after the step: new is an enter,
+  known is a stay, gone is an exit. A pair whose bodies both do not move
+  (asleep or static) continues without events: Jolt is silent about
+  sleeping ones. A part of a compound shape finds its collider by the
+  number in the part's data, because Jolt reorders the parts.
 - **Order**: after each physics step, exits first, then enters, then stays,
-  each sorted by node IDs, so a game behaves the same on every run.
-- A body destroyed during a contact gets its exit events in the same
-  frame; a callback never sees a destroyed node.
+  each sorted by node and collider IDs, so a scene loaded from a file
+  behaves the same on every run.
+- **Leaving the scene**: a body or collider that leaves during a touch
+  (destroyed, disabled) exits its touches after the next step; the side
+  still in the scene gets the event, and the leaving side's node in the
+  record is no longer found by its reference. A callback may destroy
+  nodes: the step's events are gathered before the first call.
 
 ## Queries [planned, step 6]
 
@@ -398,11 +425,15 @@ Everything set in the inspector is a property with a setter (see
 
 ### PH.4 Contacts and triggers
 
-- The listener buffer, events after the step in a stable order,
-  `Collision` record, triggers, exits on destruction.
-- Tests: enter, stay and exit of one landing, once each; a trigger reports
-  without pushing; events of a child collider reach the body; destroying
-  a body inside a callback; the same order over ten runs.
+- The listener buffer, events after the step in a stable order, the
+  `Collision` record, triggers on their own sensors with `detectStatic`,
+  exits on leaving the scene.
+- Tests: enter, stay and exit of one landing, once each, and a pair that
+  falls asleep neither stays nor exits; a trigger reports without pushing;
+  a body asleep inside a zone does not leave it; a trigger sees static
+  bodies only with `detectStatic`; a child collider's events reach the
+  body; a body destroyed in its own callback leaves and the other side
+  gets the exit; the same order over ten loads of a saved scene.
 
 ### PH.5 Queries and the API from code
 

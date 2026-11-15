@@ -572,6 +572,13 @@
         "restitution": "Restitution",
         "frictionCombine": "Friction combine",
         "restitutionCombine": "Restitution combine",
+        "isTrigger": "Trigger",
+        "detectStatic": "Detect static",
+        "onCollisionEnter": "On collision enter",
+        "onCollisionStay": "On collision stay",
+        "onCollisionExit": "On collision exit",
+        "onTriggerEnter": "On trigger enter",
+        "onTriggerExit": "On trigger exit",
         "x": "X",
         "y": "Y",
         "z": "Z"

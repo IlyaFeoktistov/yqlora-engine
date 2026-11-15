@@ -3,6 +3,7 @@
 // Только для кода движка, который включает Jolt (Jolt.h - раньше этого файла).
 
 #include "yqlora/physics/BodyPose.hpp"
+#include "yqlora/physics/JoltShapes.hpp"
 #include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/scene/NodeId.hpp"
 #include "yqlora/scene/ObjectId.hpp"
@@ -11,6 +12,7 @@
 #include <Jolt/Physics/Body/MotionType.h>
 
 #include <cstdint>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -29,6 +31,20 @@ class PhysicsMaterialCache;
 class Node;
 class ResourceCache;
 class Scene;
+
+// Коллайдер тела: компонент и его узел.
+struct BodyPart {
+    ComponentId collider = 0;
+    NodeId node = 0;
+};
+
+// Чья сторона касания: узел-хозяин тела и коллайдер; trigger - датчик
+// коллайдера-триггера.
+struct ContactSide {
+    NodeId owner = 0;
+    BodyPart part;
+    bool trigger = false;
+};
 
 // Тела Jolt вслед за деревом сцены. Хозяин тела - узел: с RigidBody (тело
 // из коллайдеров узла и потомков до следующего RigidBody) или с
@@ -73,6 +89,14 @@ public:
         return m_bodies.size();
     }
 
+    // Сторона касания тела Jolt joltId (BodyID::GetIndexAndSequenceNumber)
+    // по номеру коллайдера part (bodyPartOf); nullopt - тела уже нет.
+    std::optional<ContactSide> sideOf(std::uint32_t joltId, std::uint32_t part) const;
+
+    // Тело коллайдера есть и не движется (спит или неподвижно): Jolt о его
+    // касаниях молчит, но они продолжаются.
+    bool resting(ComponentId collider) const;
+
     // Будит все подвижные тела: сменились значения их материалов.
     void wakeAll();
 
@@ -80,7 +104,16 @@ public:
     JPH::BodyID bodyOf(NodeId owner) const;
 
 private:
+    // Датчик коллайдера-триггера: своё кинематическое тело на месте
+    // коллайдера, offset - от положения тела хозяина.
+    struct Sensor {
+        JPH::BodyID id;
+        BodyPart part;
+        BodyPose offset;
+    };
+
     struct Body {
+        // Невалидный - у хозяина только триггеры.
         JPH::BodyID id;
         JPH::EMotionType motion = JPH::EMotionType::Static;
         bool interpolation = false;
@@ -100,10 +133,39 @@ private:
         Vec3 scale{1.0f};
         // Меши коллайдеров и ревизии, из которых готовились их формы.
         std::vector<std::pair<ResourceId, std::uint64_t>> meshRevisions;
+        // Коллайдеры формы по номерам частей (PlacedShape::part).
+        std::vector<BodyPart> parts{};
+        // Номер коллайдера, если форма не составная.
+        std::uint32_t solePart = 0;
+        std::vector<Sensor> sensors{};
+    };
+
+    // Триггер, для которого строится датчик.
+    struct PendingSensor {
+        PlacedShape placed;
+        BodyPart part;
+        BodyPose offset;
+        bool detectStatic = false;
+    };
+
+    // Хозяин тела Jolt и датчик ли оно.
+    struct JoltBodyOwner {
+        NodeId owner = 0;
+        bool sensor = false;
     };
 
     void rebuild(NodeId owner);
+    void addSensor(
+        const Node& node,
+        NodeId owner,
+        const BodyPose& pose,
+        PendingSensor& trigger,
+        const MeshShapeSource& meshes,
+        Body& body
+    );
     void remove(NodeId owner);
+    void destroy(const Body& body);
+    void destroyJoltBody(JPH::BodyID id);
     // Узел, телу которого принадлежит коллайдер на node.
     NodeId ownerOf(const Node& node) const;
     // Ревизии трансформов от узлов дочерних коллайдеров до хозяина.
@@ -127,6 +189,9 @@ private:
     std::vector<NodeId> m_order;
     // Коллайдер - узел-хозяин его тела.
     std::unordered_map<ComponentId, NodeId> m_colliderOwners;
+    std::unordered_map<std::uint32_t, JoltBodyOwner> m_byJoltId;
+    // Коллайдер - тело Jolt, в форме которого он сейчас.
+    std::unordered_map<ComponentId, JPH::BodyID> m_colliderBodies;
     std::vector<NodeId> m_dirtyBranches;
     std::unordered_set<NodeId> m_dirtyOwners;
 };

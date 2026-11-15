@@ -35,7 +35,10 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .property("continuousCollision", &RigidBody::continuousCollision, &RigidBody::setContinuousCollision)
         .property("lockPosition", &RigidBody::lockPosition, &RigidBody::setLockPosition)
         .property("lockRotation", &RigidBody::lockRotation, &RigidBody::setLockRotation)
-        .property("startAsleep", &RigidBody::startAsleep, &RigidBody::setStartAsleep);
+        .property("startAsleep", &RigidBody::startAsleep, &RigidBody::setStartAsleep)
+        .event("onCollisionEnter", &RigidBody::onCollisionEnter, {"collision"})
+        .event("onCollisionStay", &RigidBody::onCollisionStay, {"collision"})
+        .event("onCollisionExit", &RigidBody::onCollisionExit, {"collision"});
 
     // Несколько коллайдеров на узле складываются в одно тело.
     registry.registerComponent<Collider>()
@@ -43,7 +46,11 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .allowMultiple()
         .property("center", &Collider::center, &Collider::setCenter)
         .property("rotation", &Collider::rotationDegrees, &Collider::setRotationDegrees, PropertyHint::Angle)
-        .property("material", &Collider::material, &Collider::setMaterial);
+        .property("material", &Collider::material, &Collider::setMaterial)
+        .property("isTrigger", &Collider::isTrigger, &Collider::setTrigger)
+        .property("detectStatic", &Collider::detectStatic, &Collider::setDetectStatic)
+        .event("onTriggerEnter", &Collider::onTriggerEnter, {"other"})
+        .event("onTriggerExit", &Collider::onTriggerExit, {"other"});
     registry.registerComponent<BoxCollider>()
         .property("size", &BoxCollider::size, &BoxCollider::setSize)
         .min(kMinColliderSize);

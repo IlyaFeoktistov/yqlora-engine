@@ -209,10 +209,12 @@ add_library(yqlora SHARED
     src/physics/MeshShapeCache.cpp
     src/physics/Collider.cpp
     src/physics/CylinderCollider.cpp
+    src/physics/JoltContacts.cpp
     src/physics/JoltLayers.cpp
     src/physics/JoltMaterials.cpp
     src/physics/JoltShapes.cpp
     src/physics/PhysicsBodies.cpp
+    src/physics/PhysicsContacts.cpp
     src/physics/RigidBody.cpp
     src/physics/SphereCollider.cpp
     src/physics/JoltSetup.cpp

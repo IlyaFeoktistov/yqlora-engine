@@ -5,11 +5,13 @@
 
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/core/Log.hpp"
+#include "yqlora/physics/JoltContacts.hpp"
 #include "yqlora/physics/JoltLayers.hpp"
 #include "yqlora/physics/JoltMaterials.hpp"
 #include "yqlora/physics/JoltMath.hpp"
 #include "yqlora/physics/MeshShapeCache.hpp"
 #include "yqlora/physics/PhysicsBodies.hpp"
+#include "yqlora/physics/PhysicsContacts.hpp"
 #include "yqlora/physics/PhysicsMaterialCache.hpp"
 #include "yqlora/physics/PhysicsRuntime.hpp"
 #include "yqlora/physics/PhysicsSettings.hpp"
@@ -44,6 +46,7 @@ struct PhysicsWorld::Impl {
     Impl(Scene& scene, PhysicsRuntime& physicsRuntime, const PhysicsSettings& settings)
         : runtime(physicsRuntime)
         , bodies(scene, system.GetBodyInterface(), physicsRuntime.meshShapes(), physicsRuntime.materials())
+        , contacts(scene, bodies)
     {
         // Среда запущена в PhysicsWorld::impl(), до создания членов Jolt.
         pairs.matrix = settings.collisions();
@@ -59,6 +62,7 @@ struct PhysicsWorld::Impl {
         // Трение и упругость пары - из материалов подфигур контакта.
         system.SetCombineFriction(combineJoltFriction);
         system.SetCombineRestitution(combineJoltRestitution);
+        system.SetContactListener(&listener);
     }
 
     PhysicsRuntime& runtime;
@@ -66,9 +70,11 @@ struct PhysicsWorld::Impl {
     JoltBroadPhaseLayers broadPhaseLayers;
     JoltObjectVsBroadPhase objectVsBroadPhase;
     JoltObjectPairs pairs;
+    JoltContacts listener;
     JPH::PhysicsSystem system;
     // После системы: уходит раньше неё, убирая свои тела.
     PhysicsBodies bodies;
+    PhysicsContacts contacts;
     // Поколение материалов, которое мир уже видел (PhysicsMaterialCache::generation).
     std::uint64_t materials = 0;
     // Ошибки шага, о которых лог уже сказал: каждая - один раз.
@@ -143,6 +149,7 @@ void PhysicsWorld::afterFixedUpdate(float stepSeconds)
     );
     ++m_steps;
     world.bodies.afterStep();
+    world.contacts.deliver(world.listener.take());
     // У флагов Jolt нет operator~: новые ошибки - побитово по числам.
     using Flags = std::underlying_type_t<JPH::EPhysicsUpdateError>;
     const auto fresh = static_cast<Flags>(static_cast<Flags>(errors) & ~static_cast<Flags>(world.reported));

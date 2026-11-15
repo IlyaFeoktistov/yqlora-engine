@@ -1,9 +1,11 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/physics/Collision.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/reflection/Record.hpp"
 #include "yqlora/scene/Component.hpp"
+#include "yqlora/scene/Event.hpp"
 
 #include <cstdint>
 
@@ -119,6 +121,15 @@ public:
     }
 
     void setStartAsleep(bool asleep);
+
+    // Коллайдер тела (и коллайдеры потомков, из которых оно собрано) начал
+    // касаться коллайдера другого тела, касается после шага, перестал.
+    // Приходят после шага физики: сначала выходы, затем входы, затем
+    // продолжения, каждый по ID узлов. Спящая пара продолжений не шлёт и не
+    // выходит, пока не проснётся.
+    Event<Collision> onCollisionEnter;
+    Event<Collision> onCollisionStay;
+    Event<Collision> onCollisionExit;
 
 protected:
     void onEnterScene() override;
