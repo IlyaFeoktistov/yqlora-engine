@@ -565,6 +565,45 @@ void PhysicsBodies::beforeStep(float stepSeconds)
     }
 }
 
+void PhysicsBodies::place(NodeId owner)
+{
+    const auto found = m_bodies.find(owner);
+    const auto* node = dynamic_cast<const Node3D*>(m_scene.find(owner));
+    if (found == m_bodies.end() || !node) {
+        return;
+    }
+    Body& body = found->second;
+    const BodyPose pose = bodyPoseOf(node->worldMatrix());
+    body.remembered = pose;
+    body.previous = pose;
+    body.current = pose;
+    body.lastTarget = pose;
+    if (!body.id.IsInvalid()) {
+        const JPH::EActivation activation = body.motion == JPH::EMotionType::Static ? JPH::EActivation::DontActivate
+                                                                                    : JPH::EActivation::Activate;
+        m_interface.SetPositionAndRotation(body.id, toJolt(pose.position), toJolt(pose.rotation), activation);
+    }
+    for (const Sensor& sensor : body.sensors) {
+        const BodyPose world = sensorPose(pose, sensor.offset);
+        m_interface.SetPositionAndRotation(
+            sensor.id,
+            toJolt(world.position),
+            toJolt(world.rotation),
+            JPH::EActivation::Activate
+        );
+    }
+}
+
+void PhysicsBodies::placeMoved()
+{
+    for (const NodeId owner : m_order) {
+        const auto* node = dynamic_cast<const Node3D*>(m_scene.find(owner));
+        if (node && bodyPoseOf(node->worldMatrix()) != m_bodies.at(owner).remembered) {
+            place(owner);
+        }
+    }
+}
+
 void PhysicsBodies::writePose(Node& node, Body& body, const BodyPose& pose)
 {
     auto& node3D = static_cast<Node3D&>(node);
@@ -608,6 +647,14 @@ void PhysicsBodies::interpolate(float fraction)
             writePose(*node, body, target);
             body.lastTarget = target;
         }
+    }
+}
+
+void PhysicsBodies::wake(ComponentId collider)
+{
+    const auto found = m_colliderBodies.find(collider);
+    if (found != m_colliderBodies.end() && m_interface.GetMotionType(found->second) != JPH::EMotionType::Static) {
+        m_interface.ActivateBody(found->second);
     }
 }
 

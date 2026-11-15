@@ -12,6 +12,9 @@
 
 namespace yqlora {
 
+class CollisionIgnores;
+class PhysicsBodies;
+
 // Касание двух подфигур после шага, как его видел Jolt: тела по ID Jolt
 // (BodyID::GetIndexAndSequenceNumber) и номера коллайдеров в них
 // (bodyPartOf). Нормаль - куда сдвинуть второе тело из первого.
@@ -32,9 +35,21 @@ struct RawContact {
 // Слушатель контактов мира. Jolt зовёт его из рабочих потоков, поэтому он
 // только записывает касания в буфер под замком, а события выдаёт главный
 // поток после шага (PhysicsContacts). Выходы он не слушает: касание,
-// которого после шага нет, ищет сам PhysicsContacts.
+// которого после шага нет, ищет сам PhysicsContacts. Касания пар из
+// CollisionIgnores он отклоняет.
 class JoltContacts final : public JPH::ContactListener {
 public:
+    // Пары, которые не сталкиваются, и тела, по которым их коллайдеры
+    // находятся. Оба живут дольше слушателя.
+    JoltContacts(const PhysicsBodies& bodies, const CollisionIgnores& ignores);
+
+    JPH::ValidateResult OnContactValidate(
+        const JPH::Body& first,
+        const JPH::Body& second,
+        JPH::RVec3Arg baseOffset,
+        const JPH::CollideShapeResult& collision
+    ) override;
+
     void OnContactAdded(
         const JPH::Body& first,
         const JPH::Body& second,
@@ -61,6 +76,8 @@ private:
         bool added
     );
 
+    const PhysicsBodies& m_bodies;
+    const CollisionIgnores& m_ignores;
     std::mutex m_mutex;
     std::vector<RawContact> m_contacts;
 };

@@ -13,6 +13,7 @@ namespace yqlora {
 
 class GameTime;
 class Input;
+class PhysicsWorld;
 class Scene;
 class Transform3D;
 
@@ -70,6 +71,8 @@ protected:
     // Таймеры от имени этого скрипта: timers().after(2.0f, [this] { ... }).
     // Снимаются, когда скрипт уходит из сцены, и ждут, пока он выключен.
     Timers timers();
+    // Физический мир сцены: запросы, гравитация, пары без столкновений.
+    PhysicsWorld& physics() const;
 };
 
 // Доступ к закрытому списку полей скрипта (YQLORA_FIELDS) для регистрации (ModuleRegistrar).

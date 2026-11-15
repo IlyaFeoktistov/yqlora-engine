@@ -101,6 +101,33 @@ as new backends under the same RHI.
  RHI       -> one interface over OpenGL, Vulkan, D3D12   backends/<api>
 ```
 
+## Debug drawing [planned, step 6]
+
+Lines and simple shapes over the world, to see what has no geometry:
+query rays and hits, contact points and normals, velocities and forces,
+collider shapes and trigger zones, a game's own vectors. The design is the
+established one: the game and subsystems put primitives into a shared
+frame buffer, and the renderer draws them in its own line pass, so they
+show in the scene view, the game view and a built game, not only in the
+editor.
+
+- **`DebugDraw`** is a scene system: `line`, `ray`, `arrow`, `point`,
+  `sphere`, `box`, `capsule`, `axes` with a color, a lifetime (0 is one
+  frame, otherwise seconds of game time) and a depth test (off means seen
+  through walls). From a script: `debugDraw()`. The frame's primitives go
+  into the frame data as a list of line vertices, and the line pass draws
+  them after transparent, before output, in each view where debugging is
+  on.
+- **Channels**: each primitive belongs to a channel (a game's own by name;
+  physics has "Colliders", "Triggers", "Contacts", "Queries",
+  "Velocities", "Sleep"). What to show is chosen in the "Gizmos" menu of
+  the scene view and of the game view separately; a channel nobody shows
+  is not collected, so debugging that is off costs almost nothing.
+- **In a built game** debugging is off until code turns it on
+  (`debugDraw().setEnabled`), for example in a debug build on a key.
+- Editor gizmos (the manipulator, lights, cameras) stay their own: they
+  are editing tools, not game debugging.
+
 ## Photorealism by default [planned, after the MVP]
 
 The goal: the defaults are chosen so that the picture

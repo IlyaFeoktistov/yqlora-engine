@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/math/Math.hpp"
 #include "yqlora/physics/Collision.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/reflection/Record.hpp"
@@ -18,6 +19,17 @@ enum class BodyMotion : std::uint8_t {
     Static,
     Kinematic,
     Dynamic,
+};
+
+// Как addForce и addTorque понимают вектор: Force - сила, Н (момент, Н*м),
+// действует весь следующий шаг; Acceleration - ускорение, м/с^2, той же
+// длительности, без учёта массы; Impulse - импульс, Н*с, сразу;
+// VelocityChange - прибавка скорости, м/с (рад/с), сразу, без учёта массы.
+enum class ForceMode : std::uint8_t {
+    Force,
+    Acceleration,
+    Impulse,
+    VelocityChange,
 };
 
 // Оси мира, по которым тело не движется (или вокруг которых не вращается):
@@ -122,6 +134,35 @@ public:
 
     void setStartAsleep(bool asleep);
 
+    // Скорость тела в мире, м/с, и угловая, рад/с (вокруг осей мира).
+    // Задаётся динамическому телу; кинематическое следует за узлом. Без
+    // тела (компонент не в сцене или выключен) - ноль, задание - ничего.
+    Vec3 velocity() const;
+    void setVelocity(const Vec3& velocity);
+    Vec3 angularVelocity() const;
+    void setAngularVelocity(const Vec3& velocity);
+
+    // Сила, импульс или прибавка скорости в центре масс и в точке мира
+    // point (тогда и поворот), и момент вокруг центра масс; только
+    // динамическому телу, будит его. Сила из onFixedUpdate действует в том
+    // же шаге, из onUpdate - в следующем.
+    void addForce(const Vec3& force, ForceMode mode = ForceMode::Force);
+    void addForceAtPoint(const Vec3& force, const Vec3& point, ForceMode mode = ForceMode::Force);
+    void addTorque(const Vec3& torque, ForceMode mode = ForceMode::Force);
+
+    // Цель кинематического тела в мире: узел встаёт туда сразу, а тело
+    // доходит за следующий шаг и везёт то, что на нём стоит.
+    void moveTo(const Vec3& position);
+    void rotateTo(const Quat& rotation);
+    // Переносит узел и тело любого вида сразу, без пути (то, что на пути,
+    // не задевается); скорость остаётся.
+    void teleport(const Vec3& position, const Quat& rotation);
+
+    // Сон: тело не считается, пока его не тронут. Неподвижное спит всегда.
+    void sleep();
+    void wakeUp();
+    bool isSleeping() const;
+
     // Коллайдер тела (и коллайдеры потомков, из которых оно собрано) начал
     // касаться коллайдера другого тела, касается после шага, перестал.
     // Приходят после шага физики: сначала выходы, затем входы, затем
@@ -154,6 +195,7 @@ private:
 } // namespace yqlora
 
 YQLORA_ENUM_NAMES(yqlora::BodyMotion, "Static", "Kinematic", "Dynamic")
+YQLORA_ENUM_NAMES(yqlora::ForceMode, "Force", "Acceleration", "Impulse", "VelocityChange")
 
 YQLORA_RECORD(
     yqlora::AxisLocks,

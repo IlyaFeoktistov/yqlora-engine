@@ -1,6 +1,7 @@
 #include "yqlora/scripting/Script.hpp"
 
 #include "yqlora/core/EngineServices.hpp"
+#include "yqlora/physics/PhysicsWorld.hpp"
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/NodeTree.hpp"
 #include "yqlora/scene/Scene.hpp"
@@ -48,6 +49,14 @@ Timers Script::timers()
     assert(system && "timers: TimerSystem is registered with the engine types");
 
     return Timers(*system, *this);
+}
+
+PhysicsWorld& Script::physics() const
+{
+    PhysicsWorld* world = scene().system<PhysicsWorld>();
+    assert(world && "physics: PhysicsWorld is registered with the engine types");
+
+    return *world;
 }
 
 Node* Script::findNode(std::string_view name) const

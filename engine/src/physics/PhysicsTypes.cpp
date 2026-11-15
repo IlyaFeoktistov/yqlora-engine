@@ -19,6 +19,7 @@ namespace yqlora {
 
 void registerPhysicsTypes(TypeRegistry& registry)
 {
+    const PropertyValue kForceDefault = PropertyStorage<ForceMode>::store(ForceMode::Force);
     registry.registerSystem<PhysicsWorld>();
 
     registry.registerComponent<RigidBody>()
@@ -36,6 +37,17 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .property("lockPosition", &RigidBody::lockPosition, &RigidBody::setLockPosition)
         .property("lockRotation", &RigidBody::lockRotation, &RigidBody::setLockRotation)
         .property("startAsleep", &RigidBody::startAsleep, &RigidBody::setStartAsleep)
+        .method("velocity", &RigidBody::velocity)
+        .method("setVelocity", &RigidBody::setVelocity, {{"velocity"}})
+        .method("angularVelocity", &RigidBody::angularVelocity)
+        .method("setAngularVelocity", &RigidBody::setAngularVelocity, {{"velocity"}})
+        .method("addForce", &RigidBody::addForce, {{"force"}, {"mode", kForceDefault}})
+        .method("addForceAtPoint", &RigidBody::addForceAtPoint, {{"force"}, {"point"}, {"mode", kForceDefault}})
+        .method("addTorque", &RigidBody::addTorque, {{"torque"}, {"mode", kForceDefault}})
+        .method("moveTo", &RigidBody::moveTo, {{"position"}})
+        .method("sleep", &RigidBody::sleep)
+        .method("wakeUp", &RigidBody::wakeUp)
+        .method("isSleeping", &RigidBody::isSleeping)
         .event("onCollisionEnter", &RigidBody::onCollisionEnter, {"collision"})
         .event("onCollisionStay", &RigidBody::onCollisionStay, {"collision"})
         .event("onCollisionExit", &RigidBody::onCollisionExit, {"collision"});

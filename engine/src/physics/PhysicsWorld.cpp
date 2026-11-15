@@ -2,6 +2,7 @@
 #include <Jolt/Jolt.h>
 
 #include "yqlora/physics/PhysicsWorld.hpp"
+#include "yqlora/physics/PhysicsWorldImpl.hpp"
 
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/core/Log.hpp"
@@ -42,44 +43,29 @@ constexpr int kCollisionStepsPerStep = 1;
 
 } // namespace
 
-struct PhysicsWorld::Impl {
-    Impl(Scene& scene, PhysicsRuntime& physicsRuntime, const PhysicsSettings& settings)
-        : runtime(physicsRuntime)
-        , bodies(scene, system.GetBodyInterface(), physicsRuntime.meshShapes(), physicsRuntime.materials())
-        , contacts(scene, bodies)
-    {
-        // Среда запущена в PhysicsWorld::impl(), до создания членов Jolt.
-        pairs.matrix = settings.collisions();
-        system.Init(
-            kMaxBodies,
-            kBodyMutexes,
-            kMaxBodyPairs,
-            kMaxContactConstraints,
-            broadPhaseLayers,
-            objectVsBroadPhase,
-            pairs
-        );
-        // Трение и упругость пары - из материалов подфигур контакта.
-        system.SetCombineFriction(combineJoltFriction);
-        system.SetCombineRestitution(combineJoltRestitution);
-        system.SetContactListener(&listener);
-    }
-
-    PhysicsRuntime& runtime;
-    // Фильтры живут дольше системы: она хранит ссылки на них.
-    JoltBroadPhaseLayers broadPhaseLayers;
-    JoltObjectVsBroadPhase objectVsBroadPhase;
-    JoltObjectPairs pairs;
-    JoltContacts listener;
-    JPH::PhysicsSystem system;
-    // После системы: уходит раньше неё, убирая свои тела.
-    PhysicsBodies bodies;
-    PhysicsContacts contacts;
-    // Поколение материалов, которое мир уже видел (PhysicsMaterialCache::generation).
-    std::uint64_t materials = 0;
-    // Ошибки шага, о которых лог уже сказал: каждая - один раз.
-    JPH::EPhysicsUpdateError reported = JPH::EPhysicsUpdateError::None;
-};
+PhysicsWorld::Impl::Impl(Scene& scene, PhysicsRuntime& physicsRuntime, const PhysicsSettings& settings)
+    : runtime(physicsRuntime)
+    , listener(bodies, ignores)
+    , bodies(scene, system.GetBodyInterface(), physicsRuntime.meshShapes(), physicsRuntime.materials())
+    , contacts(scene, bodies)
+    , queries(system, bodies)
+{
+    // Среда запущена в PhysicsWorld::impl(), до создания членов Jolt.
+    pairs.matrix = settings.collisions();
+    system.Init(
+        kMaxBodies,
+        kBodyMutexes,
+        kMaxBodyPairs,
+        kMaxContactConstraints,
+        broadPhaseLayers,
+        objectVsBroadPhase,
+        pairs
+    );
+    // Трение и упругость пары - из материалов подфигур контакта.
+    system.SetCombineFriction(combineJoltFriction);
+    system.SetCombineRestitution(combineJoltRestitution);
+    system.SetContactListener(&listener);
+}
 
 PhysicsWorld::PhysicsWorld(Scene& scene)
     : SceneSystem(scene)
@@ -190,6 +176,20 @@ PhysicsWorld* worldOf(const Component& component)
 }
 
 } // namespace
+
+JoltWorld PhysicsWorldJolt::worldOf(const Component& component)
+{
+    Node* node = component.owner();
+    Scene* scene = node ? node->scene() : nullptr;
+    PhysicsWorld* world = scene ? scene->system<PhysicsWorld>() : nullptr;
+    if (!world) {
+        return {};
+    }
+    PhysicsWorld::Impl& impl = world->impl();
+    impl.bodies.flush();
+
+    return {&impl.system, &impl.bodies};
+}
 
 void PhysicsWorldAccess::changed(Component& component)
 {

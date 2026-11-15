@@ -183,15 +183,21 @@ is wired as its documentation and samples recommend; nothing here is new.
 
 ## Queries [planned, step 6]
 
-- `physics().raycast(origin, direction, maxDistance, mask)` gives the
-  nearest `RaycastHit` (node, collider, point, normal, distance) or none;
-  `raycastAll` gives all hits by distance; `sphereCast`, `boxCast`,
-  `capsuleCast` sweep a shape; `overlapSphere`, `overlapBox`,
-  `overlapCapsule` give the colliders inside. A layer mask and
-  `includeTriggers` filter them. They work in the edited scene too
-  (placing objects by a tool).
-- Queries read the state of the last step and may be called from any
-  phase of the frame.
+- `physics().raycast(origin, direction, maxDistance, filter)` gives the
+  nearest `RaycastHit` (the body's node, the collider, point, normal,
+  distance) or none; `raycastAll` gives all hits, nearest first;
+  `sphereCast`, `boxCast`, `capsuleCast` sweep a shape (a capsule's height
+  includes its hemispheres, as in `CapsuleCollider`); `overlapSphere`,
+  `overlapBox`, `overlapCapsule` give the colliders inside, by node and
+  collider IDs. `QueryFilter` holds the layer mask and `includeTriggers`
+  (triggers are skipped by default). Query shapes are built by the same
+  code as collider shapes.
+- Queries see bodies as the last step left them and may be called from
+  any phase of the frame; changed bodies are rebuilt before a query. In a
+  scene that does not step (the editor) bodies stand where their nodes
+  are, so a placing tool hits what it sees.
+- The queries live in `PhysicsQueries`, which only reads the Jolt world;
+  `PhysicsWorld` prepares the bodies and hands the call over.
 
 ## Character controller [planned, step 6]
 
@@ -339,12 +345,22 @@ Everything set in the inspector is a property with a setter (see
 [scripting](scripting.md#scene-access-from-code-done)); on top of it:
 
 - `RigidBody`: `velocity()` and `setVelocity`, `angularVelocity()` and
-  `setAngularVelocity`, `addForce`, `addForceAtPoint`, `addImpulse`,
-  `addTorque`, `addAngularImpulse` (with a `ForceMode`), `moveTo` and
-  `rotateTo` for kinematic bodies (reaching the target at the next step),
-  `sleep()`, `wakeUp()`, `isSleeping()`; `teleport` moves any body at once.
+  `setAngularVelocity` (set on a dynamic body; a kinematic one follows its
+  node), `addForce`, `addForceAtPoint`, `addTorque` with a `ForceMode`:
+  `Force` (newtons for the next step), `Acceleration` (the same without
+  mass), `Impulse` (at once), `VelocityChange` (at once, without mass), so
+  an impulse is one mode and not a second set of functions; `moveTo` and
+  `rotateTo` for kinematic bodies (the node goes there at once, the body
+  reaches it during the next step and carries what stands on it);
+  `teleport` moves the node and any body at once, without a path;
+  `sleep()`, `wakeUp()`, `isSleeping()`. Calls before the first step
+  rebuild the body first, so a body made in `onStart` can be pushed at
+  once. The movement methods are in the registry too (for Luau and
+  visual scripts).
 - `PhysicsWorld` through `physics()` of a script: the queries above,
-  `gravity()` and `setGravity`, `ignoreCollision(a, b)` for two colliders.
+  `gravity()` and `setGravity`, `ignoreCollision(a, b, ignore)` and
+  `collisionIgnored` for two colliders (`CollisionIgnores`; the listener
+  rejects their contacts, both bodies are woken when it changes).
 - Events of bodies and triggers from code (`connect`) and wired in the
   inspector.
 
@@ -435,13 +451,32 @@ Everything set in the inspector is a property with a setter (see
   body; a body destroyed in its own callback leaves and the other side
   gets the exit; the same order over ten loads of a saved scene.
 
-### PH.5 Queries and the API from code
+### PH.5a Queries and the API from code
 
-- Ray, shape casts and overlaps with masks and triggers; forces,
-  velocities, kinematic moves, sleep; `physics()` of a script.
-- Tests: a ray hits the nearest of three boxes and reports the normal; a
-  mask skips a layer; `includeTriggers`; an impulse gives the expected
-  velocity; a sleeping body wakes on a hit; queries in the edited scene.
+- Ray, shape sweeps and overlaps with a mask and triggers; forces with a
+  `ForceMode`, velocities, kinematic moves, teleport, sleep; pairs without
+  collisions; a script's `physics()`.
+- Tests: a ray hits the nearest of three boxes and gives the normal, all
+  hits come by distance; a mask skips a layer; `includeTriggers`; shape
+  sweeps and overlaps; an impulse, a velocity change, a one-step force
+  and a torque give the expected velocities; a sleeping body wakes on a
+  hit, sleep and wake from code; a teleport is seen by a query before a
+  step; queries in the edited scene see nodes where they were put; a pair
+  without collisions passes through each other.
+
+### PH.5b Debug drawing
+
+- `DebugDraw` (see [rendering](rendering.md#debug-drawing-planned-step-6)):
+  primitives with a color, a lifetime and a depth test, channels, a line
+  pass in the renderer, a script's `debugDraw()`, the "Gizmos" menu in
+  the scene and game views. Physics channels: collider shapes, trigger
+  zones, contact points and normals, query rays and hits (a miss in
+  another color), body velocities, sleeping bodies.
+- Tests: a primitive with a lifetime lives that many seconds of game time
+  and goes away; a channel that is off puts nothing into the frame; a
+  query with the "Queries" channel on puts its ray and hit point; a
+  contact puts its point and normal; the frame data of a view without
+  debugging has no lines.
 
 ### PH.6 Character controller
 

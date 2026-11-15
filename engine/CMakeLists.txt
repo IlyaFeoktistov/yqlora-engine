@@ -208,6 +208,7 @@ add_library(yqlora SHARED
     src/physics/MeshCollider.cpp
     src/physics/MeshShapeCache.cpp
     src/physics/Collider.cpp
+    src/physics/CollisionIgnores.cpp
     src/physics/CylinderCollider.cpp
     src/physics/JoltContacts.cpp
     src/physics/JoltLayers.cpp
@@ -226,7 +227,10 @@ add_library(yqlora SHARED
     src/physics/PhysicsRuntime.cpp
     src/physics/PhysicsSettings.cpp
     src/physics/PhysicsTypes.cpp
+    src/physics/PhysicsQueries.cpp
     src/physics/PhysicsWorld.cpp
+    src/physics/PhysicsWorldQueries.cpp
+    src/physics/RigidBodyControl.cpp
     src/render/UniformRing.cpp
     src/rhi/Pipeline.cpp
     src/resource/BuiltinResourceTable.cpp

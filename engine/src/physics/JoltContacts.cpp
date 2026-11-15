@@ -3,10 +3,14 @@
 
 #include "yqlora/physics/JoltContacts.hpp"
 
+#include "yqlora/physics/CollisionIgnores.hpp"
+#include "yqlora/physics/PhysicsBodies.hpp"
+
 #include "yqlora/physics/JoltMath.hpp"
 #include "yqlora/physics/JoltShapes.hpp"
 
 #include <Jolt/Physics/Body/Body.h>
+#include <Jolt/Physics/Collision/CollideShape.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
 
 #include <utility>
@@ -27,6 +31,37 @@ JPH::Vec3 velocityAt(const JPH::Body& body, JPH::RVec3Arg point)
 }
 
 } // namespace
+
+JoltContacts::JoltContacts(const PhysicsBodies& bodies, const CollisionIgnores& ignores)
+    : m_bodies(bodies)
+    , m_ignores(ignores)
+{
+}
+
+JPH::ValidateResult JoltContacts::OnContactValidate(
+    const JPH::Body& first,
+    const JPH::Body& second,
+    JPH::RVec3Arg /*baseOffset*/,
+    const JPH::CollideShapeResult& collision
+)
+{
+    if (m_ignores.empty()) {
+        return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+    }
+    const auto a = m_bodies.sideOf(
+        first.GetID().GetIndexAndSequenceNumber(),
+        bodyPartOf(*first.GetShape(), collision.mSubShapeID1)
+    );
+    const auto b = m_bodies.sideOf(
+        second.GetID().GetIndexAndSequenceNumber(),
+        bodyPartOf(*second.GetShape(), collision.mSubShapeID2)
+    );
+    if (a && b && m_ignores.ignored(a->part.collider, b->part.collider)) {
+        return JPH::ValidateResult::RejectContact;
+    }
+
+    return JPH::ValidateResult::AcceptContact;
+}
 
 void JoltContacts::OnContactAdded(
     const JPH::Body& first,
