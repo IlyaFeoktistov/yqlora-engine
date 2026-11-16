@@ -276,6 +276,9 @@ void PhysicsBodies::remove(NodeId owner)
 
 void PhysicsBodies::destroyJoltBody(JPH::BodyID id)
 {
+    if (m_bodyRemoved) {
+        m_bodyRemoved(id);
+    }
     m_byJoltId.erase(id.GetIndexAndSequenceNumber());
     m_interface.RemoveBody(id);
     m_interface.DestroyBody(id);

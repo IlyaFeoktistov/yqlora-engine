@@ -5,6 +5,7 @@
 #include "yqlora/physics/CharacterController.hpp"
 #include "yqlora/physics/ConvexCollider.hpp"
 #include "yqlora/physics/CylinderCollider.hpp"
+#include "yqlora/physics/Joint.hpp"
 #include "yqlora/physics/MeshCollider.hpp"
 #include "yqlora/physics/PhysicsSettings.hpp"
 #include "yqlora/physics/PhysicsWorld.hpp"
@@ -121,6 +122,42 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .method("velocity", &CharacterController::velocity)
         .method("resize", &CharacterController::resize, {{"height"}})
         .event("onControllerHit", &CharacterController::onControllerHit, {"other"});
+
+    // Звено цепи держит скрепление с предыдущим звеном и со следующим.
+    registry.registerComponent<Joint>()
+        .requiresComponent<RigidBody>()
+        .allowMultiple()
+        .property("connectedBody", &Joint::connectedBody, &Joint::setConnectedBody)
+        .property("anchor", &Joint::anchor, &Joint::setAnchor)
+        .property("collideConnected", &Joint::collideConnected, &Joint::setCollideConnected)
+        .property("breakForce", &Joint::breakForce, &Joint::setBreakForce)
+        .min(0.0f)
+        .property("breakTorque", &Joint::breakTorque, &Joint::setBreakTorque)
+        .min(0.0f)
+        .property("solverStepsOverride", &Joint::solverStepsOverride, &Joint::setSolverStepsOverride)
+        .range(0, kMaxJointSolverSteps)
+        .method("force", &Joint::force)
+        .method("torque", &Joint::torque)
+        .event("onBreak", &Joint::onBreak);
+    registry.registerComponent<AxisJoint>()
+        .property("axis", &AxisJoint::axis, &AxisJoint::setAxis)
+        .property("limits", &AxisJoint::limits, &AxisJoint::setLimits)
+        .property("limitSpring", &AxisJoint::limitSpring, &AxisJoint::setLimitSpring)
+        .property("motor", &AxisJoint::motor, &AxisJoint::setMotor)
+        .property("motorTarget", &AxisJoint::motorTarget, &AxisJoint::setMotorTarget)
+        .shownWhen("motor", {"Velocity", "Position"})
+        .property("maxMotorForce", &AxisJoint::maxMotorForce, &AxisJoint::setMaxMotorForce)
+        .min(0.0f)
+        .shownWhen("motor", {"Velocity", "Position"});
+    registry.registerComponent<FixedJoint>();
+    registry.registerComponent<PointJoint>();
+    registry.registerComponent<HingeJoint>().method("angle", &HingeJoint::angle);
+    registry.registerComponent<SliderJoint>().method("position", &SliderJoint::position);
+    registry.registerComponent<DistanceJoint>()
+        .property("connectedAnchor", &DistanceJoint::connectedAnchor, &DistanceJoint::setConnectedAnchor)
+        .property("minDistance", &DistanceJoint::minDistance, &DistanceJoint::setMinDistance)
+        .property("maxDistance", &DistanceJoint::maxDistance, &DistanceJoint::setMaxDistance)
+        .property("spring", &DistanceJoint::spring, &DistanceJoint::setSpring);
 
     registry.registerSettings<PhysicsSettings>("physics")
         .property("gravity", &PhysicsSettings::gravity, &PhysicsSettings::setGravity)

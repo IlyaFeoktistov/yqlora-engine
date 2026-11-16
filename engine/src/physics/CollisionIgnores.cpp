@@ -4,7 +4,8 @@
 
 namespace yqlora {
 
-std::pair<ComponentId, ComponentId> CollisionIgnores::ordered(ComponentId first, ComponentId second)
+template <typename Id>
+std::pair<Id, Id> CollisionIgnores::ordered(Id first, Id second)
 {
     return {std::min(first, second), std::max(first, second)};
 }
@@ -19,6 +20,24 @@ bool CollisionIgnores::set(ComponentId first, ComponentId second, bool ignore)
 bool CollisionIgnores::ignored(ComponentId first, ComponentId second) const
 {
     return m_pairs.contains(ordered(first, second));
+}
+
+void CollisionIgnores::addBodyPair(NodeId first, NodeId second)
+{
+    ++m_bodyPairs[ordered(first, second)];
+}
+
+void CollisionIgnores::removeBodyPair(NodeId first, NodeId second)
+{
+    const auto it = m_bodyPairs.find(ordered(first, second));
+    if (it != m_bodyPairs.end() && --it->second == 0) {
+        m_bodyPairs.erase(it);
+    }
+}
+
+bool CollisionIgnores::bodiesIgnored(NodeId first, NodeId second) const
+{
+    return m_bodyPairs.contains(ordered(first, second));
 }
 
 } // namespace yqlora

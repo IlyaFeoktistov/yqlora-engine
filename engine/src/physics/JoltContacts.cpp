@@ -56,7 +56,8 @@ JPH::ValidateResult JoltContacts::OnContactValidate(
         second.GetID().GetIndexAndSequenceNumber(),
         bodyPartOf(*second.GetShape(), collision.mSubShapeID2)
     );
-    if (a && b && m_ignores.ignored(a->part.collider, b->part.collider)) {
+    if (a && b
+        && (m_ignores.ignored(a->part.collider, b->part.collider) || m_ignores.bodiesIgnored(a->owner, b->owner))) {
         return JPH::ValidateResult::RejectContact;
     }
 

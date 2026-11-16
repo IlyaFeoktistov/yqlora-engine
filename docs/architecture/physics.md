@@ -280,21 +280,39 @@ axles, ragdolls, things hanging from a ceiling.
     springs (anything the others do not cover);
   - later: `PulleyJoint`, `GearJoint`, `RackAndPinionJoint`, `PathJoint`.
 - **Common fields** (`Joint`, the base of all of them): `connectedBody`,
-  `anchor` (in local space of the body; the anchor on the other body is
-  computed from the scene when Play starts, so what is seen in the editor
-  is what is linked), `axis` where the kind has one, `collideConnected`
-  (off by default: linked bodies do not collide with each other),
-  `breakForce` and `breakTorque` (0 means never), `enabled`.
-- **Limits, springs and motors** are fields of the kinds that have them:
-  `limits` (min, max in degrees or metres), `spring` (frequency and
-  damping, so stiffness does not depend on mass), `motor` (`Off`,
-  `Velocity`, `Position`, target and maximum force or torque). Scripts
-  change the motor target to open a door or drive a wheel.
-- **Breaking**: after every physics step the force of each joint with a
-  limit is read from Jolt (the lambda of its last step divided by the
-  step); above the limit the joint is disabled and `onBreak` is called on
-  the scripts of its node. A broken joint stays as a disabled component,
-  so a scene is not changed by a break.
+  `anchor` (in the axes of its node), `collideConnected` (off by default:
+  linked bodies do not collide with each other), `breakForce` and
+  `breakTorque` (0 means never), `solverStepsOverride`, `enabled`. A joint
+  says what it is through `definition()` (`JointDefinition`, a variant
+  without physics library types, as `ColliderShape` is for colliders).
+- **Limits, springs and motors** are fields of the kinds that have them.
+  `HingeJoint` and `SliderJoint` share `AxisJoint`: `axis` (in the axes of
+  the node), `limits` (`JointLimits`: on, min, max in degrees or metres;
+  the start position is always inside), `limitSpring` (`JointSpring`:
+  frequency and damping, so stiffness does not depend on mass), `motor`
+  (`Off`, `Velocity`, `Position`), `motorTarget` and `maxMotorForce`
+  (newtons or newton metres). `DistanceJoint`: `connectedAnchor`,
+  `minDistance` and `maxDistance` (both below zero: the distance at
+  creation), `spring`. Scripts change the motor target to open a door or
+  drive a wheel; limits, springs and motors are applied to the live joint
+  before the next step, without rebuilding it.
+- **How it is built**: joints exist only in a running scene, created after
+  the bodies are rebuilt, before a step (`PhysicsJoints`). The point and
+  axes on the other body are taken from the scene at the first creation
+  and remembered in the axes of its node, so what is seen in the editor is
+  what is linked, and a rebuilt body does not shift the joint: a body that
+  leaves the Jolt world first removes its joints, and they are built again
+  after it. The other body is the first one of the Jolt constraint and the
+  own body the second, so `HingeJoint::angle()` and
+  `SliderJoint::position()` measure the own body along its axis from the
+  start. Linked bodies that do not collide are a pair of bodies in
+  `CollisionIgnores`.
+- **Breaking**: after every physics step the force and torque of each
+  joint are read from Jolt (the impulses of its last step divided by the
+  step; `force()` and `torque()` from code); above a limit the joint is
+  disabled and its `onBreak` is called, in the order of component IDs. A
+  broken joint stays as a disabled component, so a scene is not changed by
+  a break.
 - **Chains and ropes**: a chain is links (bodies) with `PointJoint` or
   `SwingTwistJoint` between them. The editor makes one with "Create >
   Chain": two end points in the viewport, the link (a model or a built-in
@@ -303,9 +321,11 @@ axles, ragdolls, things hanging from a ceiling.
   world. A soft rope and cloth (Jolt soft bodies) come later as their own
   component.
 - **Stability**: a chain of many light links hanging a heavy body needs
-  more solver iterations; `positionIterations` and `velocityIterations` are
-  in the Physics section of the project settings, and each joint may raise
-  them for itself (`solverIterationsOverride`).
+  more solver steps; `velocitySteps` and `positionSteps` are in the
+  Physics section of the project settings (10 and 2 by default), and each
+  joint may raise both for itself (`solverStepsOverride`). With the
+  defaults a chain of 20 links holding a body 10 times heavier stretches
+  by about 2 percent, with 20 steps by about 0.5 percent.
 - **Editor**: the anchor, the axis and the limits of the selected joint are
   drawn as gizmos (an arc for an angle limit, a segment for a slider), the
   anchor is moved with the manipulator; a line joins linked bodies.
@@ -313,8 +333,8 @@ axles, ragdolls, things hanging from a ceiling.
   length; a `HingeJoint` with limits stops at them; a motor in `Velocity`
   reaches its speed; `breakForce` breaks under a heavy body and calls
   `onBreak` once; a chain of 20 links holding a body 10 times heavier than a
-  link does not stretch more than 1 percent with the default iterations;
-  "Create > Chain" is one undo step.
+  link stretches less than 1 percent with `solverStepsOverride` 20, and
+  less than without it; "Create > Chain" is one undo step.
 
 ## Body chains [planned, step 6]
 
@@ -517,9 +537,30 @@ Everything set in the inspector is a property with a setter (see
   pushes a light box and not a heavy one; `onControllerHit` names the
   node once per new touch; triggers and queries see it as its node.
 
-### PH.7 Joints
+### PH.7a Joints: the base and simple kinds
 
-- The joints of "Joints" above with their tests.
+- `Joint` and `AxisJoint`, `FixedJoint`, `PointJoint`, `HingeJoint`,
+  `SliderJoint`, `DistanceJoint`; limits, springs and motors applied live;
+  the point and axes on the other body remembered at creation; linked
+  bodies that do not collide; force, torque, breaking and `onBreak`;
+  `solverStepsOverride`.
+- Tests: a body on a `PointJoint` to the world swings and keeps its
+  length; a `HingeJoint` with limits stops at them; a motor in `Velocity`
+  reaches its speed and a new target takes effect; a motor in `Position`
+  brings a slider to its target within its limits; `breakForce` breaks
+  under a heavy body and calls `onBreak` once, a joint under its limit
+  holds and reports the weight; the chain of 20 links with raised solver
+  steps; a `DistanceJoint` keeps its range; connected bodies collide only
+  with `collideConnected`; a scene that does not run builds no joints.
+
+### PH.7b Joints: cones, six axes and chains
+
+- `ConeJoint`, `SwingTwistJoint`, `SixDofJoint`; "Create > Chain" in the
+  editor.
+- Tests: a cone stops swinging at its angle and a twist at its range; a
+  locked axis of a `SixDofJoint` does not move and a free one does;
+  "Create > Chain" is one undo step and its ends are attached to the nodes
+  under the points.
 
 ### PH.8 Body chains
 

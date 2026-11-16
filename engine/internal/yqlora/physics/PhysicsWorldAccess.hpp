@@ -21,6 +21,9 @@ struct YQLORA_API PhysicsWorldAccess {
     static void changed(Component& component);
     // Компонент физики уходит из сцены.
     static void left(Component& component);
+    // У скрепления сменились пределы, пружины или мотор: они применяются к
+    // готовому скреплению перед следующим шагом.
+    static void tuned(Component& component);
 
     // Для проверок: число тел и масса тела узла-хозяина (0 - тела нет).
     // Тела перестраиваются перед шагом, поэтому числа - на последний шаг.

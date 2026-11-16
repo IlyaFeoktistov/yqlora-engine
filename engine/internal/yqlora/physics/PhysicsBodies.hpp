@@ -12,6 +12,7 @@
 #include <Jolt/Physics/Body/MotionType.h>
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -117,6 +118,13 @@ public:
     void addCharacterBody(JPH::BodyID id, NodeId owner);
     void removeCharacterBody(JPH::BodyID id);
 
+    // Зовётся перед тем, как тело Jolt уходит из мира (перестройка,
+    // удаление): скрепления, которые на него ссылаются, снимаются раньше.
+    void setBodyRemovedListener(std::function<void(JPH::BodyID)> listener)
+    {
+        m_bodyRemoved = std::move(listener);
+    }
+
 private:
     // Датчик коллайдера-триггера: своё кинематическое тело на месте
     // коллайдера, offset - от положения тела хозяина.
@@ -212,6 +220,7 @@ private:
     std::unordered_map<std::uint32_t, JoltBodyOwner> m_byJoltId;
     // Коллайдер - тело Jolt, в форме которого он сейчас.
     std::unordered_map<ComponentId, JPH::BodyID> m_colliderBodies;
+    std::function<void(JPH::BodyID)> m_bodyRemoved;
     std::vector<NodeId> m_dirtyBranches;
     std::unordered_set<NodeId> m_dirtyOwners;
 };

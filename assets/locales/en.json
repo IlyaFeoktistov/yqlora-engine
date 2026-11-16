@@ -96,6 +96,27 @@
         "CharacterController": {
             "description": "A character the game moves: the capsule slides along walls, takes steps, keeps to the ground and rides platforms."
         },
+        "Joint": {
+            "description": "A joint of the body of its node with another body or the world."
+        },
+        "AxisJoint": {
+            "description": "A joint with an axis: limits, a limit spring and a motor."
+        },
+        "FixedJoint": {
+            "description": "A joint without movement: the bodies hold together as one."
+        },
+        "PointJoint": {
+            "description": "One shared point, free rotation: chains, ropes, pendulums."
+        },
+        "HingeJoint": {
+            "description": "Rotation around an axis: doors, wheels, levers."
+        },
+        "SliderJoint": {
+            "description": "Movement along an axis: drawers, pistons, lifts."
+        },
+        "DistanceJoint": {
+            "description": "The distance between two points within limits, with a spring: ropes, rubber bands."
+        },
         "RigidBody": {
             "description": "A rigid body: the node moves by forces and collisions, or is moved by code (kinematic), or stays put (static)."
         },
@@ -602,6 +623,27 @@
         "skinWidth": "Skin width, m",
         "pushForce": "Push force, N",
         "onControllerHit": "On controller hit",
+        "anchor": "Anchor",
+        "axis": "Axis",
+        "breakForce": "Break force, N",
+        "breakTorque": "Break torque, N*m",
+        "collideConnected": "Collide connected",
+        "connectedAnchor": "Connected anchor",
+        "connectedBody": "Connected body",
+        "damping": "Damping",
+        "frequency": "Frequency, Hz",
+        "limitSpring": "Limit spring",
+        "limits": "Limits",
+        "max": "Max",
+        "maxDistance": "Max distance, m",
+        "maxMotorForce": "Max motor force",
+        "min": "Min",
+        "minDistance": "Min distance, m",
+        "motor": "Motor",
+        "motorTarget": "Motor target",
+        "onBreak": "On break",
+        "solverStepsOverride": "Solver steps",
+        "spring": "Spring",
         "detectStatic": "Detect static",
         "onCollisionEnter": "On collision enter",
         "onCollisionStay": "On collision stay",
@@ -613,6 +655,9 @@
         "z": "Z"
     },
     "enum": {
+        "Off": "Off",
+        "Velocity": "Velocity",
+        "Position": "Position",
         "KeepHorizontal": "Keep horizontal",
         "AlongSurface": "Along surface",
         "Aces": "ACES",

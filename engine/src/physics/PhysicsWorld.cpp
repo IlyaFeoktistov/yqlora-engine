@@ -7,6 +7,7 @@
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/core/Log.hpp"
 #include "yqlora/physics/CharacterController.hpp"
+#include "yqlora/physics/Joint.hpp"
 #include "yqlora/physics/JoltContacts.hpp"
 #include "yqlora/physics/JoltLayers.hpp"
 #include "yqlora/physics/JoltMaterials.hpp"
@@ -49,6 +50,7 @@ PhysicsWorld::Impl::Impl(Scene& scene, PhysicsRuntime& physicsRuntime, const Phy
     , listener(bodies, ignores)
     , bodies(scene, system.GetBodyInterface(), physicsRuntime.meshShapes(), physicsRuntime.materials())
     , characters(system, bodies, {objectVsBroadPhase, pairs}, physicsRuntime.tempAllocator())
+    , joints(scene, system, bodies, ignores)
     , contacts(scene, bodies)
     , queries(system, bodies)
 {
@@ -122,6 +124,7 @@ void PhysicsWorld::afterFixedUpdate(float stepSeconds)
     world.system.SetPhysicsSettings(solver);
 
     world.bodies.flush();
+    world.joints.sync();
     world.characters.sync();
     PhysicsMaterialCache& materials = world.runtime.materials();
     materials.refresh(scene().services().resources());
@@ -138,6 +141,7 @@ void PhysicsWorld::afterFixedUpdate(float stepSeconds)
     );
     ++m_steps;
     world.bodies.afterStep();
+    world.joints.afterStep(stepSeconds);
     world.contacts.deliver(world.listener.take());
     // У флагов Jolt нет operator~: новые ошибки - побитово по числам.
     using Flags = std::underlying_type_t<JPH::EPhysicsUpdateError>;
@@ -189,6 +193,15 @@ PhysicsCharacters* PhysicsWorldJolt::charactersOf(const Component& component)
     return world ? &world->impl().characters : nullptr;
 }
 
+const PhysicsJoints* PhysicsWorldJolt::jointsOf(const Component& component)
+{
+    const Node* node = component.owner();
+    const Scene* scene = node ? node->scene() : nullptr;
+    const PhysicsWorld* world = scene ? scene->system<PhysicsWorld>() : nullptr;
+
+    return world && world->m_impl ? &world->m_impl->joints : nullptr;
+}
+
 JoltWorld PhysicsWorldJolt::worldOf(const Component& component)
 {
     Node* node = component.owner();
@@ -211,6 +224,8 @@ void PhysicsWorldAccess::changed(Component& component)
     }
     if (auto* controller = dynamic_cast<CharacterController*>(&component)) {
         world->impl().characters.changed(*controller);
+    } else if (auto* joint = dynamic_cast<Joint*>(&component)) {
+        world->impl().joints.changed(*joint);
     } else {
         world->impl().bodies.branchChanged(*component.owner());
     }
@@ -224,8 +239,19 @@ void PhysicsWorldAccess::left(Component& component)
     }
     if (const auto* controller = dynamic_cast<const CharacterController*>(&component)) {
         world->m_impl->characters.left(*controller);
+    } else if (const auto* joint = dynamic_cast<const Joint*>(&component)) {
+        world->m_impl->joints.left(*joint);
     } else {
         world->m_impl->bodies.componentLeft(component);
+    }
+}
+
+void PhysicsWorldAccess::tuned(Component& component)
+{
+    PhysicsWorld* world = worldOf(component);
+    auto* joint = dynamic_cast<Joint*>(&component);
+    if (world && world->m_impl && joint) {
+        world->m_impl->joints.tuned(*joint);
     }
 }
 
