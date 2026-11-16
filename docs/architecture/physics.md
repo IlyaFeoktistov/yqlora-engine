@@ -225,6 +225,25 @@ is wired as its documentation and samples recommend; nothing here is new.
   - `slopeLimit`: steeper ground is a wall to walk into and slide down.
 - `resize(height)` changes the capsule for crouching and refuses when
   there is no room above (a check of the new shape before it is taken).
+- **How it is built**: the capsule always stands upright and does not turn
+  with the node; by default it is 1.8 m tall with a 0.4 m radius and its
+  `center` (in world axes) puts the node at the feet. `move` works at
+  once: the character first stands where the node is (code or the editor
+  may have moved it), then moves, and the node is put where it got to.
+  On walkable ground the downward part of the velocity is dropped (the
+  feet follow the ground by `stickToGround`), the speed over the ground is
+  laid onto the slope by `slopeSpeed`, and the velocity of the ground
+  under the feet is added, so a platform carries it. `resize` keeps the
+  feet in place. Changing the capsule or `skinWidth` rebuilds the
+  character before its next move; the other properties are taken by every
+  move.
+- **What others see**: the character has an inner kinematic body of its
+  capsule on the layer of its node, so bodies collide with it, queries hit
+  it and triggers report it, all as its node (the collider in
+  `RaycastHit` and `Collision` is empty). A node with both a controller
+  and a `RigidBody` gets a warning in the log.
+- The characters of a world are `PhysicsCharacters`, next to the bodies
+  in the Jolt world of the scene.
 
 **Where the engine ends and the game begins.** The controller moves a
 capsule through the world correctly: it collides, slides, climbs steps,
@@ -493,9 +512,10 @@ Everything set in the inspector is a property with a setter (see
   `stickToGround` and leaves the ground without it; with `KeepHorizontal`
   its speed over the ground is the same on a slope up, a slope down and a
   flat floor; a ledge higher than `stickDistance` is a fall; `resize`
-  refuses under a low ceiling; it slides along a wall at an angle; it does not climb a slope over
-  the limit; it rides a moving platform; it pushes a light box and not a
-  heavy one.
+  refuses under a low ceiling; it slides along a wall at an angle; it
+  does not climb a slope over the limit; it rides a moving platform; it
+  pushes a light box and not a heavy one; `onControllerHit` names the
+  node once per new touch; triggers and queries see it as its node.
 
 ### PH.7 Joints
 

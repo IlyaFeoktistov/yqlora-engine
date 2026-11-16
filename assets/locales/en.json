@@ -93,6 +93,9 @@
         "PhysicsSettings": {
             "description": "Physics: gravity, solver iterations, the default physics material and which layers collide."
         },
+        "CharacterController": {
+            "description": "A character the game moves: the capsule slides along walls, takes steps, keeps to the ground and rides platforms."
+        },
         "RigidBody": {
             "description": "A rigid body: the node moves by forces and collisions, or is moved by code (kinematic), or stays put (static)."
         },
@@ -590,6 +593,15 @@
         "frictionCombine": "Friction combine",
         "restitutionCombine": "Restitution combine",
         "isTrigger": "Trigger",
+        "slopeLimit": "Slope limit",
+        "stepHeight": "Step height, m",
+        "walkStairs": "Walk stairs",
+        "stickToGround": "Stick to ground",
+        "stickDistance": "Stick distance, m",
+        "slopeSpeed": "Slope speed",
+        "skinWidth": "Skin width, m",
+        "pushForce": "Push force, N",
+        "onControllerHit": "On controller hit",
         "detectStatic": "Detect static",
         "onCollisionEnter": "On collision enter",
         "onCollisionStay": "On collision stay",
@@ -601,6 +613,8 @@
         "z": "Z"
     },
     "enum": {
+        "KeepHorizontal": "Keep horizontal",
+        "AlongSurface": "Along surface",
         "Aces": "ACES",
         "AgX": "AgX",
         "Axis": "Axis",

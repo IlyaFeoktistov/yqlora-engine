@@ -2,6 +2,7 @@
 
 #include "yqlora/physics/BoxCollider.hpp"
 #include "yqlora/physics/CapsuleCollider.hpp"
+#include "yqlora/physics/CharacterController.hpp"
 #include "yqlora/physics/ConvexCollider.hpp"
 #include "yqlora/physics/CylinderCollider.hpp"
 #include "yqlora/physics/MeshCollider.hpp"
@@ -85,6 +86,41 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .min(kMinColliderSize)
         .property("height", &CylinderCollider::height, &CylinderCollider::setHeight)
         .min(kMinColliderSize);
+
+    registry.registerComponent<CharacterController>()
+        .requiresNode<Node3D>()
+        .property("radius", &CharacterController::radius, &CharacterController::setRadius)
+        .min(kMinCharacterSize)
+        .property("height", &CharacterController::height, &CharacterController::setHeight)
+        .min(kMinCharacterSize)
+        .property("center", &CharacterController::center, &CharacterController::setCenter)
+        .property(
+            "slopeLimit",
+            &CharacterController::slopeLimit,
+            &CharacterController::setSlopeLimit,
+            PropertyHint::Angle
+        )
+        .range(0.0f, kMaxCharacterSlope)
+        .property("stepHeight", &CharacterController::stepHeight, &CharacterController::setStepHeight)
+        .min(0.0f)
+        .property("walkStairs", &CharacterController::walkStairs, &CharacterController::setWalkStairs)
+        .property("stickToGround", &CharacterController::stickToGround, &CharacterController::setStickToGround)
+        .property("stickDistance", &CharacterController::stickDistance, &CharacterController::setStickDistance)
+        .min(0.0f)
+        .property("slopeSpeed", &CharacterController::slopeSpeed, &CharacterController::setSlopeSpeed)
+        .property("skinWidth", &CharacterController::skinWidth, &CharacterController::setSkinWidth)
+        .min(0.0f)
+        .property("mass", &CharacterController::mass, &CharacterController::setMass)
+        .min(kMinCharacterSize)
+        .property("pushForce", &CharacterController::pushForce, &CharacterController::setPushForce)
+        .min(0.0f)
+        .method("move", &CharacterController::move, {{"velocity"}, {"deltaSeconds"}})
+        .method("isGrounded", &CharacterController::isGrounded)
+        .method("groundNormal", &CharacterController::groundNormal)
+        .method("groundVelocity", &CharacterController::groundVelocity)
+        .method("velocity", &CharacterController::velocity)
+        .method("resize", &CharacterController::resize, {{"height"}})
+        .event("onControllerHit", &CharacterController::onControllerHit, {"other"});
 
     registry.registerSettings<PhysicsSettings>("physics")
         .property("gravity", &PhysicsSettings::gravity, &PhysicsSettings::setGravity)

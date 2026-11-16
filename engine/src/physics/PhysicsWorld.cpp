@@ -6,6 +6,7 @@
 
 #include "yqlora/core/EngineServices.hpp"
 #include "yqlora/core/Log.hpp"
+#include "yqlora/physics/CharacterController.hpp"
 #include "yqlora/physics/JoltContacts.hpp"
 #include "yqlora/physics/JoltLayers.hpp"
 #include "yqlora/physics/JoltMaterials.hpp"
@@ -47,6 +48,7 @@ PhysicsWorld::Impl::Impl(Scene& scene, PhysicsRuntime& physicsRuntime, const Phy
     : runtime(physicsRuntime)
     , listener(bodies, ignores)
     , bodies(scene, system.GetBodyInterface(), physicsRuntime.meshShapes(), physicsRuntime.materials())
+    , characters(system, bodies, {objectVsBroadPhase, pairs}, physicsRuntime.tempAllocator())
     , contacts(scene, bodies)
     , queries(system, bodies)
 {
@@ -120,6 +122,7 @@ void PhysicsWorld::afterFixedUpdate(float stepSeconds)
     world.system.SetPhysicsSettings(solver);
 
     world.bodies.flush();
+    world.characters.sync();
     PhysicsMaterialCache& materials = world.runtime.materials();
     materials.refresh(scene().services().resources());
     if (materials.generation() != world.materials) {
@@ -177,6 +180,15 @@ PhysicsWorld* worldOf(const Component& component)
 
 } // namespace
 
+PhysicsCharacters* PhysicsWorldJolt::charactersOf(const Component& component)
+{
+    Node* node = component.owner();
+    Scene* scene = node ? node->scene() : nullptr;
+    PhysicsWorld* world = scene ? scene->system<PhysicsWorld>() : nullptr;
+
+    return world ? &world->impl().characters : nullptr;
+}
+
 JoltWorld PhysicsWorldJolt::worldOf(const Component& component)
 {
     Node* node = component.owner();
@@ -193,7 +205,13 @@ JoltWorld PhysicsWorldJolt::worldOf(const Component& component)
 
 void PhysicsWorldAccess::changed(Component& component)
 {
-    if (PhysicsWorld* world = worldOf(component)) {
+    PhysicsWorld* world = worldOf(component);
+    if (!world) {
+        return;
+    }
+    if (auto* controller = dynamic_cast<CharacterController*>(&component)) {
+        world->impl().characters.changed(*controller);
+    } else {
         world->impl().bodies.branchChanged(*component.owner());
     }
 }
@@ -201,7 +219,12 @@ void PhysicsWorldAccess::changed(Component& component)
 void PhysicsWorldAccess::left(Component& component)
 {
     PhysicsWorld* world = worldOf(component);
-    if (world && world->m_impl) {
+    if (!world || !world->m_impl) {
+        return;
+    }
+    if (const auto* controller = dynamic_cast<const CharacterController*>(&component)) {
+        world->m_impl->characters.left(*controller);
+    } else {
         world->m_impl->bodies.componentLeft(component);
     }
 }

@@ -112,6 +112,11 @@ public:
     // Тело узла-хозяина; невалидный ID, если у узла тела нет.
     JPH::BodyID bodyOf(NodeId owner) const;
 
+    // Внутреннее тело персонажа узла owner (PhysicsCharacters): касания и
+    // попадания в него - касания и попадания в этот узел, без коллайдера.
+    void addCharacterBody(JPH::BodyID id, NodeId owner);
+    void removeCharacterBody(JPH::BodyID id);
+
 private:
     // Датчик коллайдера-триггера: своё кинематическое тело на месте
     // коллайдера, offset - от положения тела хозяина.
@@ -157,10 +162,16 @@ private:
         bool detectStatic = false;
     };
 
-    // Хозяин тела Jolt и датчик ли оно.
+    enum class JoltBodyKind : std::uint8_t {
+        Body,
+        Sensor,
+        Character,
+    };
+
+    // Хозяин тела Jolt и что это за тело.
     struct JoltBodyOwner {
         NodeId owner = 0;
-        bool sensor = false;
+        JoltBodyKind kind = JoltBodyKind::Body;
     };
 
     void rebuild(NodeId owner);

@@ -6,6 +6,7 @@
 #include "yqlora/physics/JoltContacts.hpp"
 #include "yqlora/physics/JoltLayers.hpp"
 #include "yqlora/physics/PhysicsBodies.hpp"
+#include "yqlora/physics/PhysicsCharacters.hpp"
 #include "yqlora/physics/PhysicsContacts.hpp"
 #include "yqlora/physics/PhysicsQueries.hpp"
 #include "yqlora/physics/PhysicsWorld.hpp"
@@ -36,6 +37,8 @@ struct PhysicsWorld::Impl {
     JPH::PhysicsSystem system;
     // После системы: уходит раньше неё, убирая свои тела.
     PhysicsBodies bodies;
+    // После тел: внутренние тела персонажей уходят раньше мира тел.
+    PhysicsCharacters characters;
     PhysicsContacts contacts;
     PhysicsQueries queries;
     // Поколение материалов, которое мир уже видел (PhysicsMaterialCache::generation).
@@ -59,6 +62,8 @@ struct PhysicsWorldJolt {
     // Мир сцены компонента с перестроенными телами; пусто - компонент не в
     // сцене.
     static JoltWorld worldOf(const Component& component);
+    // Персонажи мира сцены компонента; nullptr - компонент не в сцене.
+    static PhysicsCharacters* charactersOf(const Component& component);
 };
 
 } // namespace yqlora

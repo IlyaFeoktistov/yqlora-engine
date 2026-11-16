@@ -462,7 +462,7 @@ void PhysicsBodies::rebuild(NodeId owner)
         }
         body.parts = std::move(parts);
         body.solePart = shape.solePart;
-        m_byJoltId[body.id.GetIndexAndSequenceNumber()] = {owner, false};
+        m_byJoltId[body.id.GetIndexAndSequenceNumber()] = {owner, JoltBodyKind::Body};
         for (const BodyPart& part : body.parts) {
             m_colliderBodies[part.collider] = body.id;
         }
@@ -503,7 +503,7 @@ void PhysicsBodies::addSensor(
 
         return;
     }
-    m_byJoltId[id.GetIndexAndSequenceNumber()] = {owner, true};
+    m_byJoltId[id.GetIndexAndSequenceNumber()] = {owner, JoltBodyKind::Sensor};
     m_colliderBodies[trigger.part.collider] = id;
     body.sensors.push_back({.id = id, .part = trigger.part, .offset = trigger.offset});
 }
@@ -673,9 +673,12 @@ std::optional<ContactSide> PhysicsBodies::sideOf(std::uint32_t joltId, std::uint
     if (found == m_byJoltId.end()) {
         return std::nullopt;
     }
-    const auto [owner, sensor] = found->second;
+    const auto [owner, kind] = found->second;
+    if (kind == JoltBodyKind::Character) {
+        return ContactSide{owner, BodyPart{.collider = 0, .node = owner}, false};
+    }
     const Body& body = m_bodies.at(owner);
-    if (sensor) {
+    if (kind == JoltBodyKind::Sensor) {
         const auto it = std::ranges::find_if(body.sensors, [&](const Sensor& each) {
             return each.id.GetIndexAndSequenceNumber() == joltId;
         });
@@ -702,6 +705,16 @@ JPH::BodyID PhysicsBodies::bodyOf(NodeId owner) const
     const auto it = m_bodies.find(owner);
 
     return it != m_bodies.end() ? it->second.id : JPH::BodyID();
+}
+
+void PhysicsBodies::addCharacterBody(JPH::BodyID id, NodeId owner)
+{
+    m_byJoltId[id.GetIndexAndSequenceNumber()] = {owner, JoltBodyKind::Character};
+}
+
+void PhysicsBodies::removeCharacterBody(JPH::BodyID id)
+{
+    m_byJoltId.erase(id.GetIndexAndSequenceNumber());
 }
 
 } // namespace yqlora

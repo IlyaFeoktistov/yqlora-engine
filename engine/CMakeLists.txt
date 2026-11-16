@@ -211,6 +211,8 @@ add_library(yqlora SHARED
     src/physics/BodyPose.cpp
     src/physics/BoxCollider.cpp
     src/physics/CapsuleCollider.cpp
+    src/physics/CharacterController.cpp
+    src/physics/CharacterControllerControl.cpp
     src/physics/ColliderShape.cpp
     src/physics/ConvexCollider.cpp
     src/physics/MeshCollider.cpp
@@ -223,6 +225,7 @@ add_library(yqlora SHARED
     src/physics/JoltMaterials.cpp
     src/physics/JoltShapes.cpp
     src/physics/PhysicsBodies.cpp
+    src/physics/PhysicsCharacters.cpp
     src/physics/PhysicsDebug.cpp
     src/physics/PhysicsQueryDebug.cpp
     src/physics/PhysicsContacts.cpp
