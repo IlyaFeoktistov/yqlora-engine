@@ -15,6 +15,8 @@ constexpr const char* kCameraPreviewKey = "cameraPreview";
 constexpr const char* kViewportSkyKey = "viewportSky";
 constexpr const char* kViewportShadowCascadesKey = "viewportShadowCascades";
 constexpr const char* kViewportPreviewLightingKey = "viewportPreviewLighting";
+constexpr const char* kSceneDebugChannelsKey = "sceneDebugChannels";
+constexpr const char* kGameDebugChannelsKey = "gameDebugChannels";
 constexpr const char* kReparentKeepWorldKey = "reparentKeepWorld";
 constexpr const char* kSnapKey = "snap";
 constexpr const char* kSnapGridKey = "grid";
@@ -37,6 +39,21 @@ constexpr const char* kCodeEditorKey = "codeEditor";
 constexpr const char* kProgramKey = "program";
 constexpr const char* kArgumentsKey = "arguments";
 constexpr const char* kToolchainKey = "toolchain";
+
+// Список строк; иначе каналы остаются прежними.
+void readChannels(const nlohmann::json& json, const char* key, DebugChannels& channels)
+{
+    const auto it = json.find(key);
+    if (it == json.end() || !it->is_array()) {
+        return;
+    }
+    channels.clear();
+    for (const nlohmann::json& channel : *it) {
+        if (channel.is_string()) {
+            channels.insert(channel.get<std::string>());
+        }
+    }
+}
 
 } // namespace
 
@@ -63,6 +80,8 @@ void EditorSettings::load()
     if (const auto it = json->find(kViewportShadowCascadesKey); it != json->end() && it->is_boolean()) {
         viewportShadowCascades = it->get<bool>();
     }
+    readChannels(*json, kSceneDebugChannelsKey, sceneDebugChannels);
+    readChannels(*json, kGameDebugChannelsKey, gameDebugChannels);
     if (const auto it = json->find(kReparentKeepWorldKey); it != json->end() && it->is_boolean()) {
         reparentKeepWorld = it->get<bool>() ? KeepWorld::Yes : KeepWorld::No;
     }
@@ -118,6 +137,8 @@ bool EditorSettings::save() const
         {kViewportSkyKey, viewportSky},
         {kViewportPreviewLightingKey, viewportPreviewLighting},
         {kViewportShadowCascadesKey, viewportShadowCascades},
+        {kSceneDebugChannelsKey, sceneDebugChannels},
+        {kGameDebugChannelsKey, gameDebugChannels},
         {kSnapKey, snapJson},
         {kToolchainKey, overrides},
         {kCodeEditorKey,
@@ -131,6 +152,14 @@ bool EditorSettings::save() const
     }
 
     return writeJsonFile(m_file, json);
+}
+
+DebugChannels viewerDebugChannels(const EditorSettings& settings)
+{
+    DebugChannels channels = settings.sceneDebugChannels;
+    channels.insert(settings.gameDebugChannels.begin(), settings.gameDebugChannels.end());
+
+    return channels;
 }
 
 } // namespace yqlora::editor

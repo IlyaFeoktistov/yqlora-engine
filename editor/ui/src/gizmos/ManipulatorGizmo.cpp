@@ -3,6 +3,7 @@
 #include "yqlora/editor/ui/gizmos/GizmoDrawing.hpp"
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
+#include "yqlora/editor/ui/widgets/IconButton.hpp"
 
 #include "yqlora/editor/EditorCamera.hpp"
 #include "yqlora/editor/EditorSession.hpp"
@@ -100,15 +101,8 @@ bool ManipulatorGizmo::drawToolbar(const GizmoContext& context)
     ImGui::SetCursorScreenPos(ImVec2(context.origin.x + kToolbarMargin, context.origin.y + kToolbarMargin));
     bool hovered = false;
     for (const Button& button : kButtons) {
-        const bool active = m_tool == button.tool;
-        if (active) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        }
-        if (ImGui::Button(button.icon)) {
+        if (iconButton(button.icon, m_tool == button.tool)) {
             m_tool = button.tool;
-        }
-        if (active) {
-            ImGui::PopStyleColor();
         }
         hovered = hovered || ImGui::IsItemHovered();
         ImGui::SetItemTooltip("%s (%s)", tr(button.labelKey).c_str(), button.hotkey);
@@ -135,19 +129,7 @@ bool ManipulatorGizmo::drawSnapButtons(const GizmoContext& context)
     SnapSettings& snap = context.settings.snap;
     bool changed = false;
     const auto toggle = [&](const char* icon, bool& value) {
-        // Цвет снимается по тому же состоянию, по которому положен: щелчок
-        // меняет value между ними.
-        const bool wasOn = value;
-        if (wasOn) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        }
-        if (ImGui::Button(icon)) {
-            value = !value;
-            changed = true;
-        }
-        if (wasOn) {
-            ImGui::PopStyleColor();
-        }
+        changed = iconToggle(icon, value) || changed;
     };
 
     toggle(icons::kSnapGrid, snap.grid);

@@ -21,7 +21,8 @@ public:
 
     void simulate(float deltaSeconds);
     void updateTransforms();
-    FrameData extract(float aspect) const;
+    // Кадр игры и её отладка: каналы, которые она включила сама (DebugDraw).
+    FrameData extract(float aspect);
 
 private:
     Scene m_scene;

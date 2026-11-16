@@ -29,6 +29,10 @@ public:
     // Сглаженные тела показывают положение между двумя последними шагами.
     void update(float deltaSeconds) override;
     void onBranchChanged(Node& node) override;
+    // Каналы PhysicsDebug.hpp, кроме запросов: те рисуются в DebugDraw в
+    // момент запроса.
+    void drawDebug(DebugLines& lines, const DebugChannels& channels) override;
+    void addDebugChannels(DebugChannels& channels) const override;
 
     // Есть ли мир Jolt (появилось ли тело).
     bool simulating() const

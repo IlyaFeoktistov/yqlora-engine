@@ -44,6 +44,8 @@ set(YQLORA_ENGINE_SHADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/environment/brdf.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/output.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fullscreen.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/debug/line.vert
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/debug/line.frag
 )
 set(YQLORA_ENGINE_SHADERS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/generated/EmbeddedShaders.hpp)
 # Список через "|": точку с запятой в команде разрезала бы оболочка.
@@ -74,6 +76,9 @@ add_library(yqlora SHARED
     src/core/Text.cpp
     src/core/Settings.cpp
     src/core/Version.cpp
+    src/debug/DebugDraw.cpp
+    src/debug/DebugLines.cpp
+    src/debug/DebugTypes.cpp
     src/i18n/Language.cpp
     src/i18n/Localization.cpp
     src/platform/FileDialogs.cpp
@@ -153,6 +158,7 @@ add_library(yqlora SHARED
     src/reflection/TypeRegistry.cpp
     src/render/AtmospherePass.cpp
     src/render/Camera3D.cpp
+    src/render/DebugLinePass.cpp
     src/render/DirectionalLight3D.cpp
     src/render/Light3D.cpp
     src/render/Environment.cpp
@@ -166,6 +172,7 @@ add_library(yqlora SHARED
     src/render/ShadowPass.cpp
     src/render/SkyPass.cpp
     src/render/SpotLight3D.cpp
+    src/render/ExtractDebugLines.cpp
     src/render/ExtractDrawItems.cpp
     src/render/ExtractEnvironment.cpp
     src/render/ExtractLights.cpp
@@ -189,6 +196,7 @@ add_library(yqlora SHARED
     src/render/TextureData.cpp
     src/render/TextureSampler.cpp
     src/render/GraphicsSettings.cpp
+    src/render/BufferRing.cpp
     src/render/BuiltinMeshes.cpp
     src/material/MaterialData.cpp
     src/material/MaterialFile.cpp
@@ -215,6 +223,8 @@ add_library(yqlora SHARED
     src/physics/JoltMaterials.cpp
     src/physics/JoltShapes.cpp
     src/physics/PhysicsBodies.cpp
+    src/physics/PhysicsDebug.cpp
+    src/physics/PhysicsQueryDebug.cpp
     src/physics/PhysicsContacts.cpp
     src/physics/RigidBody.cpp
     src/physics/SphereCollider.cpp
@@ -231,7 +241,6 @@ add_library(yqlora SHARED
     src/physics/PhysicsWorld.cpp
     src/physics/PhysicsWorldQueries.cpp
     src/physics/RigidBodyControl.cpp
-    src/render/UniformRing.cpp
     src/rhi/Pipeline.cpp
     src/resource/BuiltinResourceTable.cpp
     src/resource/ResourceCache.cpp

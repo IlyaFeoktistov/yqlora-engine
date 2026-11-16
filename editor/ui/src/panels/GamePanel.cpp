@@ -1,12 +1,18 @@
 #include "yqlora/editor/ui/panels/GamePanel.hpp"
 
+#include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
+#include "yqlora/editor/ui/widgets/DebugChannelsMenu.hpp"
+#include "yqlora/editor/ui/widgets/IconButton.hpp"
 #include "yqlora/editor/ui/widgets/PlayFrame.hpp"
 
+#include "yqlora/debug/DebugDraw.hpp"
 #include "yqlora/editor/EditorSession.hpp"
+#include "yqlora/editor/EditorSettings.hpp"
 #include "yqlora/editor/ui/core/EditorHost.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/render/FrameBuilder.hpp"
+#include "yqlora/render/FrameExtract.hpp"
 #include "yqlora/render/RenderSystem.hpp"
 #include "yqlora/scene/Scene.hpp"
 
@@ -21,6 +27,8 @@ namespace yqlora::editor {
 namespace {
 
 constexpr const char* kViewportWindow = "###Viewport";
+// Меню "Гизмо": отступ от правого верхнего угла, как у кнопок окна сцены.
+constexpr float kMenuMargin = 8.0f;
 
 // Окно на экране: не свёрнуто и, если это вкладка, выбрано в своей группе.
 bool isShown(const ImGuiWindow& window)
@@ -71,10 +79,17 @@ void GamePanel::draw(EditorContext& context)
     const ImVec2 origin = ImGui::GetCursorScreenPos();
     m_view.image(size);
 
-    const Scene& scene = session.scene();
+    Scene& scene = session.scene();
     const RenderSystem* render = scene.system<RenderSystem>();
     if (render && render->mainCamera()) {
-        m_view.render(context.host.renderer(), extractFrame(scene, size.x / size.y));
+        // Отладка, которую включила сама игра, и выбранная в меню окна.
+        FrameData frame = extractFrame(scene, size.x / size.y);
+        DebugChannels channels = context.settings.gameDebugChannels;
+        if (const DebugDraw* debug = scene.system<DebugDraw>()) {
+            channels.merge(debug->gameChannels());
+        }
+        extractDebugLines(scene, channels, frame);
+        m_view.render(context.host.renderer(), frame);
     } else {
         // Без камеры игре не через что показываться.
         const std::string text = tr("editor.play.noCamera");
@@ -93,6 +108,9 @@ void GamePanel::draw(EditorContext& context)
     if (playing) {
         drawPlayFrame(origin, size, context.theme.colors());
     }
+    const float menuLeft = origin.x + size.x - kMenuMargin - iconButtonWidth(icons::kDebugGizmos);
+    ImGui::SetCursorScreenPos(ImVec2(menuLeft, origin.y + kMenuMargin));
+    debugChannelsMenu("debug", scene, context.settings.gameDebugChannels, context.settings);
     ImGui::End();
 }
 

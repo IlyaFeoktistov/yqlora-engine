@@ -22,6 +22,7 @@ class PipelineCache;
 class SceneRenderer;
 class ShaderCompiler;
 class TransientTextures;
+class BufferRing;
 class UniformRing;
 class Window;
 struct RenderContext;
@@ -96,6 +97,7 @@ private:
     std::unique_ptr<UiIntegration> m_ui;
     std::unique_ptr<ShaderCompiler> m_shaders;
     std::unique_ptr<UniformRing> m_uniforms;
+    std::unique_ptr<BufferRing> m_vertices;
     std::unique_ptr<GpuMeshCache> m_meshes;
     std::unique_ptr<GpuTextureCache> m_textures;
     std::unique_ptr<GpuMaterialCache> m_materials;

@@ -24,6 +24,11 @@ namespace {
 // ImGui рисует в обычный буфер.
 constexpr rhi::Format kUiTextureFormat = rhi::Format::Rgba8;
 
+// Вершины кадра (отладочные линии): смещения кратны float, начальный
+// объём - на несколько тысяч отрезков, дальше буфер растёт сам.
+constexpr std::size_t kVertexAlignment = sizeof(float);
+constexpr std::size_t kVertexCapacity = 256 * 1024;
+
 } // namespace
 
 Renderer::Renderer(GraphicsApi api, std::unique_ptr<rhi::Device> device, std::unique_ptr<UiIntegration> ui)
@@ -33,6 +38,7 @@ Renderer::Renderer(GraphicsApi api, std::unique_ptr<rhi::Device> device, std::un
     // Шейдеры движка вшиты, файлов проекта рендереру читать не нужно.
     , m_shaders(std::make_unique<ShaderCompiler>(ShaderFileReader{}))
     , m_uniforms(std::make_unique<UniformRing>(*m_device))
+    , m_vertices(std::make_unique<BufferRing>(*m_device, rhi::BufferUsage::Vertex, kVertexAlignment, kVertexCapacity))
     , m_meshes(std::make_unique<GpuMeshCache>(*m_device))
     , m_textures(std::make_unique<GpuTextureCache>(*m_device))
     , m_materials(std::make_unique<GpuMaterialCache>(*m_device))
@@ -40,9 +46,16 @@ Renderer::Renderer(GraphicsApi api, std::unique_ptr<rhi::Device> device, std::un
     , m_uiTextures(std::make_unique<GpuResourceCache<rhi::Texture>>())
     , m_transients(std::make_unique<TransientTextures>(*m_device))
     , m_context(
-          std::make_unique<RenderContext>(
-              RenderContext{*m_device, *m_shaders, *m_uniforms, *m_meshes, *m_textures, *m_materials, *m_pipelines}
-          )
+          std::make_unique<RenderContext>(RenderContext{
+              *m_device,
+              *m_shaders,
+              *m_uniforms,
+              *m_vertices,
+              *m_meshes,
+              *m_textures,
+              *m_materials,
+              *m_pipelines,
+          })
       )
     , m_scene(std::make_unique<SceneRenderer>(*m_context, *m_transients))
 {
@@ -58,6 +71,7 @@ Renderer::~Renderer()
     m_materials.reset();
     m_textures.reset();
     m_meshes.reset();
+    m_vertices.reset();
     m_uniforms.reset();
     m_shaders.reset();
     m_ui.reset();
@@ -110,6 +124,7 @@ void Renderer::present()
     m_device->commands().transition(m_device->backBuffer(), rhi::ResourceState::Present);
     m_device->present();
     m_uniforms->reset();
+    m_vertices->reset();
     m_meshes->endFrame();
     m_textures->endFrame();
     m_materials->endFrame();

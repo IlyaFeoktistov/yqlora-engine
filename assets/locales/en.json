@@ -84,6 +84,9 @@
         "PrefabPool": {
             "description": "Instances of a prefab made ahead and kept disabled: hands out a ready one and takes it back, with no expanding on the fly. For objects that come and go often: bullets, shells, hit effects."
         },
+        "DebugDraw": {
+            "description": "Debug drawing of the scene: lines and shapes over the world, by channel."
+        },
         "PhysicsWorld": {
             "description": "The physics world of the scene: bodies, collisions and their steps."
         },
@@ -221,6 +224,20 @@
             "sky": "Scene sky behind objects",
             "shadowCascades": "Sun shadow cascades in colour",
             "previewLighting": "Preview lighting: a prefab without its own sky and sun is lit by the sun and sky of a new scene"
+        },
+        "debug": {
+            "gizmos": "Gizmos: debug drawing in this window",
+            "channel": {
+                "game": "Game (default channel)",
+                "physics": {
+                    "colliders": "Physics: colliders",
+                    "triggers": "Physics: triggers",
+                    "contacts": "Physics: contacts",
+                    "queries": "Physics: queries",
+                    "velocities": "Physics: velocities",
+                    "sleep": "Physics: sleeping bodies"
+                }
+            }
         },
         "layers": {
             "everything": "Everything",

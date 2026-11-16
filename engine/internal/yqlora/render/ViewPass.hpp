@@ -20,6 +20,8 @@ struct RenderContext {
     rhi::Device& device;
     ShaderCompiler& shaders;
     UniformRing& uniforms;
+    // Вершины, которые меняются каждый кадр.
+    BufferRing& vertices;
     GpuMeshCache& meshes;
     // Материалы: текстуры, блоки Material и конвейеры.
     GpuTextureCache& textures;

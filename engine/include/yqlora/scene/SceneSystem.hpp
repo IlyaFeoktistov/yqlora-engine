@@ -1,12 +1,14 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/debug/DebugChannels.hpp"
 #include "yqlora/reflection/TypeName.hpp"
 
 #include <string_view>
 
 namespace yqlora {
 
+class DebugLines;
 class Node;
 class Scene;
 
@@ -81,6 +83,18 @@ public:
     // После симуляции и отложенных изменений дерева, перед Extract: мировые
     // матрицы изменённых узлов. Вызывается и в редакторе, без advance.
     virtual void updateTransforms()
+    {
+    }
+
+    // Отладочная отрисовка системы (формы коллайдеров, контакты): её линии
+    // каналов из channels. Зовётся при сборке кадра, после updateTransforms,
+    // и в редакторе тоже, только если какой-то канал показан.
+    virtual void drawDebug(DebugLines& /*lines*/, const DebugChannels& /*channels*/)
+    {
+    }
+
+    // Каналы, которые система рисует: из них выбирают, что показывать.
+    virtual void addDebugChannels(DebugChannels& /*channels*/) const
     {
     }
 

@@ -108,7 +108,7 @@ void RecordingCommandList::bindPipeline(const rhi::Pipeline& pipeline)
     m_device.recorded.push_back({CommandKind::BindPipeline, 0, pipeline.desc().shader->desc().name});
 }
 
-void RecordingCommandList::setVertexBuffer(const rhi::Buffer& buffer)
+void RecordingCommandList::setVertexBuffer(const rhi::Buffer& buffer, std::size_t /*offset*/)
 {
     requireThat(buffer.desc().usage == rhi::BufferUsage::Vertex, "setVertexBuffer: not a vertex buffer");
     m_hasVertexBuffer = true;

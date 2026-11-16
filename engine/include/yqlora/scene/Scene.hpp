@@ -22,6 +22,8 @@
 
 namespace yqlora {
 
+class DebugLines;
+
 // Дерево узлов с одним корнем. Новая сцена пуста:
 // корня нет, пока его не создадут (любого типа: Node, Node3D, ...).
 class YQLORA_API Scene {
@@ -175,6 +177,13 @@ public:
     // Мировые матрицы изменённых узлов, см. SceneSystem::updateTransforms.
     // Цикл кадра вызывает после advance, редактор - перед отрисовкой.
     void updateTransforms();
+
+    // Отладочные линии систем по каналам channels (SceneSystem::drawDebug);
+    // без каналов - ничего. Перед этим - updateTransforms.
+    void drawDebug(DebugLines& lines, const DebugChannels& channels);
+
+    // Каналы, которые рисуют системы сцены.
+    DebugChannels debugChannels() const;
 
     GameTime& time()
     {

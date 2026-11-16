@@ -61,4 +61,18 @@ void SceneSystems::updateTransforms()
     }
 }
 
+void SceneSystems::drawDebug(DebugLines& lines, const DebugChannels& channels)
+{
+    for (const auto& system : m_systems) {
+        system->drawDebug(lines, channels);
+    }
+}
+
+void SceneSystems::addDebugChannels(DebugChannels& channels) const
+{
+    for (const auto& system : m_systems) {
+        system->addDebugChannels(channels);
+    }
+}
+
 } // namespace yqlora

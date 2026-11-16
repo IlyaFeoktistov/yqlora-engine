@@ -1,5 +1,6 @@
 #pragma once
 
+#include "yqlora/debug/DebugLines.hpp"
 #include "yqlora/material/MaterialData.hpp"
 #include "yqlora/material/MaterialOverrides.hpp"
 #include "yqlora/math/Math.hpp"
@@ -192,6 +193,21 @@ struct EnvironmentData {
     Atmosphere atmosphere{.enabled = false};
 };
 
+// Отладочные линии кадра (DebugDraw и отладка подсистем), цвета - уже в
+// линейном RGB. Две вершины - отрезок. Рисуются в каждом виде кадра после
+// прозрачного, без экспозиции: цвет на экране - тот, что задали, с
+// поправкой только на тональную компрессию.
+struct DebugLineData {
+    std::vector<DebugVertex> tested;
+    // Без теста глубины: поверх всего.
+    std::vector<DebugVertex> overlay;
+
+    bool empty() const
+    {
+        return tested.empty() && overlay.empty();
+    }
+};
+
 // Сколько источников шейдер видит за кадр (массивы блока Frame).
 inline constexpr std::size_t kMaxDirectionalLights = 4;
 inline constexpr std::size_t kMaxPunctualLights = 32;
@@ -212,6 +228,8 @@ struct FrameData {
     ShadowSettings shadows{};
     // Не больше kMaxShadowTiles; плитка i - место i атласа (по строкам).
     std::vector<ShadowTile> shadowTiles;
+    // Пусто, пока кадр не попросил отладку (extractDebugLines).
+    DebugLineData debugLines;
 };
 
 } // namespace yqlora

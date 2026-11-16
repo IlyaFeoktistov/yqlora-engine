@@ -1,6 +1,7 @@
 #include "yqlora/scripting/Script.hpp"
 
 #include "yqlora/core/EngineServices.hpp"
+#include "yqlora/debug/DebugDraw.hpp"
 #include "yqlora/physics/PhysicsWorld.hpp"
 #include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/NodeTree.hpp"
@@ -57,6 +58,14 @@ PhysicsWorld& Script::physics() const
     assert(world && "physics: PhysicsWorld is registered with the engine types");
 
     return *world;
+}
+
+DebugDraw& Script::debugDraw() const
+{
+    DebugDraw* draw = scene().system<DebugDraw>();
+    assert(draw && "debugDraw: DebugDraw is registered with the engine types");
+
+    return *draw;
 }
 
 Node* Script::findNode(std::string_view name) const

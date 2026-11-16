@@ -66,7 +66,8 @@ public:
     // Конвейер с форматами открытого прохода (checkPipelineTarget).
     virtual void bindPipeline(const Pipeline& pipeline) = 0;
 
-    virtual void setVertexBuffer(const Buffer& buffer) = 0;
+    // Вершины - с offset байт от начала буфера.
+    virtual void setVertexBuffer(const Buffer& buffer, std::size_t offset = 0) = 0;
     virtual void setIndexBuffer(const Buffer& buffer) = 0;
 
     // offset кратно DeviceLimits::uniformOffsetAlignment.

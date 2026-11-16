@@ -22,10 +22,12 @@ void GameTime::beginFrame(float realDelta)
 
 bool GameTime::takeFixedStep()
 {
-    if (m_accumulator < m_fixedStep) {
+    m_inFixedStep = m_accumulator >= m_fixedStep;
+    if (!m_inFixedStep) {
         return false;
     }
     m_accumulator -= m_fixedStep;
+    ++m_fixedSteps;
 
     return true;
 }

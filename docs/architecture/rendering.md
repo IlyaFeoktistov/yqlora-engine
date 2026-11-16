@@ -101,30 +101,52 @@ as new backends under the same RHI.
  RHI       -> one interface over OpenGL, Vulkan, D3D12   backends/<api>
 ```
 
-## Debug drawing [planned, step 6]
+## Debug drawing [done]
 
 Lines and simple shapes over the world, to see what has no geometry:
-query rays and hits, contact points and normals, velocities and forces,
-collider shapes and trigger zones, a game's own vectors. The design is the
-established one: the game and subsystems put primitives into a shared
-frame buffer, and the renderer draws them in its own line pass, so they
-show in the scene view, the game view and a built game, not only in the
-editor.
+query rays and hits, contact points and normals, velocities, collider
+shapes and trigger zones, a game's own vectors. The game and subsystems
+put primitives into the frame, and the renderer draws them in its own line
+pass, so they show in the scene view, the game view and a built game, not
+only in the editor.
 
-- **`DebugDraw`** is a scene system: `line`, `ray`, `arrow`, `point`,
-  `sphere`, `box`, `capsule`, `axes` with a color, a lifetime (0 is one
-  frame, otherwise seconds of game time) and a depth test (off means seen
-  through walls). From a script: `debugDraw()`. The frame's primitives go
-  into the frame data as a list of line vertices, and the line pass draws
-  them after transparent, before output, in each view where debugging is
-  on.
-- **Channels**: each primitive belongs to a channel (a game's own by name;
-  physics has "Colliders", "Triggers", "Contacts", "Queries",
-  "Velocities", "Sleep"). What to show is chosen in the "Gizmos" menu of
-  the scene view and of the game view separately; a channel nobody shows
-  is not collected, so debugging that is off costs almost nothing.
+- **`DebugDraw`** is a scene system (`yqlora/debug`): `line`, `ray`,
+  `arrow`, `point`, `sphere`, `box`, `capsule`, `axes` with
+  `DebugOptions`: a color in sRGB, a lifetime, a depth test (off means
+  seen through walls) and a channel. A lifetime of 0 is one frame, and a
+  primitive drawn in a fixed step lives until the next step, so it does
+  not flicker in frames without a step; otherwise it is seconds of game
+  time. From a script: `debugDraw()`. Shapes are split into segments by
+  `DebugLines`, one builder for the game and the subsystems.
+- **Channels**: each primitive belongs to a channel by name: `game` by
+  default, a game's own by any name, a subsystem's with its prefix
+  (physics: `physics.colliders`, `physics.triggers`, `physics.contacts`,
+  `physics.queries`, `physics.velocities`, `physics.sleep`, see
+  [physics](physics.md)). A primitive is collected only while the scene
+  runs and someone shows its channel, so debugging that is off costs
+  almost nothing.
+- **State of subsystems** (collider shapes, contacts, velocities) is not
+  stored as primitives: when the frame is extracted, each scene system
+  draws the channels asked for (`SceneSystem::drawDebug`, its channels -
+  `addDebugChannels`). So it works in a scene that does not run as well:
+  the editor shows colliders where their nodes stand.
+- **Into the frame**: `extractDebugLines(scene, channels, frame)` puts
+  the lines of the given channels into `FrameData::debugLines`, with
+  colors already linear. A frame that does not ask for it has no lines.
+  `DebugLinePass` puts the vertices once per frame into the frame's vertex
+  ring (`BufferRing`, as uniforms are) and, in the pass of each view after
+  transparent, draws one-pixel segments into the HDR target: depth-tested
+  first, then on top of everything. The lines do not take the view's
+  exposure, so on screen they are the color they were given, changed only
+  by tone mapping.
+- **Who shows what**: the "Gizmos" menu of the scene view and of the game
+  view, each with its own channels, kept in the editor settings; the editor
+  passes the union of both to the running scene each frame
+  (`setViewerChannels`). The game view also shows what the game turned on
+  itself.
 - **In a built game** debugging is off until code turns it on
-  (`debugDraw().setEnabled`), for example in a debug build on a key.
+  (`debugDraw().setEnabled`, more channels than `game` - `showChannel`),
+  for example in a debug build on a key.
 - Editor gizmos (the manipulator, lights, cameras) stay their own: they
   are editing tools, not game debugging.
 

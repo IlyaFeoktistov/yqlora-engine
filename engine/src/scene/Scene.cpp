@@ -230,4 +230,19 @@ void Scene::updateTransforms()
     m_systems.updateTransforms();
 }
 
+void Scene::drawDebug(DebugLines& lines, const DebugChannels& channels)
+{
+    if (!channels.empty()) {
+        m_systems.drawDebug(lines, channels);
+    }
+}
+
+DebugChannels Scene::debugChannels() const
+{
+    DebugChannels channels;
+    m_systems.addDebugChannels(channels);
+
+    return channels;
+}
+
 } // namespace yqlora

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/core/Export.hpp"
+#include "yqlora/debug/DebugChannels.hpp"
 #include "yqlora/render/FrameData.hpp"
 
 #include <vector>
@@ -51,5 +52,9 @@ YQLORA_API Mat4 shadowTileMatrix(const LightData& light, int face);
 // Окружение сцены (RenderSystem::environment): материал неба и атмосфера.
 // Материал неба с шейдером не неба пропускается, о нём один раз пишется в лог.
 YQLORA_API EnvironmentData extractEnvironment(const RenderSystem& render, FrameMaterials& materials);
+
+// Отладочные линии каналов channels (Scene::drawDebug) в frame.debugLines.
+// Сцена - уже с updateTransforms; без каналов - ничего.
+YQLORA_API void extractDebugLines(Scene& scene, const DebugChannels& channels, FrameData& frame);
 
 } // namespace yqlora

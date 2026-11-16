@@ -13,6 +13,7 @@
 
 namespace yqlora {
 
+class DebugLines;
 class Node;
 class Scene;
 class TypeRegistry;
@@ -43,6 +44,8 @@ public:
     void lateUpdate(float deltaSeconds);
     void updateTransforms();
     void branchChanged(Node& node);
+    void drawDebug(DebugLines& lines, const DebugChannels& channels);
+    void addDebugChannels(DebugChannels& channels) const;
 
 private:
     std::vector<std::unique_ptr<SceneSystem>> m_systems;

@@ -9,6 +9,8 @@
 #include "yqlora/editor/ui/gizmos/SelectionGizmo.hpp"
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
+#include "yqlora/editor/ui/widgets/DebugChannelsMenu.hpp"
+#include "yqlora/editor/ui/widgets/IconButton.hpp"
 #include "yqlora/editor/ui/widgets/PlayFrame.hpp"
 
 #include "yqlora/editor/EditorSession.hpp"
@@ -21,6 +23,7 @@
 #include "yqlora/material/MaterialData.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/FrameBuilder.hpp"
+#include "yqlora/render/FrameExtract.hpp"
 #include "yqlora/render/RenderSystem.hpp"
 #include "yqlora/render/Renderer.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
@@ -45,6 +48,15 @@ constexpr float kPreviewBorder = 1.0f;
 // Кнопки справа: тот же отступ от угла, что у панели инструментов слева.
 constexpr float kToggleMargin = 8.0f;
 
+// Ставит курсор под кнопку icon с правым краем right; right сдвигается
+// левее неё.
+void placeAtRight(const char* icon, float& right, float top)
+{
+    right -= iconButtonWidth(icon);
+    ImGui::SetCursorScreenPos(ImVec2(right, top));
+    right -= ImGui::GetStyle().ItemSpacing.x;
+}
+
 // Кнопка-переключатель с правым краем right; right сдвигается левее неё.
 // Возвращает true, если курсор над ней.
 bool drawToggle(
@@ -56,26 +68,21 @@ bool drawToggle(
     float top
 )
 {
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const float width = ImGui::CalcTextSize(icon).x + style.FramePadding.x * 2.0f;
-    right -= width;
-    ImGui::SetCursorScreenPos(ImVec2(right, top));
-    right -= style.ItemSpacing.x;
-
-    const bool wasEnabled = enabled;
-    if (wasEnabled) {
-        ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_ButtonActive]);
-    }
-    if (ImGui::Button(icon)) {
-        enabled = !enabled;
+    placeAtRight(icon, right, top);
+    if (iconToggle(icon, enabled)) {
         context.settings.save();
-    }
-    if (wasEnabled) {
-        ImGui::PopStyleColor();
     }
     ImGui::SetItemTooltip("%s", tr(tooltipKey).c_str());
 
     return ImGui::IsItemHovered();
+}
+
+// Меню "Гизмо" окна с правым краем right; right сдвигается левее него.
+bool drawDebugMenu(EditorContext& context, DebugChannels& shown, float& right, float top)
+{
+    placeAtRight(icons::kDebugGizmos, right, top);
+
+    return debugChannelsMenu("debug", context.session.scene(), shown, context.settings);
 }
 
 } // namespace
@@ -171,8 +178,9 @@ void ViewportPanel::draw(EditorContext& context)
 void ViewportPanel::renderScene(EditorContext& context, float aspect, const GizmoContext& gizmoContext)
 {
     const EditorHost& host = context.host;
-    const Scene& scene = context.session.scene();
+    Scene& scene = context.session.scene();
     FrameData frame = extractFrame(scene, aspect, previewLighting(context));
+    extractDebugLines(scene, context.settings.sceneDebugChannels, frame);
     // Окно сцены показывает кадр с экспозицией главной камеры: как в игре.
     const RenderSystem* render = scene.system<RenderSystem>();
     frame.views = {{
@@ -257,7 +265,9 @@ bool ViewportPanel::drawToggles(EditorContext& context, const ImVec2& origin, co
         top
     );
 
-    return overPreview || overSky || overLighting || overCascades;
+    const bool overDebug = drawDebugMenu(context, settings.sceneDebugChannels, right, top);
+
+    return overPreview || overSky || overLighting || overCascades || overDebug;
 }
 
 void ViewportPanel::drawCameraPreview(EditorContext& context, const Camera3D& camera, const Rect& rect)

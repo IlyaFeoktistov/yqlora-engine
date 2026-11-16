@@ -28,6 +28,19 @@ public:
     // Забирает из накопителя один фиксированный шаг; false, если не набралось.
     bool takeFixedStep();
 
+    // Идёт фиксированный шаг: от takeFixedStep, давшего шаг, до следующего
+    // вызова takeFixedStep.
+    bool inFixedStep() const
+    {
+        return m_inFixedStep;
+    }
+
+    // Сколько фиксированных шагов прошло.
+    std::uint64_t fixedSteps() const
+    {
+        return m_fixedSteps;
+    }
+
     // С начала игры, по шкале.
     double elapsed() const
     {
@@ -83,6 +96,8 @@ private:
     float m_unscaledDelta = 0.0f;
     float m_accumulator = 0.0f;
     std::uint64_t m_frame = 0;
+    std::uint64_t m_fixedSteps = 0;
+    bool m_inFixedStep = false;
 };
 
 } // namespace yqlora

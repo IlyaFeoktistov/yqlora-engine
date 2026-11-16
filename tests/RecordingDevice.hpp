@@ -71,7 +71,7 @@ public:
     void endRenderPass() override;
     void setViewport(const rhi::Viewport& viewport) override;
     void bindPipeline(const rhi::Pipeline& pipeline) override;
-    void setVertexBuffer(const rhi::Buffer& buffer) override;
+    void setVertexBuffer(const rhi::Buffer& buffer, std::size_t offset) override;
     void setIndexBuffer(const rhi::Buffer& buffer) override;
     void setUniformBuffer(
         std::uint32_t set,

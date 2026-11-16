@@ -72,6 +72,13 @@ enum class BlendMode {
     Alpha, // src * a + dst * (1 - a)
 };
 
+// Как вершины складываются в примитивы: по три в треугольник или по две в
+// отрезок толщиной в пиксель.
+enum class Topology {
+    Triangles,
+    Lines,
+};
+
 // Ограничения устройства, которые нужны рендереру.
 struct DeviceLimits {
     // Смещение uniform-буфера в setUniformBuffer кратно этому числу.

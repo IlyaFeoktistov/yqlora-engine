@@ -1,6 +1,8 @@
 #include "yqlora/runtime/GameRuntime.hpp"
 
+#include "yqlora/debug/DebugDraw.hpp"
 #include "yqlora/render/FrameBuilder.hpp"
+#include "yqlora/render/FrameExtract.hpp"
 
 namespace yqlora {
 
@@ -20,9 +22,14 @@ void GameRuntime::updateTransforms()
     m_scene.updateTransforms();
 }
 
-FrameData GameRuntime::extract(float aspect) const
+FrameData GameRuntime::extract(float aspect)
 {
-    return extractFrame(m_scene, aspect);
+    FrameData frame = extractFrame(m_scene, aspect);
+    if (const DebugDraw* debug = m_scene.system<DebugDraw>()) {
+        extractDebugLines(m_scene, debug->gameChannels(), frame);
+    }
+
+    return frame;
 }
 
 } // namespace yqlora

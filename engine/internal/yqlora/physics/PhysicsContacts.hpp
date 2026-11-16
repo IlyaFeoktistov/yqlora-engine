@@ -30,7 +30,6 @@ public:
 
     void deliver(const std::vector<RawContact>& contacts);
 
-private:
     struct CollisionKey {
         NodeId firstOwner = 0;
         ComponentId firstCollider = 0;
@@ -51,6 +50,13 @@ private:
         float impulse = 0.0f;
     };
 
+    // Касания пар коллайдеров после последнего шага.
+    const std::map<CollisionKey, Touch>& collisions() const
+    {
+        return m_collisions;
+    }
+
+private:
     struct TriggerKey {
         NodeId triggerOwner = 0;
         ComponentId trigger = 0;

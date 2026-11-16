@@ -141,9 +141,10 @@ void GlCommandList::bindPipeline(const rhi::Pipeline& pipeline)
     m_layoutDirty = true;
 }
 
-void GlCommandList::setVertexBuffer(const rhi::Buffer& buffer)
+void GlCommandList::setVertexBuffer(const rhi::Buffer& buffer, std::size_t offset)
 {
     m_vertexBuffer = &static_cast<const GlBuffer&>(buffer);
+    m_vertexOffset = offset;
     m_layoutDirty = true;
 }
 
@@ -197,7 +198,7 @@ void GlCommandList::generateMipmaps(rhi::Texture& texture)
 void GlCommandList::draw(std::uint32_t vertexCount, std::uint32_t firstVertex)
 {
     applyVertexLayout();
-    glDrawArrays(GL_TRIANGLES, static_cast<GLint>(firstVertex), static_cast<GLsizei>(vertexCount));
+    glDrawArrays(primitiveMode(), static_cast<GLint>(firstVertex), static_cast<GLsizei>(vertexCount));
 }
 
 void GlCommandList::drawIndexed(std::uint32_t indexCount, std::uint32_t firstIndex)
@@ -205,11 +206,16 @@ void GlCommandList::drawIndexed(std::uint32_t indexCount, std::uint32_t firstInd
     applyVertexLayout();
     const auto offset = static_cast<std::uintptr_t>(firstIndex) * sizeof(std::uint32_t);
     glDrawElements(
-        GL_TRIANGLES,
+        primitiveMode(),
         static_cast<GLsizei>(indexCount),
         GL_UNSIGNED_INT,
         reinterpret_cast<const void*>(offset)
     );
+}
+
+unsigned int GlCommandList::primitiveMode() const
+{
+    return m_pipeline->desc().topology == rhi::Topology::Lines ? GL_LINES : GL_TRIANGLES;
 }
 
 const GlShader& GlCommandList::shader() const
@@ -252,7 +258,7 @@ void GlCommandList::applyVertexLayout()
                 GL_FLOAT,
                 GL_FALSE,
                 static_cast<GLsizei>(layout.stride),
-                reinterpret_cast<const void*>(attribute.offset)
+                reinterpret_cast<const void*>(m_vertexOffset + attribute.offset)
             );
             enabled |= 1U << attribute.location;
         }

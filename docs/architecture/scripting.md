@@ -251,6 +251,10 @@ bindings without extra work.
 - **Rays and overlaps** (step 6): `physics().raycast`, `sphereCast`,
   `overlap` in the physics world, with layers. Picking of the editor stays
   in the editor.
+- **Debug drawing** **[done]** (step 6): `debugDraw().line`, `arrow`,
+  `sphere` and other shapes over the world by channel, see
+  [rendering](rendering.md#debug-drawing-done). For now from C++; Luau
+  gets it with the methods of scene systems in the registry.
 - **Saving game data** (step 9): `SaveData`, a record or a JSON object
   written atomically into the folder of user data of the platform, by slot
   name; the editor and Play use a folder of their own inside the project

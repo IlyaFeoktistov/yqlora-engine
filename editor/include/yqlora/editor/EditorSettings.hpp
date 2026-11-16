@@ -1,5 +1,6 @@
 #pragma once
 
+#include "yqlora/debug/DebugChannels.hpp"
 #include "yqlora/editor/CodeEditor.hpp"
 #include "yqlora/editor/ScriptToolchain.hpp"
 #include "yqlora/editor/Snapping.hpp"
@@ -31,6 +32,10 @@ public:
     bool viewportPreviewLighting = true;
     // Отладка: освещённое в окне сцены подкрашено цветом каскада тени солнца.
     bool viewportShadowCascades = false;
+    // Каналы отладочной отрисовки (DebugDraw), которые показывают окно
+    // сцены и окно игры: меню "Гизмо" каждого окна.
+    DebugChannels sceneDebugChannels{std::string(kDefaultDebugChannel)};
+    DebugChannels gameDebugChannels;
     // Что сохранять, когда узел перетаскивают к другому родителю в дереве;
     // nullopt - спрашивать каждый раз. Меняется в меню "Правка".
     std::optional<KeepWorld> reparentKeepWorld;
@@ -44,5 +49,8 @@ public:
 private:
     std::filesystem::path m_file;
 };
+
+// Каналы, которые показывает хоть одно окно: их собирает идущая сцена.
+DebugChannels viewerDebugChannels(const EditorSettings& settings);
 
 } // namespace yqlora::editor

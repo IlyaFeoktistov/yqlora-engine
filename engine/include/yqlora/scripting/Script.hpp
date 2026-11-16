@@ -13,6 +13,7 @@ namespace yqlora {
 
 class GameTime;
 class Input;
+class DebugDraw;
 class PhysicsWorld;
 class Scene;
 class Transform3D;
@@ -73,6 +74,8 @@ protected:
     Timers timers();
     // Физический мир сцены: запросы, гравитация, пары без столкновений.
     PhysicsWorld& physics() const;
+    // Отладочная отрисовка сцены: линии, стрелки и фигуры поверх мира.
+    DebugDraw& debugDraw() const;
 };
 
 // Доступ к закрытому списку полей скрипта (YQLORA_FIELDS) для регистрации (ModuleRegistrar).

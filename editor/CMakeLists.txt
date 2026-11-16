@@ -124,11 +124,13 @@ add_library(yqlora_editor_ui STATIC
     ui/src/widgets/Checkbox.cpp
     ui/src/widgets/ChoiceFields.cpp
     ui/src/widgets/EventTargetsField.cpp
+    ui/src/widgets/IconButton.cpp
     ui/src/widgets/InputControlField.cpp
     ui/src/widgets/LayerFields.cpp
     ui/src/widgets/NameDialog.cpp
     ui/src/widgets/NumberFields.cpp
     ui/src/widgets/PingFlash.cpp
+    ui/src/widgets/DebugChannelsMenu.cpp
     ui/src/widgets/PlayFrame.cpp
     ui/src/widgets/PropertyContext.cpp
     ui/src/widgets/PropertyEditor.cpp

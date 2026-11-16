@@ -1,6 +1,7 @@
 #include "yqlora/render/SceneRenderer.hpp"
 
 #include "yqlora/render/AtmospherePass.hpp"
+#include "yqlora/render/DebugLinePass.hpp"
 #include "yqlora/render/EngineUniforms.hpp"
 #include "yqlora/render/EnvironmentLighting.hpp"
 #include "yqlora/render/FrameFormats.hpp"
@@ -43,6 +44,7 @@ SceneRenderer::SceneRenderer(const RenderContext& context, TransientTextures& tr
     : m_context(context)
     , m_transients(transients)
     , m_atmosphere(std::make_unique<AtmospherePass>(context))
+    , m_debugLines(std::make_unique<DebugLinePass>(context))
     , m_environment(std::make_unique<EnvironmentLighting>(context))
     , m_meshPass(std::make_unique<MeshPass>(context))
     , m_outputPass(std::make_unique<OutputPass>(context))
@@ -131,6 +133,7 @@ void SceneRenderer::draw(
     const EnvironmentLighting::Textures
         environment = m_environment->addTo(graph, frame, viewResources.front(), viewTextures.front());
 
+    const DebugLinePass::Lines debugLines = m_debugLines->upload(frame);
     // Виды по очереди: следующая камера рисует поверх предыдущей.
     for (std::size_t i = 0; i < frame.views.size(); ++i) {
         const ViewData& view = frame.views[i];
@@ -144,7 +147,7 @@ void SceneRenderer::draw(
             .depth = RenderGraph::Target{depthId, depthLoad(view.clear)},
             .clearColor = view.clear == CameraClear::Sky ? kSkyClearColor : view.background,
             .reads = textures.reads(),
-            .record = [this, &frame, &view, &items = prepared[i], base = viewResources[i], textures](
+            .record = [this, &frame, &view, &items = prepared[i], base = viewResources[i], textures, debugLines](
                           rhi::CommandList& commands,
                           const RenderGraph& passes
                       ) {
@@ -155,6 +158,7 @@ void SceneRenderer::draw(
                     drawSky(commands, m_context, frame, resources);
                 }
                 m_meshPass->draw(commands, frame, all.subspan(items.opaqueCount), resources);
+                m_debugLines->draw(commands, debugLines, base.view);
             },
         });
     }

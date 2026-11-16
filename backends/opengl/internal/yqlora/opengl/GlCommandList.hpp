@@ -25,7 +25,7 @@ public:
     void endRenderPass() override;
     void setViewport(const rhi::Viewport& viewport) override;
     void bindPipeline(const rhi::Pipeline& pipeline) override;
-    void setVertexBuffer(const rhi::Buffer& buffer) override;
+    void setVertexBuffer(const rhi::Buffer& buffer, std::size_t offset) override;
     void setIndexBuffer(const rhi::Buffer& buffer) override;
     void setUniformBuffer(
         std::uint32_t set,
@@ -51,6 +51,8 @@ protected:
     }
 
 private:
+    // GL_TRIANGLES или GL_LINES по топологии конвейера.
+    unsigned int primitiveMode() const;
     const GlShader& shader() const;
     unsigned int slot(std::uint32_t set, std::uint32_t binding) const;
     // Атрибуты вершин по раскладке конвейера из текущего вершинного буфера.
@@ -62,6 +64,7 @@ private:
     rhi::TargetFormats m_target;
     const rhi::Pipeline* m_pipeline = nullptr;
     const GlBuffer* m_vertexBuffer = nullptr;
+    std::size_t m_vertexOffset = 0;
     bool m_layoutDirty = true;
     unsigned int m_enabledAttributes = 0;
 };

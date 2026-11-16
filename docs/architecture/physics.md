@@ -466,12 +466,18 @@ Everything set in the inspector is a property with a setter (see
 
 ### PH.5b Debug drawing
 
-- `DebugDraw` (see [rendering](rendering.md#debug-drawing-planned-step-6)):
+- `DebugDraw` (see [rendering](rendering.md#debug-drawing-done)):
   primitives with a color, a lifetime and a depth test, channels, a line
   pass in the renderer, a script's `debugDraw()`, the "Gizmos" menu in
-  the scene and game views. Physics channels: collider shapes, trigger
-  zones, contact points and normals, query rays and hits (a miss in
-  another color), body velocities, sleeping bodies.
+  the scene and game views. Physics channels (`PhysicsDebug.hpp`):
+  collider shapes colored by static, kinematic and dynamic, trigger zones,
+  contact points and normals, query rays and hits (a miss in another
+  color), body velocities, sleeping bodies. Shapes, contacts and velocities
+  are drawn by `PhysicsWorld::drawDebug` from the Jolt bodies when the
+  frame is extracted (simple shapes with their own lines, convex hulls and
+  meshes with the edges of their triangles), so the editor shows them in a
+  scene that does not run; queries draw into `DebugDraw` when called
+  (`QueryDebug`).
 - Tests: a primitive with a lifetime lives that many seconds of game time
   and goes away; a channel that is off puts nothing into the frame; a
   query with the "Queries" channel on puts its ray and hit point; a

@@ -2,6 +2,7 @@
 #include <Jolt/Jolt.h>
 
 #include "yqlora/physics/JoltShapes.hpp"
+#include "yqlora/physics/PhysicsQueryDebug.hpp"
 #include "yqlora/physics/PhysicsWorld.hpp"
 #include "yqlora/physics/PhysicsWorldImpl.hpp"
 #include "yqlora/scene/Scene.hpp"
@@ -24,6 +25,34 @@ JPH::RefConst<JPH::Shape> queryShape(const ColliderShape& shape)
 CapsuleShape capsule(float radius, float height)
 {
     return {radius, std::max(height * 0.5f - radius, 0.0f)};
+}
+
+const Quat kNoRotation(1.0f, 0.0f, 0.0f, 0.0f);
+
+QueryDebug::Shape debugSphere(float radius)
+{
+    return [radius](DebugDraw& draw, const Vec3& center, const DebugOptions& options) {
+        draw.sphere(center, radius, options);
+    };
+}
+
+QueryDebug::Shape debugBox(const Vec3& halfExtents, const Quat& rotation)
+{
+    return [halfExtents, rotation](DebugDraw& draw, const Vec3& center, const DebugOptions& options) {
+        draw.box(center, halfExtents, rotation, options);
+    };
+}
+
+QueryDebug::Shape debugCapsule(float radius, float height, const Quat& rotation)
+{
+    return [radius, height, rotation](DebugDraw& draw, const Vec3& center, const DebugOptions& options) {
+        draw.capsule(center, radius, height, rotation, options);
+    };
+}
+
+std::span<const RaycastHit> hitsOf(const std::optional<RaycastHit>& hit)
+{
+    return hit ? std::span(&*hit, 1) : std::span<const RaycastHit>{};
 }
 
 } // namespace
@@ -49,8 +78,10 @@ std::optional<RaycastHit> PhysicsWorld::raycast(
 )
 {
     Impl* world = readyForQuery();
+    const auto hit = world ? world->queries.raycast(origin, direction, maxDistance, filter) : std::nullopt;
+    QueryDebug(scene()).ray(origin, direction, maxDistance, hitsOf(hit));
 
-    return world ? world->queries.raycast(origin, direction, maxDistance, filter) : std::nullopt;
+    return hit;
 }
 
 std::vector<RaycastHit> PhysicsWorld::raycastAll(
@@ -61,8 +92,10 @@ std::vector<RaycastHit> PhysicsWorld::raycastAll(
 )
 {
     Impl* world = readyForQuery();
+    auto hits = world ? world->queries.raycastAll(origin, direction, maxDistance, filter) : std::vector<RaycastHit>{};
+    QueryDebug(scene()).ray(origin, direction, maxDistance, hits);
 
-    return world ? world->queries.raycastAll(origin, direction, maxDistance, filter) : std::vector<RaycastHit>{};
+    return hits;
 }
 
 std::optional<RaycastHit> PhysicsWorld::sphereCast(
@@ -74,12 +107,14 @@ std::optional<RaycastHit> PhysicsWorld::sphereCast(
 )
 {
     Impl* world = readyForQuery();
-    if (!world) {
-        return std::nullopt;
+    std::optional<RaycastHit> hit;
+    if (world) {
+        const auto shape = queryShape(SphereShape{radius});
+        hit = world->queries.shapeCast(*shape, origin, kNoRotation, direction, maxDistance, filter);
     }
-    const auto shape = queryShape(SphereShape{radius});
+    QueryDebug(scene()).cast(debugSphere(radius), origin, direction, maxDistance, hit);
 
-    return world->queries.shapeCast(*shape, origin, Quat(1.0f, 0.0f, 0.0f, 0.0f), direction, maxDistance, filter);
+    return hit;
 }
 
 std::optional<RaycastHit> PhysicsWorld::boxCast(
@@ -92,12 +127,14 @@ std::optional<RaycastHit> PhysicsWorld::boxCast(
 )
 {
     Impl* world = readyForQuery();
-    if (!world) {
-        return std::nullopt;
+    std::optional<RaycastHit> hit;
+    if (world) {
+        const auto shape = queryShape(BoxShape{halfExtents});
+        hit = world->queries.shapeCast(*shape, center, rotation, direction, maxDistance, filter);
     }
-    const auto shape = queryShape(BoxShape{halfExtents});
+    QueryDebug(scene()).cast(debugBox(halfExtents, rotation), center, direction, maxDistance, hit);
 
-    return world->queries.shapeCast(*shape, center, rotation, direction, maxDistance, filter);
+    return hit;
 }
 
 std::optional<RaycastHit> PhysicsWorld::capsuleCast(
@@ -111,12 +148,14 @@ std::optional<RaycastHit> PhysicsWorld::capsuleCast(
 )
 {
     Impl* world = readyForQuery();
-    if (!world) {
-        return std::nullopt;
+    std::optional<RaycastHit> hit;
+    if (world) {
+        const auto shape = queryShape(capsule(radius, height));
+        hit = world->queries.shapeCast(*shape, center, rotation, direction, maxDistance, filter);
     }
-    const auto shape = queryShape(capsule(radius, height));
+    QueryDebug(scene()).cast(debugCapsule(radius, height, rotation), center, direction, maxDistance, hit);
 
-    return world->queries.shapeCast(*shape, center, rotation, direction, maxDistance, filter);
+    return hit;
 }
 
 std::vector<ComponentRef<Collider>> PhysicsWorld::overlapSphere(
@@ -126,12 +165,14 @@ std::vector<ComponentRef<Collider>> PhysicsWorld::overlapSphere(
 )
 {
     Impl* world = readyForQuery();
-    if (!world) {
-        return {};
+    std::vector<ComponentRef<Collider>> found;
+    if (world) {
+        const auto shape = queryShape(SphereShape{radius});
+        found = world->queries.overlap(*shape, center, kNoRotation, filter);
     }
-    const auto shape = queryShape(SphereShape{radius});
+    QueryDebug(scene()).overlap(debugSphere(radius), center, !found.empty());
 
-    return world->queries.overlap(*shape, center, Quat(1.0f, 0.0f, 0.0f, 0.0f), filter);
+    return found;
 }
 
 std::vector<ComponentRef<Collider>> PhysicsWorld::overlapBox(
@@ -142,12 +183,14 @@ std::vector<ComponentRef<Collider>> PhysicsWorld::overlapBox(
 )
 {
     Impl* world = readyForQuery();
-    if (!world) {
-        return {};
+    std::vector<ComponentRef<Collider>> found;
+    if (world) {
+        const auto shape = queryShape(BoxShape{halfExtents});
+        found = world->queries.overlap(*shape, center, rotation, filter);
     }
-    const auto shape = queryShape(BoxShape{halfExtents});
+    QueryDebug(scene()).overlap(debugBox(halfExtents, rotation), center, !found.empty());
 
-    return world->queries.overlap(*shape, center, rotation, filter);
+    return found;
 }
 
 std::vector<ComponentRef<Collider>> PhysicsWorld::overlapCapsule(
@@ -159,12 +202,14 @@ std::vector<ComponentRef<Collider>> PhysicsWorld::overlapCapsule(
 )
 {
     Impl* world = readyForQuery();
-    if (!world) {
-        return {};
+    std::vector<ComponentRef<Collider>> found;
+    if (world) {
+        const auto shape = queryShape(capsule(radius, height));
+        found = world->queries.overlap(*shape, center, rotation, filter);
     }
-    const auto shape = queryShape(capsule(radius, height));
+    QueryDebug(scene()).overlap(debugCapsule(radius, height, rotation), center, !found.empty());
 
-    return world->queries.overlap(*shape, center, rotation, filter);
+    return found;
 }
 
 void PhysicsWorld::ignoreCollision(

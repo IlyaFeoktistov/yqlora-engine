@@ -83,6 +83,7 @@ struct PipelineDesc {
     DepthBias depthBias{};
     CullMode cull = CullMode::Back;
     BlendMode blend = BlendMode::Opaque;
+    Topology topology = Topology::Triangles;
     // Конвейер рисует только в цель с такими же форматами и числом образцов;
     // по умолчанию - в окно. Format::None у цвета - проход только с глубиной.
     Format colorFormat = kBackBufferColorFormat;

@@ -17,6 +17,7 @@
 #include "yqlora/core/AppPaths.hpp"
 #include "yqlora/core/Log.hpp"
 #include "yqlora/core/Utf8Path.hpp"
+#include "yqlora/debug/DebugDraw.hpp"
 #include "yqlora/editor/ProjectSetup.hpp"
 #include "yqlora/i18n/Language.hpp"
 #include "yqlora/i18n/Translate.hpp"
@@ -278,6 +279,11 @@ void EditorApp::onUpdate(float deltaSeconds)
         } else if (m_session.project()) {
             m_session.play();
         }
+    }
+    // Отладку, которую показывают окна сцены и игры, идущая сцена собирает
+    // с начала кадра.
+    if (DebugDraw* debug = m_session.scene().system<DebugDraw>()) {
+        debug->setViewerChannels(viewerDebugChannels(*m_settings));
     }
     m_session.update(deltaSeconds, input());
     // Камера обновляется в окне сцены, там же известно, над ним ли курсор.

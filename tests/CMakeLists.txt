@@ -60,6 +60,7 @@ add_executable(yqlora_tests
     test_physics_bodies.cpp
     test_physics_contacts.cpp
     test_physics_materials.cpp
+    test_debug_draw.cpp
     test_physics_queries.cpp
     test_physics_shapes.cpp
     test_code_editor.cpp
