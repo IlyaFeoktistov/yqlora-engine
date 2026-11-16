@@ -11,6 +11,8 @@ namespace yqlora {
 
 // Больше шагов решателя на одно скрепление не поднять.
 inline constexpr int kMaxJointSolverSteps = 255;
+// Углы качания и кручения - в полукруге, градусы.
+inline constexpr float kMaxJointHalfAngle = 180.0f;
 
 // Скрепление тела своего узла (RigidBody) с телом connectedBody или, если
 // ссылка пустая, с миром: как они могут двигаться друг относительно друга.
@@ -266,6 +268,201 @@ public:
 
 private:
     DistanceJointDefinition m_definition;
+};
+
+// Качание внутри конуса, кручение свободно: подвесы, звенья цепи, которые
+// не должны складываться.
+class YQLORA_API ConeJoint final : public Joint {
+public:
+    YQLORA_TYPE(ConeJoint, Joint)
+
+    // Ось конуса в осях своего узла; нулевая не принимается.
+    const Vec3& axis() const
+    {
+        return m_definition.axis;
+    }
+
+    void setAxis(const Vec3& axis);
+
+    // Полуугол конуса, градусы, от 0 до 180.
+    float halfConeAngle() const
+    {
+        return m_definition.halfConeAngle;
+    }
+
+    void setHalfConeAngle(float degrees);
+
+    JointDefinition definition() const override
+    {
+        return m_definition;
+    }
+
+private:
+    ConeJointDefinition m_definition;
+};
+
+// Качание и кручение в пределах, с трением и мотором: плечи и бёдра
+// рэгдолла, хвосты, звенья цепи. Углы - в градусах.
+class YQLORA_API SwingTwistJoint final : public Joint {
+public:
+    YQLORA_TYPE(SwingTwistJoint, Joint)
+
+    // Ось кручения в осях своего узла; нулевая не принимается.
+    const Vec3& axis() const
+    {
+        return m_definition.axis;
+    }
+
+    void setAxis(const Vec3& axis);
+
+    // Полууглы качания: в плоскости нормали к оси и поперёк неё, от 0 до 180.
+    float normalHalfConeAngle() const
+    {
+        return m_definition.normalHalfConeAngle;
+    }
+
+    void setNormalHalfConeAngle(float degrees);
+
+    float planeHalfConeAngle() const
+    {
+        return m_definition.planeHalfConeAngle;
+    }
+
+    void setPlaneHalfConeAngle(float degrees);
+
+    // Кручение от twistMin до twistMax, от -180 до 180.
+    float twistMin() const
+    {
+        return m_definition.twistMin;
+    }
+
+    void setTwistMin(float degrees);
+
+    float twistMax() const
+    {
+        return m_definition.twistMax;
+    }
+
+    void setTwistMax(float degrees);
+
+    float maxFrictionTorque() const
+    {
+        return m_definition.maxFrictionTorque;
+    }
+
+    void setMaxFrictionTorque(float torque);
+
+    JointMotorMode motor() const
+    {
+        return m_definition.motor;
+    }
+
+    void setMotor(JointMotorMode mode);
+
+    // Кручение (x), качание вокруг нормали (y) и поперёк (z): скорости в
+    // градусах в секунду или углы в градусах по режиму мотора.
+    const Vec3& motorTarget() const
+    {
+        return m_definition.motorTarget;
+    }
+
+    void setMotorTarget(const Vec3& target);
+
+    float maxMotorTorque() const
+    {
+        return m_definition.maxMotorTorque;
+    }
+
+    void setMaxMotorTorque(float torque);
+
+    JointDefinition definition() const override
+    {
+        return m_definition;
+    }
+
+private:
+    SwingTwistJointDefinition m_definition;
+};
+
+// Шесть осей своего узла, каждая свободна, в пределах или заперта: всё,
+// чего нет у других видов (тележка на рельсе с качанием, ящик в пазу).
+class YQLORA_API SixDofJoint final : public Joint {
+public:
+    YQLORA_TYPE(SixDofJoint, Joint)
+
+    const AxisLocks& lockLinear() const
+    {
+        return m_definition.lockLinear;
+    }
+
+    void setLockLinear(const AxisLocks& locks);
+
+    const AxisLocks& lockAngular() const
+    {
+        return m_definition.lockAngular;
+    }
+
+    void setLockAngular(const AxisLocks& locks);
+
+    // Пределы сдвига, м, и поворота, градусы (от -180 до 180), по осям
+    // узла; запертая ось пределы не берёт.
+    const JointLimits& linearX() const
+    {
+        return m_definition.linearX;
+    }
+
+    void setLinearX(const JointLimits& limits);
+
+    const JointLimits& linearY() const
+    {
+        return m_definition.linearY;
+    }
+
+    void setLinearY(const JointLimits& limits);
+
+    const JointLimits& linearZ() const
+    {
+        return m_definition.linearZ;
+    }
+
+    void setLinearZ(const JointLimits& limits);
+
+    const JointLimits& angularX() const
+    {
+        return m_definition.angularX;
+    }
+
+    void setAngularX(const JointLimits& limits);
+
+    const JointLimits& angularY() const
+    {
+        return m_definition.angularY;
+    }
+
+    void setAngularY(const JointLimits& limits);
+
+    const JointLimits& angularZ() const
+    {
+        return m_definition.angularZ;
+    }
+
+    void setAngularZ(const JointLimits& limits);
+
+    // Мягкость пределов сдвига.
+    const JointSpring& linearSpring() const
+    {
+        return m_definition.linearSpring;
+    }
+
+    void setLinearSpring(const JointSpring& spring);
+
+    JointDefinition definition() const override
+    {
+        return m_definition;
+    }
+
+private:
+    SixDofJointDefinition m_definition;
 };
 
 } // namespace yqlora

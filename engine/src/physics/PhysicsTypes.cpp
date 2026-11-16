@@ -158,6 +158,48 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .property("minDistance", &DistanceJoint::minDistance, &DistanceJoint::setMinDistance)
         .property("maxDistance", &DistanceJoint::maxDistance, &DistanceJoint::setMaxDistance)
         .property("spring", &DistanceJoint::spring, &DistanceJoint::setSpring);
+    registry.registerComponent<ConeJoint>()
+        .property("axis", &ConeJoint::axis, &ConeJoint::setAxis)
+        .property("halfConeAngle", &ConeJoint::halfConeAngle, &ConeJoint::setHalfConeAngle, PropertyHint::Angle)
+        .range(0.0f, kMaxJointHalfAngle);
+    registry.registerComponent<SwingTwistJoint>()
+        .property("axis", &SwingTwistJoint::axis, &SwingTwistJoint::setAxis)
+        .property(
+            "normalHalfConeAngle",
+            &SwingTwistJoint::normalHalfConeAngle,
+            &SwingTwistJoint::setNormalHalfConeAngle,
+            PropertyHint::Angle
+        )
+        .range(0.0f, kMaxJointHalfAngle)
+        .property(
+            "planeHalfConeAngle",
+            &SwingTwistJoint::planeHalfConeAngle,
+            &SwingTwistJoint::setPlaneHalfConeAngle,
+            PropertyHint::Angle
+        )
+        .range(0.0f, kMaxJointHalfAngle)
+        .property("twistMin", &SwingTwistJoint::twistMin, &SwingTwistJoint::setTwistMin, PropertyHint::Angle)
+        .range(-kMaxJointHalfAngle, 0.0f)
+        .property("twistMax", &SwingTwistJoint::twistMax, &SwingTwistJoint::setTwistMax, PropertyHint::Angle)
+        .range(0.0f, kMaxJointHalfAngle)
+        .property("maxFrictionTorque", &SwingTwistJoint::maxFrictionTorque, &SwingTwistJoint::setMaxFrictionTorque)
+        .min(0.0f)
+        .property("motor", &SwingTwistJoint::motor, &SwingTwistJoint::setMotor)
+        .property("motorTarget", &SwingTwistJoint::motorTarget, &SwingTwistJoint::setMotorTarget)
+        .shownWhen("motor", {"Velocity", "Position"})
+        .property("maxMotorTorque", &SwingTwistJoint::maxMotorTorque, &SwingTwistJoint::setMaxMotorTorque)
+        .min(0.0f)
+        .shownWhen("motor", {"Velocity", "Position"});
+    registry.registerComponent<SixDofJoint>()
+        .property("lockLinear", &SixDofJoint::lockLinear, &SixDofJoint::setLockLinear)
+        .property("lockAngular", &SixDofJoint::lockAngular, &SixDofJoint::setLockAngular)
+        .property("linearX", &SixDofJoint::linearX, &SixDofJoint::setLinearX)
+        .property("linearY", &SixDofJoint::linearY, &SixDofJoint::setLinearY)
+        .property("linearZ", &SixDofJoint::linearZ, &SixDofJoint::setLinearZ)
+        .property("angularX", &SixDofJoint::angularX, &SixDofJoint::setAngularX)
+        .property("angularY", &SixDofJoint::angularY, &SixDofJoint::setAngularY)
+        .property("angularZ", &SixDofJoint::angularZ, &SixDofJoint::setAngularZ)
+        .property("linearSpring", &SixDofJoint::linearSpring, &SixDofJoint::setLinearSpring);
 
     registry.registerSettings<PhysicsSettings>("physics")
         .property("gravity", &PhysicsSettings::gravity, &PhysicsSettings::setGravity)

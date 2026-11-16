@@ -2,6 +2,7 @@
 
 #include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
+#include "yqlora/physics/AxisLocks.hpp"
 #include "yqlora/physics/Collision.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/reflection/Record.hpp"
@@ -30,16 +31,6 @@ enum class ForceMode : std::uint8_t {
     Acceleration,
     Impulse,
     VelocityChange,
-};
-
-// Оси мира, по которым тело не движется (или вокруг которых не вращается):
-// игра в плоскости, дверь, которая только поворачивается.
-struct AxisLocks {
-    bool x = false;
-    bool y = false;
-    bool z = false;
-
-    bool operator==(const AxisLocks&) const = default;
 };
 
 // Самая малая масса тела, кг: у тела с нулевой массой нет инерции.
@@ -196,10 +187,3 @@ private:
 
 YQLORA_ENUM_NAMES(yqlora::BodyMotion, "Static", "Kinematic", "Dynamic")
 YQLORA_ENUM_NAMES(yqlora::ForceMode, "Force", "Acceleration", "Impulse", "VelocityChange")
-
-YQLORA_RECORD(
-    yqlora::AxisLocks,
-    field("x", &yqlora::AxisLocks::x),
-    field("y", &yqlora::AxisLocks::y),
-    field("z", &yqlora::AxisLocks::z)
-)

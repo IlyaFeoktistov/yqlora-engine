@@ -117,6 +117,15 @@
         "DistanceJoint": {
             "description": "The distance between two points within limits, with a spring: ropes, rubber bands."
         },
+        "ConeJoint": {
+            "description": "Swing within a cone, free twist: hangers, chain links."
+        },
+        "SwingTwistJoint": {
+            "description": "Swing and twist within limits, with friction and a motor: ragdoll joints, tails."
+        },
+        "SixDofJoint": {
+            "description": "The six axes of the node, each free, limited or locked."
+        },
         "RigidBody": {
             "description": "A rigid body: the node moves by forces and collisions, or is moved by code (kinematic), or stays put (static)."
         },
@@ -270,6 +279,8 @@
         },
         "tree": {
             "addNode": "Add node",
+            "create": "Create",
+            "createChain": "Chain...",
             "addChild": "Add child node",
             "delete": "Delete",
             "keepWorld": {
@@ -280,6 +291,20 @@
                 "yes": "Keep",
                 "no": "Keep local values"
             }
+        },
+        "chain": {
+            "title": "Chain",
+            "start": "Start",
+            "end": "End",
+            "fromSelected": "From selected",
+            "spacing": "Link spacing, m",
+            "radius": "Link radius, m",
+            "linkMass": "Link mass, kg",
+            "joint": "Link joint",
+            "attachStart": "Attach start",
+            "attachEnd": "Attach end",
+            "hint": "An attached end holds on to the body under its point, or to the world without one.",
+            "create": "Create"
         },
         "addNode": {
             "title": "Add node",
@@ -644,6 +669,22 @@
         "onBreak": "On break",
         "solverStepsOverride": "Solver steps",
         "spring": "Spring",
+        "angularX": "Rotation around X",
+        "angularY": "Rotation around Y",
+        "angularZ": "Rotation around Z",
+        "halfConeAngle": "Half cone angle",
+        "linearSpring": "Linear spring",
+        "linearX": "Movement along X",
+        "linearY": "Movement along Y",
+        "linearZ": "Movement along Z",
+        "lockAngular": "Lock rotation",
+        "lockLinear": "Lock movement",
+        "maxFrictionTorque": "Friction, N*m",
+        "maxMotorTorque": "Motor torque, N*m",
+        "normalHalfConeAngle": "Swing along the normal",
+        "planeHalfConeAngle": "Swing across the normal",
+        "twistMax": "Twist max",
+        "twistMin": "Twist min",
         "detectStatic": "Detect static",
         "onCollisionEnter": "On collision enter",
         "onCollisionStay": "On collision stay",
@@ -655,6 +696,8 @@
         "z": "Z"
     },
     "enum": {
+        "Point": "Point",
+        "SwingTwist": "Swing and twist",
         "Off": "Off",
         "Velocity": "Velocity",
         "Position": "Position",

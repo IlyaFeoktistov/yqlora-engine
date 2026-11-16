@@ -29,6 +29,7 @@ add_custom_command(
 
 add_library(yqlora_editor STATIC
     ${YQLORA_EDITOR_SHADERS_HEADER}
+    src/ChainBuilder.cpp
     src/CodeEditor.cpp
     src/EditorCamera.cpp
     src/Picking.cpp
@@ -92,6 +93,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/core/EditorActions.cpp
     ui/src/core/EditorHost.cpp
     ui/src/dialogs/AddNodeDialog.cpp
+    ui/src/dialogs/ChainDialog.cpp
     ui/src/dialogs/UnsavedChangesDialog.cpp
     ui/src/gizmos/AxisGizmo.cpp
     ui/src/gizmos/CameraGizmo.cpp

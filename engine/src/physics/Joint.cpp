@@ -6,6 +6,36 @@
 
 namespace yqlora {
 
+namespace {
+
+float halfCone(float degrees)
+{
+    return std::clamp(degrees, 0.0f, kMaxJointHalfAngle);
+}
+
+float twist(float degrees)
+{
+    return std::clamp(degrees, -kMaxJointHalfAngle, kMaxJointHalfAngle);
+}
+
+JointSpring nonNegative(const JointSpring& spring)
+{
+    return {std::max(spring.frequency, 0.0f), std::max(spring.damping, 0.0f)};
+}
+
+// Пределы, в которые входит начальное положение (min <= 0 <= max).
+JointLimits aroundStart(const JointLimits& limits)
+{
+    return {limits.enabled, std::min(limits.min, 0.0f), std::max(limits.max, 0.0f)};
+}
+
+bool usableAxis(const Vec3& axis)
+{
+    return glm::length(axis) > math::kEpsilon;
+}
+
+} // namespace
+
 void Joint::setConnectedBody(const NodeRef& body)
 {
     m_connectedBody = body;
@@ -62,7 +92,7 @@ void Joint::onExitScene()
 
 void AxisJoint::setAxis(const Vec3& axis)
 {
-    if (glm::length(axis) > math::kEpsilon) {
+    if (usableAxis(axis)) {
         m_axis = axis;
         changed();
     }
@@ -70,16 +100,13 @@ void AxisJoint::setAxis(const Vec3& axis)
 
 void AxisJoint::setLimits(const JointLimits& limits)
 {
-    m_limits = limits;
-    // Предел включает начальное положение: min не больше нуля, max не меньше.
-    m_limits.min = std::min(m_limits.min, 0.0f);
-    m_limits.max = std::max(m_limits.max, 0.0f);
+    m_limits = aroundStart(limits);
     tuned();
 }
 
 void AxisJoint::setLimitSpring(const JointSpring& spring)
 {
-    m_limitSpring = {std::max(spring.frequency, 0.0f), std::max(spring.damping, 0.0f)};
+    m_limitSpring = nonNegative(spring);
     tuned();
 }
 
@@ -125,7 +152,7 @@ void DistanceJoint::setMaxDistance(float distance)
 
 void DistanceJoint::setSpring(const JointSpring& spring)
 {
-    m_definition.spring = {std::max(spring.frequency, 0.0f), std::max(spring.damping, 0.0f)};
+    m_definition.spring = nonNegative(spring);
     tuned();
 }
 
@@ -133,6 +160,130 @@ void DistanceJoint::setConnectedAnchor(const Vec3& anchor)
 {
     m_definition.connectedAnchor = anchor;
     changed();
+}
+
+void ConeJoint::setAxis(const Vec3& axis)
+{
+    if (usableAxis(axis)) {
+        m_definition.axis = axis;
+        changed();
+    }
+}
+
+void ConeJoint::setHalfConeAngle(float degrees)
+{
+    m_definition.halfConeAngle = halfCone(degrees);
+    tuned();
+}
+
+void SwingTwistJoint::setAxis(const Vec3& axis)
+{
+    if (usableAxis(axis)) {
+        m_definition.axis = axis;
+        changed();
+    }
+}
+
+void SwingTwistJoint::setNormalHalfConeAngle(float degrees)
+{
+    m_definition.normalHalfConeAngle = halfCone(degrees);
+    tuned();
+}
+
+void SwingTwistJoint::setPlaneHalfConeAngle(float degrees)
+{
+    m_definition.planeHalfConeAngle = halfCone(degrees);
+    tuned();
+}
+
+void SwingTwistJoint::setTwistMin(float degrees)
+{
+    m_definition.twistMin = std::min(twist(degrees), 0.0f);
+    tuned();
+}
+
+void SwingTwistJoint::setTwistMax(float degrees)
+{
+    m_definition.twistMax = std::max(twist(degrees), 0.0f);
+    tuned();
+}
+
+void SwingTwistJoint::setMaxFrictionTorque(float torque)
+{
+    m_definition.maxFrictionTorque = std::max(torque, 0.0f);
+    tuned();
+}
+
+void SwingTwistJoint::setMotor(JointMotorMode mode)
+{
+    m_definition.motor = mode;
+    tuned();
+}
+
+void SwingTwistJoint::setMotorTarget(const Vec3& target)
+{
+    m_definition.motorTarget = target;
+    tuned();
+}
+
+void SwingTwistJoint::setMaxMotorTorque(float torque)
+{
+    m_definition.maxMotorTorque = std::max(torque, 0.0f);
+    tuned();
+}
+
+void SixDofJoint::setLockLinear(const AxisLocks& locks)
+{
+    m_definition.lockLinear = locks;
+    tuned();
+}
+
+void SixDofJoint::setLockAngular(const AxisLocks& locks)
+{
+    m_definition.lockAngular = locks;
+    tuned();
+}
+
+void SixDofJoint::setLinearX(const JointLimits& limits)
+{
+    m_definition.linearX = aroundStart(limits);
+    tuned();
+}
+
+void SixDofJoint::setLinearY(const JointLimits& limits)
+{
+    m_definition.linearY = aroundStart(limits);
+    tuned();
+}
+
+void SixDofJoint::setLinearZ(const JointLimits& limits)
+{
+    m_definition.linearZ = aroundStart(limits);
+    tuned();
+}
+
+void SixDofJoint::setAngularX(const JointLimits& limits)
+{
+    m_definition.angularX = aroundStart({limits.enabled, twist(limits.min), twist(limits.max)});
+    tuned();
+}
+
+void SixDofJoint::setAngularY(const JointLimits& limits)
+{
+    m_definition.angularY = aroundStart({limits.enabled, twist(limits.min), twist(limits.max)});
+    tuned();
+}
+
+void SixDofJoint::setAngularZ(const JointLimits& limits)
+{
+    m_definition.angularZ = aroundStart({limits.enabled, twist(limits.min), twist(limits.max)});
+    tuned();
+}
+
+void SixDofJoint::setLinearSpring(const JointSpring& spring)
+{
+    m_definition.linearSpring = nonNegative(spring);
+    tuned();
 }
 
 } // namespace yqlora

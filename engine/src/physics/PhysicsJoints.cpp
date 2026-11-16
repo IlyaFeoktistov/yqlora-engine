@@ -13,11 +13,14 @@
 #include "yqlora/scene/Scene.hpp"
 
 #include <Jolt/Physics/Body/BodyInterface.h>
+#include <Jolt/Physics/Constraints/ConeConstraint.h>
 #include <Jolt/Physics/Constraints/DistanceConstraint.h>
 #include <Jolt/Physics/Constraints/FixedConstraint.h>
 #include <Jolt/Physics/Constraints/HingeConstraint.h>
 #include <Jolt/Physics/Constraints/PointConstraint.h>
+#include <Jolt/Physics/Constraints/SixDOFConstraint.h>
 #include <Jolt/Physics/Constraints/SliderConstraint.h>
+#include <Jolt/Physics/Constraints/SwingTwistConstraint.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 
 #include <glm/trigonometric.hpp>
@@ -43,16 +46,19 @@ Vec3 perpendicularTo(const Vec3& axis)
     return glm::normalize(glm::cross(glm::cross(axis, helper), axis));
 }
 
+// Ось вида, у которого она есть; у остальных - ось Y узла.
 Vec3 axisOf(const JointDefinition& definition)
 {
-    if (const auto* hinge = std::get_if<HingeJointDefinition>(&definition)) {
-        return glm::normalize(hinge->axis);
-    }
-    if (const auto* slider = std::get_if<SliderJointDefinition>(&definition)) {
-        return glm::normalize(slider->axis);
-    }
-
-    return kDefaultAxis;
+    return std::visit(
+        [](const auto& kind) {
+            if constexpr (requires { kind.axis; }) {
+                return glm::normalize(kind.axis);
+            } else {
+                return kDefaultAxis;
+            }
+        },
+        definition
+    );
 }
 
 JointFrame toWorld(const Mat4& world, const JointFrame& local)
@@ -99,6 +105,20 @@ std::pair<float, float> hingeLimits(const JointLimits& limits)
 std::pair<float, float> sliderLimits(const JointLimits& limits)
 {
     return limits.enabled ? std::pair{limits.min, limits.max} : std::pair{-FLT_MAX, FLT_MAX};
+}
+
+// Пределы оси с шестью степенями: запертая сведена в ноль, без пределов -
+// свободна.
+std::pair<float, float> axisLimits(bool locked, const JointLimits& limits, float scale)
+{
+    if (locked) {
+        return {FLT_MAX, -FLT_MAX};
+    }
+    if (!limits.enabled) {
+        return {-FLT_MAX, FLT_MAX};
+    }
+
+    return {limits.min * scale, limits.max * scale};
 }
 
 JPH::EMotorState motorState(JointMotorMode mode)
@@ -183,6 +203,45 @@ public:
         return settings;
     }
 
+    JPH::Ref<JPH::TwoBodyConstraintSettings> operator()(const ConeJointDefinition&) const
+    {
+        auto settings = new JPH::ConeConstraintSettings;
+        settings->mPoint1 = JPH::RVec3(toJolt(m_first.point));
+        settings->mTwistAxis1 = toJolt(m_first.axis);
+        settings->mPoint2 = JPH::RVec3(toJolt(m_second.point));
+        settings->mTwistAxis2 = toJolt(m_second.axis);
+
+        return settings;
+    }
+
+    JPH::Ref<JPH::TwoBodyConstraintSettings> operator()(const SwingTwistJointDefinition&) const
+    {
+        auto settings = new JPH::SwingTwistConstraintSettings;
+        settings->mPosition1 = JPH::RVec3(toJolt(m_first.point));
+        settings->mTwistAxis1 = toJolt(m_first.axis);
+        settings->mPlaneAxis1 = toJolt(m_first.normal);
+        settings->mPosition2 = JPH::RVec3(toJolt(m_second.point));
+        settings->mTwistAxis2 = toJolt(m_second.axis);
+        settings->mPlaneAxis2 = toJolt(m_second.normal);
+
+        return settings;
+    }
+
+    JPH::Ref<JPH::TwoBodyConstraintSettings> operator()(const SixDofJointDefinition&) const
+    {
+        auto settings = new JPH::SixDOFConstraintSettings;
+        settings->mPosition1 = JPH::RVec3(toJolt(m_first.point));
+        settings->mAxisX1 = toJolt(m_first.normal);
+        settings->mAxisY1 = toJolt(m_first.axis);
+        settings->mPosition2 = JPH::RVec3(toJolt(m_second.point));
+        settings->mAxisX2 = toJolt(m_second.normal);
+        settings->mAxisY2 = toJolt(m_second.axis);
+        // Пирамида: пределы качания могут быть несимметричными.
+        settings->mSwingType = JPH::ESwingType::Pyramid;
+
+        return settings;
+    }
+
 private:
     const JointFrame& m_first;
     const JointFrame& m_second;
@@ -216,6 +275,53 @@ void configureConstraint(const JointDefinition& definition, JPH::TwoBodyConstrai
             joint.SetDistance(min, std::max(distance->maxDistance, min));
         }
         joint.SetLimitsSpringSettings(springOf(distance->spring));
+    } else if (const auto* cone = std::get_if<ConeJointDefinition>(&definition)) {
+        static_cast<JPH::ConeConstraint&>(constraint).SetHalfConeAngle(glm::radians(cone->halfConeAngle));
+    } else if (const auto* swingTwist = std::get_if<SwingTwistJointDefinition>(&definition)) {
+        auto& joint = static_cast<JPH::SwingTwistConstraint&>(constraint);
+        joint.SetNormalHalfConeAngle(glm::radians(swingTwist->normalHalfConeAngle));
+        joint.SetPlaneHalfConeAngle(glm::radians(swingTwist->planeHalfConeAngle));
+        joint.SetTwistMinAngle(glm::radians(swingTwist->twistMin));
+        joint.SetTwistMaxAngle(glm::radians(swingTwist->twistMax));
+        joint.SetMaxFrictionTorque(swingTwist->maxFrictionTorque);
+        joint.GetSwingMotorSettings().SetTorqueLimit(swingTwist->maxMotorTorque);
+        joint.GetTwistMotorSettings().SetTorqueLimit(swingTwist->maxMotorTorque);
+        const JPH::EMotorState state = motorState(swingTwist->motor);
+        joint.SetSwingMotorState(state);
+        joint.SetTwistMotorState(state);
+        const Vec3 radians = glm::radians(swingTwist->motorTarget);
+        joint.SetTargetAngularVelocityCS(toJolt(radians));
+        // Углы мотора: кручение вокруг X рамки, качание вокруг Y и Z.
+        joint.SetTargetOrientationCS(
+            JPH::Quat::sRotation(JPH::Vec3::sAxisX(), radians.x) * JPH::Quat::sRotation(JPH::Vec3::sAxisY(), radians.y)
+            * JPH::Quat::sRotation(JPH::Vec3::sAxisZ(), radians.z)
+        );
+    } else if (const auto* sixDof = std::get_if<SixDofJointDefinition>(&definition)) {
+        auto& joint = static_cast<JPH::SixDOFConstraint&>(constraint);
+        const AxisLocks& linear = sixDof->lockLinear;
+        const AxisLocks& angular = sixDof->lockAngular;
+        constexpr float kMeters = 1.0f;
+        const float radians = glm::radians(1.0f);
+        const auto [linearMinX, linearMaxX] = axisLimits(linear.x, sixDof->linearX, kMeters);
+        const auto [linearMinY, linearMaxY] = axisLimits(linear.y, sixDof->linearY, kMeters);
+        const auto [linearMinZ, linearMaxZ] = axisLimits(linear.z, sixDof->linearZ, kMeters);
+        joint.SetTranslationLimits(
+            JPH::Vec3(linearMinX, linearMinY, linearMinZ),
+            JPH::Vec3(linearMaxX, linearMaxY, linearMaxZ)
+        );
+        const auto [angularMinX, angularMaxX] = axisLimits(angular.x, sixDof->angularX, radians);
+        const auto [angularMinY, angularMaxY] = axisLimits(angular.y, sixDof->angularY, radians);
+        const auto [angularMinZ, angularMaxZ] = axisLimits(angular.z, sixDof->angularZ, radians);
+        joint.SetRotationLimits(
+            JPH::Vec3(angularMinX, angularMinY, angularMinZ),
+            JPH::Vec3(angularMaxX, angularMaxY, angularMaxZ)
+        );
+        for (const auto axis :
+             {JPH::SixDOFConstraint::EAxis::TranslationX,
+              JPH::SixDOFConstraint::EAxis::TranslationY,
+              JPH::SixDOFConstraint::EAxis::TranslationZ}) {
+            joint.SetLimitsSpringSettings(axis, springOf(sixDof->linearSpring));
+        }
     }
 }
 
@@ -263,6 +369,34 @@ std::pair<float, float> impulsesOf(const JPH::TwoBodyConstraint& constraint)
     }
     case JPH::EConstraintSubType::Distance: {
         return {std::abs(static_cast<const JPH::DistanceConstraint&>(constraint).GetTotalLambdaPosition()), 0.0f};
+    }
+    case JPH::EConstraintSubType::Cone: {
+        const auto& joint = static_cast<const JPH::ConeConstraint&>(constraint);
+
+        return {joint.GetTotalLambdaPosition().Length(), std::abs(joint.GetTotalLambdaRotation())};
+    }
+    case JPH::EConstraintSubType::SwingTwist: {
+        const auto& joint = static_cast<const JPH::SwingTwistConstraint&>(constraint);
+        const float limits = combined(
+            joint.GetTotalLambdaTwist(),
+            joint.GetTotalLambdaSwingY(),
+            joint.GetTotalLambdaSwingZ()
+        );
+
+        return {joint.GetTotalLambdaPosition().Length(), std::hypot(limits, joint.GetTotalLambdaMotor().Length())};
+    }
+    case JPH::EConstraintSubType::SixDOF: {
+        const auto& joint = static_cast<const JPH::SixDOFConstraint&>(constraint);
+        const float linear = std::hypot(
+            joint.GetTotalLambdaPosition().Length(),
+            joint.GetTotalLambdaMotorTranslation().Length()
+        );
+        const float angular = std::hypot(
+            joint.GetTotalLambdaRotation().Length(),
+            joint.GetTotalLambdaMotorRotation().Length()
+        );
+
+        return {linear, angular};
     }
     default: break;
     }

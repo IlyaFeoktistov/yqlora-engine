@@ -32,6 +32,19 @@ namespace {
 
 // Инерция тела без коллайдеров: как у шара такого радиуса, м.
 constexpr float kBareBodyRadius = 0.5f;
+
+// Масштаб узла тела берётся из длин столбцов мировой матрицы, а у
+// вращающегося тела они плавают в последних знаках: такая разница - не
+// новый масштаб, иначе тело перестраивалось бы каждый шаг.
+constexpr float kScaleTolerance = 1e-4f;
+
+bool sameScale(const Vec3& a, const Vec3& b)
+{
+    const Vec3 difference = glm::abs(a - b);
+    const Vec3 allowed = kScaleTolerance * glm::max(glm::abs(b), Vec3(1.0f));
+
+    return glm::all(glm::lessThanEqual(difference, allowed));
+}
 // Момент инерции сплошного шара: 2/5 m r^2.
 constexpr float kSolidSphereInertia = 0.4f;
 
@@ -247,7 +260,7 @@ void PhysicsBodies::flush()
             continue;
         }
         const bool moved = !body.childRevisions.empty() && childRevisionsOf(*node) != body.childRevisions;
-        const bool scaled = axisScaleOf(node->worldMatrix()) != body.scale;
+        const bool scaled = !sameScale(axisScaleOf(node->worldMatrix()), body.scale);
         const bool reloaded = std::ranges::any_of(body.meshRevisions, [&](const auto& mesh) {
             return MeshShapeCache::revisionOf(m_resources, mesh.first) != mesh.second;
         });

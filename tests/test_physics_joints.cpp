@@ -250,3 +250,76 @@ TEST_CASE("Joints: a scene that does not run builds no joints")
     fixture.scene.updateTransforms();
     CHECK(joint.force() == 0.0f);
 }
+
+namespace {
+
+// Угол поворота узла вокруг оси Y мира, градусы.
+float yawDegrees(const Node3D& node)
+{
+    const Vec3 right = node.worldRight();
+
+    return glm::degrees(std::atan2(-right.z, right.x));
+}
+
+} // namespace
+
+TEST_CASE_FIXTURE(Fixture, "Joints: a ConeJoint stops the swing at its angle")
+{
+    constexpr float kHalfCone = 20.0f;
+    RigidBody& body = crate("Rod", {0.0f, -1.0f, 0.0f}, {0.1f, 2.0f, 0.1f});
+    auto& cone = nodeOf(body).addComponent<ConeJoint>();
+    cone.setAnchor({0.0f, 1.0f, 0.0f});
+    cone.setHalfConeAngle(kHalfCone);
+    scene.advance(kFrame);
+    // Хватает, чтобы дойти до предела, без жёсткого удара о него.
+    body.setVelocity({2.5f, 0.0f, 0.0f});
+    float widest = 0.0f;
+    for (int i = 0; i < kFramesPerSecond; ++i) {
+        scene.advance(kFrame);
+        const Vec3 down = glm::normalize(nodeOf(body).worldPosition());
+        widest = std::max(widest, glm::degrees(std::acos(std::clamp(-down.y, -1.0f, 1.0f))));
+    }
+    CHECK(widest == doctest::Approx(kHalfCone).epsilon(0.1));
+}
+
+TEST_CASE_FIXTURE(Fixture, "Joints: a SwingTwistJoint stops the twist at its range")
+{
+    constexpr float kTwist = 30.0f;
+    RigidBody& body = crate("Limb", {0.0f, 0.0f, 0.0f}, {0.2f, 1.0f, 0.2f});
+    body.setGravityScale(0.0f);
+    auto& joint = nodeOf(body).addComponent<SwingTwistJoint>();
+    joint.setTwistMin(-kTwist);
+    joint.setTwistMax(kTwist);
+    scene.advance(kFrame);
+    body.setAngularVelocity({0.0f, 4.0f, 0.0f});
+    float widest = 0.0f;
+    for (int i = 0; i < kFramesPerSecond; ++i) {
+        scene.advance(kFrame);
+        widest = std::max(widest, std::abs(yawDegrees(nodeOf(body))));
+    }
+    CHECK(widest == doctest::Approx(kTwist).epsilon(0.1));
+}
+
+TEST_CASE_FIXTURE(Fixture, "Joints: a SixDofJoint keeps locked axes still and lets limited ones move within limits")
+{
+    RigidBody& cart = crate("Cart", {0.0f, 0.0f, 0.0f}, Vec3(0.5f));
+    cart.setGravityScale(0.0f);
+    auto& joint = nodeOf(cart).addComponent<SixDofJoint>();
+    joint.setLockLinear({.x = false, .y = true, .z = true});
+    joint.setLockAngular({.x = true, .y = true, .z = true});
+    joint.setLinearX({.enabled = true, .min = -0.5f, .max = 0.5f});
+    scene.advance(kFrame);
+    cart.setVelocity({1.0f, 1.0f, 1.0f});
+    run(1.0f);
+    const Vec3 position = nodeOf(cart).worldPosition();
+    CHECK(position.x == doctest::Approx(0.5f).epsilon(0.05));
+    CHECK(std::abs(position.y) < 0.01f);
+    CHECK(std::abs(position.z) < 0.01f);
+    CHECK(std::abs(yawDegrees(nodeOf(cart))) < 0.5f);
+
+    // Ось отперли на ходу: дальше движется свободно.
+    joint.setLinearX({});
+    cart.setVelocity({1.0f, 0.0f, 0.0f});
+    run(1.0f);
+    CHECK(nodeOf(cart).worldPosition().x > 1.2f);
+}

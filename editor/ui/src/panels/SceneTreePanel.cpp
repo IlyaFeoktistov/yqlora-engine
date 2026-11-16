@@ -86,6 +86,12 @@ void SceneTreePanel::draw(EditorContext& context)
             if (ImGui::MenuItem(tr("editor.tree.addNode").c_str())) {
                 m_addNode.open(0);
             }
+            if (ImGui::BeginMenu(tr("editor.tree.create").c_str())) {
+                if (ImGui::MenuItem(tr("editor.tree.createChain").c_str())) {
+                    m_chain.open();
+                }
+                ImGui::EndMenu();
+            }
             ImGui::EndPopup();
         }
         if (ImGui::IsWindowFocused() && !selection.empty() && ImGui::IsKeyPressed(ImGuiKey_Delete)) {
@@ -93,6 +99,7 @@ void SceneTreePanel::draw(EditorContext& context)
         }
 
         m_addNode.draw(session, context.registry);
+        m_chain.draw(session);
         drawKeepWorldDialog(context);
         drawSaveAsPrefabDialog(context);
     }

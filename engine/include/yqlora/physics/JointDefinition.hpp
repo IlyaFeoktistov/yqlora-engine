@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/math/Math.hpp"
+#include "yqlora/physics/AxisLocks.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
 #include "yqlora/reflection/Record.hpp"
 
@@ -86,12 +87,60 @@ struct DistanceJointDefinition {
     bool operator==(const DistanceJointDefinition&) const = default;
 };
 
+// Качание внутри конуса вокруг оси; кручение свободно.
+struct ConeJointDefinition {
+    Vec3 axis{0.0f, 1.0f, 0.0f};
+    // Полуугол конуса, градусы.
+    float halfConeAngle = 45.0f;
+
+    bool operator==(const ConeJointDefinition&) const = default;
+};
+
+// Качание и кручение вокруг оси (кручения) в пределах, градусы: качание -
+// полуугол в плоскости нормали (normal) и поперёк неё, кручение - от min до
+// max. Мотор (Velocity, Position) ведёт углы motorTarget: кручение (x),
+// качание вокруг нормали (y) и поперёк (z).
+struct SwingTwistJointDefinition {
+    Vec3 axis{0.0f, 1.0f, 0.0f};
+    float normalHalfConeAngle = 45.0f;
+    float planeHalfConeAngle = 45.0f;
+    float twistMin = -45.0f;
+    float twistMax = 45.0f;
+    // Трение в суставе без мотора, Н*м.
+    float maxFrictionTorque = 0.0f;
+    JointMotorMode motor = JointMotorMode::Off;
+    Vec3 motorTarget{0.0f};
+    float maxMotorTorque = 0.0f;
+
+    bool operator==(const SwingTwistJointDefinition&) const = default;
+};
+
+// Шесть осей узла скрепления: запертые не движутся, с включёнными пределами
+// движутся в них (метры, градусы), остальные свободны. Пружина - мягкость
+// пределов сдвига.
+struct SixDofJointDefinition {
+    AxisLocks lockLinear;
+    AxisLocks lockAngular;
+    JointLimits linearX;
+    JointLimits linearY;
+    JointLimits linearZ;
+    JointLimits angularX;
+    JointLimits angularY;
+    JointLimits angularZ;
+    JointSpring linearSpring;
+
+    bool operator==(const SixDofJointDefinition&) const = default;
+};
+
 using JointDefinition = std::variant<
     FixedJointDefinition,
     PointJointDefinition,
     HingeJointDefinition,
     SliderJointDefinition,
-    DistanceJointDefinition>;
+    DistanceJointDefinition,
+    ConeJointDefinition,
+    SwingTwistJointDefinition,
+    SixDofJointDefinition>;
 
 } // namespace yqlora
 

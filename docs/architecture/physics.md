@@ -53,7 +53,8 @@ is wired as its documentation and samples recommend; nothing here is new.
   pose between the last two steps in `update`, and that pose is what the
   body remembers, so a smoothed node is never taken for a moved one; the
   physics state itself is not changed by it. A change of scale rebuilds
-  the shape.
+  the shape; scale is compared with a tolerance, because the axis lengths
+  of the world matrix of a rotating body drift in the last digits.
 - **Layers**: the 32 node layers of the project are what collides with
   what; the collision matrix (32 by 32, symmetric) is in the Physics
   section of the project settings, edited as a table of the named layers.
@@ -315,11 +316,15 @@ axles, ragdolls, things hanging from a ceiling.
   a break.
 - **Chains and ropes**: a chain is links (bodies) with `PointJoint` or
   `SwingTwistJoint` between them. The editor makes one with "Create >
-  Chain": two end points in the viewport, the link (a model or a built-in
-  capsule), the spacing; it creates the nodes, bodies and joints as one
-  undo step, the ends attached to the nodes under the points or to the
-  world. A soft rope and cloth (Jolt soft bodies) come later as their own
-  component.
+  Chain" in the scene tree menu: the start and the end (by fields or "From
+  selected" node), the spacing, radius and mass of a link, the kind of
+  joints and which ends to attach; a "Chain" node with capsule links
+  (RigidBody, CapsuleCollider, the built-in capsule mesh) and joints is
+  added as one undo step (`ChainBuilder`). The number of links makes the
+  spacing fit exactly; an attached end holds on to the body under its
+  point, or to the world without one. Picking the points with a click in
+  the viewport is in PH.9. A soft rope and cloth (Jolt soft bodies) come
+  later as their own component.
 - **Stability**: a chain of many light links hanging a heavy body needs
   more solver steps; `velocitySteps` and `positionSteps` are in the
   Physics section of the project settings (10 and 2 by default), and each
@@ -557,10 +562,12 @@ Everything set in the inspector is a property with a setter (see
 
 - `ConeJoint`, `SwingTwistJoint`, `SixDofJoint`; "Create > Chain" in the
   editor.
-- Tests: a cone stops swinging at its angle and a twist at its range; a
-  locked axis of a `SixDofJoint` does not move and a free one does;
-  "Create > Chain" is one undo step and its ends are attached to the nodes
-  under the points.
+- Tests: a `ConeJoint` stops the swing at its angle, a `SwingTwistJoint`
+  the twist at its range; locked axes of a `SixDofJoint` do not move, a
+  limited one moves within its limits and one unlocked on the fly moves
+  freely; "Create > Chain" lays the links along the path as one undo step,
+  the start holds on to the body under its point, an end without a body
+  to the world, and a free end has no joint.
 
 ### PH.8 Body chains
 
@@ -576,7 +583,8 @@ Everything set in the inspector is a property with a setter (see
 ### PH.9 Editor
 
 - Collider gizmos and handles, "Show colliders", fitting to the mesh,
-  drops onto physics fields; joint gizmos.
+  drops onto physics fields; joint gizmos; chain ends with a click in the
+  viewport.
 - Tests (logic without the interface): a new collider fits the mesh bounds
   of its node; a handle drag is one undo step.
 
