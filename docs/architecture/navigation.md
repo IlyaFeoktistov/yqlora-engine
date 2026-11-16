@@ -74,8 +74,8 @@ Status marks: see [README](README.md).
 - Pressing a movement key interrupts the click path, so both ways work
   together.
 - **The camera** does not belong to the controller: a third person, top
-  down or first person camera is its own component, the controller takes
-  only the direction from it.
+  down or first person camera is its own rig (see [cameras](cameras.md)),
+  the controller takes only the direction from it.
 - **Tests**: on a baked plane with an obstacle the path goes around it; an
   agent reaches the target and fires the event; two agents facing each
   other in a corridor pass; the `MoveY` axis moves the player forward

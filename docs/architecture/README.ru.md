@@ -25,6 +25,7 @@
 | [Документация и выпуск](documentation.ru.md) | справочник API, сайт, руководство по редактору, учебник, выпуск 0.0.2 (шаг 10) |
 | [Сборка](build.ru.md) | проигрыватель, подготовка и кэш импорта, пакет, смена сцен, сохранения (шаг 9) |
 | [Физика](physics.ru.md) | твёрдые тела, коллайдеры, контакты и триггеры, запросы, контроллер персонажа, скрепления (шаг 6) |
+| [Камеры](cameras.ru.md) | риги камеры: полёт, первое и третье лицо, следование, переходы между ракурсами (после шага 6) |
 | [Навигация и управление игроком](navigation.ru.md) | карта навигации, поиск путей, агенты, `PlayerController` (после MVP) |
 | [Скрипты](scripting.ru.md) | C++, Luau, визуальные скрипты, горячая перезагрузка, доступ к сцене из кода, таймеры |
 | [Префабы](prefabs.ru.md) | префабы с переопределениями, вложенностью и вариантами, создание объектов в игре |
@@ -53,10 +54,11 @@
    [префабы](prefabs.ru.md), [события](events.ru.md),
    [редактор](editor.ru.md).
 2. **Физика** (шаг 6): [физика](physics.ru.md).
-3. **Интерфейс игрока** (шаг 8): [интерфейс игрока](ui.ru.md).
-4. **Запуск игры без редактора** (шаг 9): [сборка](build.ru.md).
-5. **Звук** (шаг 7): [звук](audio.ru.md).
-6. **Документы и версия 0.0.2** (шаг 10): [документация и выпуск](documentation.ru.md).
+3. **Камеры** (после шага 6): [камеры](cameras.ru.md).
+4. **Интерфейс игрока** (шаг 8): [интерфейс игрока](ui.ru.md).
+5. **Запуск игры без редактора** (шаг 9): [сборка](build.ru.md).
+6. **Звук** (шаг 7): [звук](audio.ru.md).
+7. **Документы и версия 0.0.2** (шаг 10): [документация и выпуск](documentation.ru.md).
 
 После MVP: анимация, затем частицы и шумы, затем Luau, затем 2D.
 
@@ -84,6 +86,7 @@ engine/include/yqlora/scripting/   Script, ModuleRegistrar; GameModule in intern
 engine/include/yqlora/render/      Camera3D, MeshRenderer, RenderSystem, свет, Environment
 engine/include/yqlora/material/    MaterialOverrides, SharedMaterial (материалы из скриптов)
 engine/include/yqlora/physics/     RigidBody, colliders, PhysicsWorld                  [step 6]
+engine/include/yqlora/camera/      CameraRig, rigs, CameraDirector                     [after step 6]
 engine/include/yqlora/audio/       AudioSource, AudioListener, AudioWorld              [step 7]
 engine/include/yqlora/ui/          Control, Label, Button                              [step 8]
 examples/scripts/                  example game module (Rotator), built as game.dll / libgame.so

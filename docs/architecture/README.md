@@ -25,6 +25,7 @@ documents keep only how the engine works.
 | [Documentation and the release](documentation.md) | API reference, the site, the editor guide, the tutorial, release 0.0.2 (step 10) |
 | [Building](build.md) | the player, cooking and the import cache, the package, scene changes, saves (step 9) |
 | [Physics](physics.md) | rigid bodies, colliders, contacts and triggers, queries, the character controller, joints (step 6) |
+| [Cameras](cameras.md) | camera rigs: flight, first and third person, following, transitions between shots (after step 6) |
 | [Navigation and player control](navigation.md) | navigation map, path finding, agents, `PlayerController` (after the MVP) |
 | [Scripts](scripting.md) | C++, Luau, visual scripts, hot reload, scene access from code, timers |
 | [Prefabs](prefabs.md) | prefabs with overrides, nesting and variants, creating objects in a game |
@@ -52,10 +53,11 @@ The rest of the MVP, in this order; each stage has its plan with phases
    CE.2), then the documents of the stage (SA.4, PF.6, EV.3, T.3, CE.3). See [scripting](scripting.md),
    [prefabs](prefabs.md), [events](events.md), [editor](editor.md).
 2. **Physics** (step 6): [physics](physics.md).
-3. **The game interface** (step 8): [game interface](ui.md).
-4. **Running a game without the editor** (step 9): [building](build.md).
-5. **Audio** (step 7): [audio](audio.md).
-6. **Documents and version 0.0.2** (step 10): [documentation and the release](documentation.md).
+3. **Cameras** (after step 6): [cameras](cameras.md).
+4. **The game interface** (step 8): [game interface](ui.md).
+5. **Running a game without the editor** (step 9): [building](build.md).
+6. **Audio** (step 7): [audio](audio.md).
+7. **Documents and version 0.0.2** (step 10): [documentation and the release](documentation.md).
 
 After the MVP: animation, then particles and noise, then Luau, then 2D.
 
@@ -83,6 +85,7 @@ engine/include/yqlora/scripting/   Script, ModuleRegistrar; GameModule in intern
 engine/include/yqlora/render/      Camera3D, MeshRenderer, RenderSystem, lights, Environment
 engine/include/yqlora/material/    MaterialOverrides, SharedMaterial (materials from scripts)
 engine/include/yqlora/physics/     RigidBody, colliders, PhysicsWorld                  [step 6]
+engine/include/yqlora/camera/      CameraRig, rigs, CameraDirector                     [after step 6]
 engine/include/yqlora/audio/       AudioSource, AudioListener, AudioWorld              [step 7]
 engine/include/yqlora/ui/          Control, Label, Button                              [step 8]
 examples/scripts/                  example game module (Rotator), built as game.dll / libgame.so
