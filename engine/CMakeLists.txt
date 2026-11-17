@@ -227,6 +227,9 @@ add_library(yqlora SHARED
     src/physics/JoltMaterials.cpp
     src/physics/JoltShapes.cpp
     src/physics/PhysicsBodies.cpp
+    src/physics/PhysicsChain.cpp
+    src/physics/PhysicsChainControl.cpp
+    src/physics/PhysicsChains.cpp
     src/physics/PhysicsCharacters.cpp
     src/physics/PhysicsJoints.cpp
     src/physics/PhysicsDebug.cpp

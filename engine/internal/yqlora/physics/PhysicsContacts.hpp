@@ -18,7 +18,8 @@ struct Collision;
 // прошлыми. Новое - вход, бывшее - продолжение, пропавшее - выход; пара,
 // оба тела которой не движутся (спят или неподвижны), продолжается без
 // событий, потому что Jolt о спящих молчит. Столкновения - на пару
-// коллайдеров, их получают RigidBody обеих сторон; триггеры - на пару
+// коллайдеров (или звеньев цепи тел), их получают RigidBody или
+// PhysicsChain обеих сторон; триггеры - на пару
 // триггера и тела, их получает коллайдер-триггер. Порядок: выходы, входы,
 // продолжения, каждый по ID узлов и коллайдеров, поэтому игра ведёт себя
 // одинаково при каждом запуске. Тело, ушедшее из сцены, выходит из своих
@@ -33,8 +34,10 @@ public:
     struct CollisionKey {
         NodeId firstOwner = 0;
         ComponentId firstCollider = 0;
+        int firstLink = kNoLink;
         NodeId secondOwner = 0;
         ComponentId secondCollider = 0;
+        int secondLink = kNoLink;
 
         auto operator<=>(const CollisionKey&) const = default;
     };
@@ -78,6 +81,8 @@ private:
 
     void collect(const std::vector<RawContact>& contacts);
     void emitCollision(Phase phase, const Touch& touch);
+    template <typename Owner>
+    static void emitPhase(Phase phase, Owner& owner, const Collision& collision);
     void emitTrigger(bool enter, const TriggerTouch& touch);
 
     Scene& m_scene;

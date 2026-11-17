@@ -126,6 +126,9 @@
         "SixDofJoint": {
             "description": "The six axes of the node, each free, limited or locked."
         },
+        "PhysicsChain": {
+            "description": "A long body that bends along its length: a snake, a worm, a tail, a tentacle. Links are capsules with muscles toward a target bend and a grip on the ground."
+        },
         "RigidBody": {
             "description": "A rigid body: the node moves by forces and collisions, or is moved by code (kinematic), or stays put (static)."
         },
@@ -281,6 +284,7 @@
             "addNode": "Add node",
             "create": "Create",
             "createChain": "Chain...",
+            "createBodyChain": "Body chain...",
             "addChild": "Add child node",
             "delete": "Delete",
             "keepWorld": {
@@ -304,6 +308,17 @@
             "attachStart": "Attach start",
             "attachEnd": "Attach end",
             "hint": "An attached end holds on to the body under its point, or to the world without one.",
+            "create": "Create"
+        },
+        "bodyChain": {
+            "title": "Body chain",
+            "name": "Name",
+            "position": "Position",
+            "segments": "Segments",
+            "length": "Length, m",
+            "radius": "Link radius, m",
+            "mass": "Mass of the whole chain, kg",
+            "hint": "Links lie from the node back along its +Z; each segment node follows its link.",
             "create": "Create"
         },
         "addNode": {
@@ -681,6 +696,14 @@
         "lockLinear": "Lock movement",
         "maxFrictionTorque": "Friction, N*m",
         "maxMotorTorque": "Motor torque, N*m",
+        "segments": "Segments",
+        "length": "Length, m",
+        "bendLimit": "Bend limit",
+        "twistLimit": "Twist limit",
+        "stiffness": "Muscle stiffness, N*m/rad",
+        "maxTorque": "Muscle torque, N*m",
+        "sideGrip": "Side grip",
+        "forwardGrip": "Forward grip",
         "normalHalfConeAngle": "Swing along the normal",
         "planeHalfConeAngle": "Swing across the normal",
         "twistMax": "Twist max",

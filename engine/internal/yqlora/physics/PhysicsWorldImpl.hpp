@@ -6,6 +6,7 @@
 #include "yqlora/physics/JoltContacts.hpp"
 #include "yqlora/physics/JoltLayers.hpp"
 #include "yqlora/physics/PhysicsBodies.hpp"
+#include "yqlora/physics/PhysicsChains.hpp"
 #include "yqlora/physics/PhysicsCharacters.hpp"
 #include "yqlora/physics/PhysicsContacts.hpp"
 #include "yqlora/physics/PhysicsJoints.hpp"
@@ -42,6 +43,8 @@ struct PhysicsWorld::Impl {
     PhysicsCharacters characters;
     // После тел: скрепления уходят раньше тел, на которые ссылаются.
     PhysicsJoints joints;
+    // После тел: звенья уходят раньше мира тел, который знает их как звенья.
+    PhysicsChains chains;
     PhysicsContacts contacts;
     PhysicsQueries queries;
     // Поколение материалов, которое мир уже видел (PhysicsMaterialCache::generation).
@@ -69,6 +72,8 @@ struct PhysicsWorldJolt {
     static PhysicsCharacters* charactersOf(const Component& component);
     // Скрепления мира сцены компонента, если мир есть; nullptr - нет.
     static const PhysicsJoints* jointsOf(const Component& component);
+    // Цепи тел мира сцены компонента, готовые к чтению; nullptr - мира нет.
+    static const PhysicsChains* chainsOf(const Component& component);
 };
 
 } // namespace yqlora

@@ -689,9 +689,12 @@ std::optional<ContactSide> PhysicsBodies::sideOf(std::uint32_t joltId, std::uint
     if (found == m_byJoltId.end()) {
         return std::nullopt;
     }
-    const auto [owner, kind] = found->second;
+    const auto [owner, kind, link] = found->second;
     if (kind == JoltBodyKind::Character) {
         return ContactSide{owner, BodyPart{.collider = 0, .node = owner}, false};
+    }
+    if (kind == JoltBodyKind::ChainLink) {
+        return ContactSide{owner, BodyPart{.collider = 0, .node = owner}, false, link};
     }
     const Body& body = m_bodies.at(owner);
     if (kind == JoltBodyKind::Sensor) {
@@ -709,9 +712,14 @@ std::optional<ContactSide> PhysicsBodies::sideOf(std::uint32_t joltId, std::uint
     return ContactSide{owner, body.parts[index], false};
 }
 
-bool PhysicsBodies::resting(ComponentId collider) const
+bool PhysicsBodies::resting(const ContactSide& side) const
 {
-    const auto found = m_colliderBodies.find(collider);
+    if (side.link != kNoLink) {
+        const auto found = m_chainLinks.find({side.owner, side.link});
+
+        return found != m_chainLinks.end() && !m_interface.IsActive(found->second);
+    }
+    const auto found = m_colliderBodies.find(side.part.collider);
 
     return found != m_colliderBodies.end() && !m_interface.IsActive(found->second);
 }
@@ -731,6 +739,22 @@ void PhysicsBodies::addCharacterBody(JPH::BodyID id, NodeId owner)
 void PhysicsBodies::removeCharacterBody(JPH::BodyID id)
 {
     m_byJoltId.erase(id.GetIndexAndSequenceNumber());
+}
+
+void PhysicsBodies::addChainLink(JPH::BodyID id, NodeId owner, int link)
+{
+    m_byJoltId[id.GetIndexAndSequenceNumber()] = {owner, JoltBodyKind::ChainLink, link};
+    m_chainLinks[{owner, link}] = id;
+}
+
+void PhysicsBodies::removeChainLink(JPH::BodyID id)
+{
+    const auto found = m_byJoltId.find(id.GetIndexAndSequenceNumber());
+    if (found == m_byJoltId.end()) {
+        return;
+    }
+    m_chainLinks.erase({found->second.owner, found->second.link});
+    m_byJoltId.erase(found);
 }
 
 } // namespace yqlora

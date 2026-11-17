@@ -90,6 +90,9 @@ void SceneTreePanel::draw(EditorContext& context)
                 if (ImGui::MenuItem(tr("editor.tree.createChain").c_str())) {
                     m_chain.open();
                 }
+                if (ImGui::MenuItem(tr("editor.tree.createBodyChain").c_str())) {
+                    m_bodyChain.open();
+                }
                 ImGui::EndMenu();
             }
             ImGui::EndPopup();
@@ -100,6 +103,7 @@ void SceneTreePanel::draw(EditorContext& context)
 
         m_addNode.draw(session, context.registry);
         m_chain.draw(session);
+        m_bodyChain.draw(session);
         drawKeepWorldDialog(context);
         drawSaveAsPrefabDialog(context);
     }

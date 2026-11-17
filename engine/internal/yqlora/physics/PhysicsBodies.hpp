@@ -3,6 +3,7 @@
 // Только для кода движка, который включает Jolt (Jolt.h - раньше этого файла).
 
 #include "yqlora/physics/BodyPose.hpp"
+#include "yqlora/physics/Collision.hpp"
 #include "yqlora/physics/JoltShapes.hpp"
 #include "yqlora/resource/ResourceId.hpp"
 #include "yqlora/scene/NodeId.hpp"
@@ -13,6 +14,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -40,11 +42,12 @@ struct BodyPart {
 };
 
 // Чья сторона касания: узел-хозяин тела и коллайдер; trigger - датчик
-// коллайдера-триггера.
+// коллайдера-триггера; link - номер звена цепи тел (у звена коллайдера нет).
 struct ContactSide {
     NodeId owner = 0;
     BodyPart part;
     bool trigger = false;
+    int link = kNoLink;
 };
 
 // Тела Jolt вслед за деревом сцены. Хозяин тела - узел: с RigidBody (тело
@@ -100,9 +103,9 @@ public:
     // по номеру коллайдера part (bodyPartOf); nullopt - тела уже нет.
     std::optional<ContactSide> sideOf(std::uint32_t joltId, std::uint32_t part) const;
 
-    // Тело коллайдера есть и не движется (спит или неподвижно): Jolt о его
-    // касаниях молчит, но они продолжаются.
-    bool resting(ComponentId collider) const;
+    // Тело стороны касания есть и не движется (спит или неподвижно): Jolt о
+    // его касаниях молчит, но они продолжаются.
+    bool resting(const ContactSide& side) const;
 
     // Будит тело коллайдера, если оно подвижное.
     void wake(ComponentId collider);
@@ -117,6 +120,11 @@ public:
     // попадания в него - касания и попадания в этот узел, без коллайдера.
     void addCharacterBody(JPH::BodyID id, NodeId owner);
     void removeCharacterBody(JPH::BodyID id);
+
+    // Тело звена link цепи узла owner (PhysicsChains): касания и попадания
+    // в него - в этот узел с номером звена.
+    void addChainLink(JPH::BodyID id, NodeId owner, int link);
+    void removeChainLink(JPH::BodyID id);
 
     // Зовётся перед тем, как тело Jolt уходит из мира (перестройка,
     // удаление): скрепления, которые на него ссылаются, снимаются раньше.
@@ -174,12 +182,14 @@ private:
         Body,
         Sensor,
         Character,
+        ChainLink,
     };
 
-    // Хозяин тела Jolt и что это за тело.
+    // Хозяин тела Jolt и что это за тело; link - номер звена цепи.
     struct JoltBodyOwner {
         NodeId owner = 0;
         JoltBodyKind kind = JoltBodyKind::Body;
+        int link = kNoLink;
     };
 
     void rebuild(NodeId owner);
@@ -220,6 +230,8 @@ private:
     std::unordered_map<std::uint32_t, JoltBodyOwner> m_byJoltId;
     // Коллайдер - тело Jolt, в форме которого он сейчас.
     std::unordered_map<ComponentId, JPH::BodyID> m_colliderBodies;
+    // Звено цепи (узел цепи, номер) - его тело Jolt.
+    std::map<std::pair<NodeId, int>, JPH::BodyID> m_chainLinks;
     std::function<void(JPH::BodyID)> m_bodyRemoved;
     std::vector<NodeId> m_dirtyBranches;
     std::unordered_set<NodeId> m_dirtyOwners;

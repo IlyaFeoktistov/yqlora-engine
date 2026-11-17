@@ -29,6 +29,7 @@ add_custom_command(
 
 add_library(yqlora_editor STATIC
     ${YQLORA_EDITOR_SHADERS_HEADER}
+    src/BodyChainBuilder.cpp
     src/ChainBuilder.cpp
     src/CodeEditor.cpp
     src/EditorCamera.cpp
@@ -93,6 +94,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/core/EditorActions.cpp
     ui/src/core/EditorHost.cpp
     ui/src/dialogs/AddNodeDialog.cpp
+    ui/src/dialogs/BodyChainDialog.cpp
     ui/src/dialogs/ChainDialog.cpp
     ui/src/dialogs/UnsavedChangesDialog.cpp
     ui/src/gizmos/AxisGizmo.cpp
@@ -144,6 +146,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/widgets/ResourceField.cpp
     ui/src/widgets/DragDrop.cpp
     ui/src/widgets/TitleBarButton.cpp
+    ui/src/widgets/WorldPointField.cpp
 )
 add_library(yqlora::editor_ui ALIAS yqlora_editor_ui)
 

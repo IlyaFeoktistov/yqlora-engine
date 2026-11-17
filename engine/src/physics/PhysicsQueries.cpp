@@ -99,6 +99,7 @@ std::optional<RaycastHit> PhysicsQueries::hitOf(
     return RaycastHit{
         .node = NodeRef{side->owner},
         .collider = {side->part.node, side->part.collider},
+        .link = side->link,
         .point = point,
         .normal = normal ? *normal : fromJolt(locked.GetWorldSpaceSurfaceNormal(part, toJolt(point))),
         .distance = distance,

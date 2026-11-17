@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/math/Math.hpp"
+#include "yqlora/physics/Collision.hpp"
 #include "yqlora/reflection/Property.hpp"
 #include "yqlora/reflection/Record.hpp"
 #include "yqlora/scene/Layers.hpp"
@@ -20,9 +21,11 @@ struct QueryFilter {
 
 // Попадание луча или протянутой фигуры.
 struct RaycastHit {
-    // Узел тела (с RigidBody или с коллайдерами без него) и коллайдер.
+    // Узел тела (с RigidBody, с коллайдерами без него, с цепью тел) и
+    // коллайдер; у звена цепи коллайдера нет, а link - номер звена.
     NodeRef node;
     ComponentRef<Collider> collider;
+    int link = kNoLink;
     // Точка на коллайдере в мире и его нормаль в ней (наружу).
     Vec3 point{0.0f};
     Vec3 normal{0.0f};
@@ -44,6 +47,7 @@ YQLORA_RECORD(
     yqlora::RaycastHit,
     field("node", &yqlora::RaycastHit::node),
     field("collider", &yqlora::RaycastHit::collider),
+    field("link", &yqlora::RaycastHit::link),
     field("point", &yqlora::RaycastHit::point),
     field("normal", &yqlora::RaycastHit::normal),
     field("distance", &yqlora::RaycastHit::distance)

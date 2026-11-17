@@ -66,6 +66,7 @@ PhysicsWorld::Impl* PhysicsWorld::readyForQuery()
     if (!scene().playing()) {
         m_impl->bodies.placeMoved();
     }
+    m_impl->chains.sync();
     m_impl->characters.sync();
 
     return m_impl.get();

@@ -7,6 +7,7 @@
 #include "yqlora/physics/CylinderCollider.hpp"
 #include "yqlora/physics/Joint.hpp"
 #include "yqlora/physics/MeshCollider.hpp"
+#include "yqlora/physics/PhysicsChain.hpp"
 #include "yqlora/physics/PhysicsSettings.hpp"
 #include "yqlora/physics/PhysicsWorld.hpp"
 #include "yqlora/physics/RigidBody.hpp"
@@ -200,6 +201,43 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .property("angularY", &SixDofJoint::angularY, &SixDofJoint::setAngularY)
         .property("angularZ", &SixDofJoint::angularZ, &SixDofJoint::setAngularZ)
         .property("linearSpring", &SixDofJoint::linearSpring, &SixDofJoint::setLinearSpring);
+
+    registry.registerComponent<PhysicsChain>()
+        .requiresNode<Node3D>()
+        .property("segments", &PhysicsChain::segments, &PhysicsChain::setSegments)
+        .range(kMinChainSegments, kMaxChainSegments)
+        .property("length", &PhysicsChain::length, &PhysicsChain::setLength)
+        .min(kMinChainSize)
+        .property("radius", &PhysicsChain::radius, &PhysicsChain::setRadius)
+        .min(kMinChainSize)
+        .property("mass", &PhysicsChain::mass, &PhysicsChain::setMass)
+        .min(kMinChainSize)
+        .property("bendLimit", &PhysicsChain::bendLimit, &PhysicsChain::setBendLimit, PropertyHint::Angle)
+        .range(0.0f, kMaxChainBendDegrees)
+        .property("twistLimit", &PhysicsChain::twistLimit, &PhysicsChain::setTwistLimit, PropertyHint::Angle)
+        .range(0.0f, kMaxChainBendDegrees)
+        .property("stiffness", &PhysicsChain::stiffness, &PhysicsChain::setStiffness)
+        .min(0.0f)
+        .property("damping", &PhysicsChain::damping, &PhysicsChain::setDamping)
+        .min(0.0f)
+        .property("maxTorque", &PhysicsChain::maxTorque, &PhysicsChain::setMaxTorque)
+        .min(0.0f)
+        .property("sideGrip", &PhysicsChain::sideGrip, &PhysicsChain::setSideGrip)
+        .range(0.0f, 1.0f)
+        .property("forwardGrip", &PhysicsChain::forwardGrip, &PhysicsChain::setForwardGrip)
+        .range(0.0f, 1.0f)
+        .property("material", &PhysicsChain::material, &PhysicsChain::setMaterial)
+        .method("setBend", &PhysicsChain::setBend, {{"index"}, {"side"}, {"up"}})
+        .method("setBends", &PhysicsChain::setBends, {{"bends"}})
+        .method("targetBend", &PhysicsChain::targetBend, {{"index"}})
+        .method("bend", &PhysicsChain::bend, {{"index"}})
+        .method("linkPosition", &PhysicsChain::linkPosition, {{"index"}})
+        .method("linkVelocity", &PhysicsChain::linkVelocity, {{"index"}})
+        .method("relax", &PhysicsChain::relax)
+        .method("relaxed", &PhysicsChain::relaxed)
+        .event("onCollisionEnter", &PhysicsChain::onCollisionEnter, {"collision"})
+        .event("onCollisionStay", &PhysicsChain::onCollisionStay, {"collision"})
+        .event("onCollisionExit", &PhysicsChain::onCollisionExit, {"collision"});
 
     registry.registerSettings<PhysicsSettings>("physics")
         .property("gravity", &PhysicsSettings::gravity, &PhysicsSettings::setGravity)

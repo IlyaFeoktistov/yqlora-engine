@@ -350,31 +350,51 @@ motors, and grip against the ground that is stronger sideways than along
 the body.
 
 - **`PhysicsChain`** (on a `Node3D`, instead of a `RigidBody`): `segments`
-  capsules of `radius` laid along the local Z axis of the node over
-  `length`, the mass (`mass` in all) spread over them. Each link is a
-  dynamic body owned by the component; neighbours are linked by a Jolt
-  `SwingTwistConstraint` with `bendLimit` (the swing cone, degrees) and
-  `twistLimit`; the links of one chain do not collide with each other (a
-  Jolt group filter), the chain collides with the world by the layer of
-  its node.
-- **What is seen**: if the node has `segments` child nodes (made by
-  "Create > Body chain" with a mesh on each, or by hand), each follows its
-  link after every step, with interpolation like a body. With skinning
+  capsules of `radius` laid from the node backwards, along its local +Z
+  axis (forward of a node is -Z), over `length`; the mass (`mass` in all)
+  is spread over them evenly, the node scale does not change the links.
+  Each link is a dynamic body owned by the component; neighbours are linked
+  by a Jolt `SwingTwistConstraint` with `bendLimit` (the swing cone,
+  degrees) and `twistLimit` (both ways). Neighbours overlap at their joint
+  and do not collide with each other (a Jolt group filter); links further
+  apart do, so the chain does not pass through itself. The chain collides
+  with the world by the layer of its node, with `material` (empty - the
+  default of the project).
+- **Nodes**: the chain node follows the first link (the head) and the first
+  `segments` `Node3D` children follow their links, each keeping the pose
+  relative to its link it had when the chain was built; everything is
+  written after the step with interpolation, like a body. A chain node
+  moved by code or by the editor carries the whole chain without changing
+  its bends (velocities turn with it). A change of the size, count, mass,
+  limits, material or layer builds the links again, straight. A chain in a
+  scene that does not run has its links too (queries see them), resting
+  where the node is. A `RigidBody` or `CharacterController` on the same
+  node is a mistake reported once: both would move it. With skinning
   (after the MVP, see [animation](animation.md)) the links drive the bones
   of one bending mesh instead.
-- **Muscles**: every joint has a motor towards a target bend (two angles,
-  sideways and up-down) with `stiffness` (spring frequency) and
-  `maxTorque`. `setBend(index, side, up)`, `setBends(...)` for the whole
-  chain, `bend(index)`, `segmentCount()`, `linkPosition(index)` and
-  `linkVelocity(index)` from code; `relax()` turns the motors off (a dead
-  snake falls limp).
-- **Grip**: `sideGrip` and `forwardGrip` (0 to 1) damp the velocity of a
-  link touching the ground across and along its axis. A snake crawls
-  forward only because sideways slipping is harder than forward slipping,
-  so this is a property of the engine, not of each game.
-- **Body chains are joints and bodies of this file**: queries, contacts
-  (with the link index in `Collision`), layers and materials work for
-  links as for any body.
+- **Muscles**: every joint has a position motor towards a target bend (two
+  angles in degrees: sideways around the Y of the link towards +X, and up
+  around its X towards +Y; the twist is held at zero) - a spring with
+  `stiffness` (N*m per radian), `damping` (N*m*s per radian) and
+  `maxTorque`. The stiffness is a torque, not a frequency: Jolt computes a
+  frequency spring from the inertia of the two links it joins, so the
+  muscle of a light link would give in under the weight of a hanging tail.
+  From code: `setBend(index, side, up)`, `setBends(...)` for the joints
+  from the head, `targetBend(index)`, `bend(index)` (the bend now),
+  `linkPosition(index)` and `linkVelocity(index)`; `relax()` turns the
+  motors off (a dead snake falls limp), the next `setBend` turns them on.
+- **Grip**: `sideGrip` and `forwardGrip` (0 to 1) are the share of its
+  velocity across and along its axis that a link touching something loses
+  per physics step, relative to what it touches and in the plane of the
+  contact. A snake crawls forward only because sideways slipping is harder
+  than forward slipping, so this is a property of the engine, not of each
+  game.
+- **Body chains are joints and bodies of this file**: queries, contacts,
+  layers and materials work for links as for any body. The node of a link
+  is the chain node; `Collision::link` and `otherLink`, `RaycastHit::link`
+  are the link index (`kNoLink` elsewhere), the collider is empty; an
+  overlap gives the chain node once. Contacts of a link go to
+  `onCollisionEnter`, `onCollisionStay` and `onCollisionExit` of the chain.
 
 **Where the engine ends and the game begins.** The engine gives the chain,
 its limits, the muscles, the grip and the API to set bends. How the
@@ -572,13 +592,17 @@ Everything set in the inspector is a property with a setter (see
 ### PH.8 Body chains
 
 - `PhysicsChain` with its links, joints, group filter, segment nodes
-  following the links, muscles, grip; "Create > Body chain".
-- Tests: a chain of 10 links dropped on the ground lies along it without
-  links passing through each other; a bend beyond `bendLimit` is stopped
-  at the limit; the motors reach a target bend within tolerance; a
-  travelling wave of bends with `sideGrip` above `forwardGrip` moves the
-  chain forward along its axis, and with equal grip it hardly moves;
-  `relax()` lets the chain fall limp; segment nodes follow their links.
+  following the links, muscles, grip; the link index in contacts and
+  queries; "Create > Body chain".
+- Tests: a chain of 10 links dropped on the ground lies along it; links of
+  a chain falling on itself do not pass through each other; a bend beyond
+  `bendLimit` is stopped at the limit; the motors reach a target bend
+  within tolerance; a travelling wave of bends with `sideGrip` above
+  `forwardGrip` moves the chain forward along its axis, and with equal grip
+  it hardly moves; `relax()` lets the chain fall limp; the chain node and
+  segment nodes follow their links; a chain node moved by code carries the
+  chain; contacts and queries name the link; "Create > Body chain" builds
+  the chain with a mesh along each link in one undo step.
 
 ### PH.9 Editor
 

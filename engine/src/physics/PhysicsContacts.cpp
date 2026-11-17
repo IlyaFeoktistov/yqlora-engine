@@ -5,6 +5,7 @@
 
 #include "yqlora/physics/Collider.hpp"
 #include "yqlora/physics/Collision.hpp"
+#include "yqlora/physics/PhysicsChain.hpp"
 #include "yqlora/physics/RigidBody.hpp"
 #include "yqlora/scene/Scene.hpp"
 
@@ -18,7 +19,7 @@ namespace {
 
 bool before(const ContactSide& a, const ContactSide& b)
 {
-    return std::tie(a.owner, a.part.collider) < std::tie(b.owner, b.part.collider);
+    return std::tie(a.owner, a.part.collider, a.link) < std::tie(b.owner, b.part.collider, b.link);
 }
 
 ComponentRef<Collider> colliderRef(const BodyPart& part)
@@ -27,6 +28,17 @@ ComponentRef<Collider> colliderRef(const BodyPart& part)
 }
 
 } // namespace
+
+// Вход, продолжение или выход у RigidBody или PhysicsChain: события у них одноимённые.
+template <typename Owner>
+void PhysicsContacts::emitPhase(Phase phase, Owner& owner, const Collision& collision)
+{
+    switch (phase) {
+    case Phase::Enter: owner.onCollisionEnter.emit(collision); break;
+    case Phase::Stay: owner.onCollisionStay.emit(collision); break;
+    case Phase::Exit: owner.onCollisionExit.emit(collision); break;
+    }
+}
 
 PhysicsContacts::PhysicsContacts(Scene& scene, const PhysicsBodies& bodies)
     : m_scene(scene)
@@ -67,8 +79,10 @@ void PhysicsContacts::collect(const std::vector<RawContact>& contacts)
         const CollisionKey key{
             touch.first.owner,
             touch.first.part.collider,
+            touch.first.link,
             touch.second.owner,
             touch.second.part.collider,
+            touch.second.link,
         };
         m_stepCollisions[key] = std::move(touch);
     }
@@ -85,7 +99,7 @@ void PhysicsContacts::deliver(const std::vector<RawContact>& contacts)
         if (m_stepCollisions.contains(key)) {
             continue;
         }
-        if (m_bodies.resting(key.firstCollider) && m_bodies.resting(key.secondCollider)) {
+        if (m_bodies.resting(touch.first) && m_bodies.resting(touch.second)) {
             asleep.insert(key);
             m_stepCollisions.emplace(key, std::move(touch));
             continue;
@@ -147,23 +161,28 @@ void PhysicsContacts::emitCollision(Phase phase, const Touch& touch)
 {
     const auto emitTo = [&](const ContactSide& self, const ContactSide& other, float sign) {
         Node* node = m_scene.find(self.owner);
-        RigidBody* body = node ? node->getComponent<RigidBody>() : nullptr;
-        if (!body || !body->activeAndEnabled()) {
+        if (!node) {
             return;
         }
         const Collision collision{
             .other = NodeRef{other.owner},
             .collider = colliderRef(self.part),
             .otherCollider = colliderRef(other.part),
+            .link = self.link,
+            .otherLink = other.link,
             .points = touch.points,
             .normal = touch.normal * sign,
             .relativeVelocity = touch.relativeVelocity * -sign,
             .impulse = touch.impulse,
         };
-        switch (phase) {
-        case Phase::Enter: body->onCollisionEnter.emit(collision); break;
-        case Phase::Stay: body->onCollisionStay.emit(collision); break;
-        case Phase::Exit: body->onCollisionExit.emit(collision); break;
+        // События - у того, кто владеет телом стороны: цепи для звена, иначе RigidBody.
+        if (self.link != kNoLink) {
+            auto* chain = node->getComponent<PhysicsChain>();
+            if (chain && chain->activeAndEnabled()) {
+                emitPhase(phase, *chain, collision);
+            }
+        } else if (auto* body = node->getComponent<RigidBody>(); body && body->activeAndEnabled()) {
+            emitPhase(phase, *body, collision);
         }
     };
     // Нормаль смотрит из первого во второе: второе толкает первое против неё.

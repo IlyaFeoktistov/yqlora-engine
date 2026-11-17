@@ -6,6 +6,7 @@
 
 #include "yqlora/editor/ui/core/EditorPanel.hpp"
 #include "yqlora/editor/ui/dialogs/AddNodeDialog.hpp"
+#include "yqlora/editor/ui/dialogs/BodyChainDialog.hpp"
 #include "yqlora/editor/ui/dialogs/ChainDialog.hpp"
 #include "yqlora/editor/ui/widgets/NameDialog.hpp"
 #include "yqlora/editor/ui/widgets/ReleaseClick.hpp"
@@ -47,6 +48,7 @@ private:
 
     AddNodeDialog m_addNode;
     ChainDialog m_chain;
+    BodyChainDialog m_bodyChain;
     // Что было выбрано в прошлом кадре: если выбор сменился не здесь,
     // дерево раскрывается и прокручивается к выбранному узлу.
     NodeId m_lastSelected = 0;

@@ -58,6 +58,7 @@ add_executable(yqlora_tests
     test_process.cpp
     test_physics.cpp
     test_physics_bodies.cpp
+    test_physics_chains.cpp
     test_physics_contacts.cpp
     test_physics_materials.cpp
     test_chain_builder.cpp

@@ -1,9 +1,10 @@
 #include "yqlora/editor/ui/dialogs/ChainDialog.hpp"
 
+#include "yqlora/editor/ui/widgets/WorldPointField.hpp"
+
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
-#include "yqlora/scene/Node3D.hpp"
 
 #include <imgui.h>
 
@@ -19,21 +20,6 @@ constexpr float kDragSpeed = 0.01f;
 constexpr float kMaxLinkMass = 1000.0f;
 constexpr float kMaxLinkSize = 10.0f;
 
-// Точка цепи: поле и кнопка, которая берёт положение выбранного узла.
-void pointField(const char* labelKey, Vec3& point, EditorSession& session)
-{
-    ImGui::PushID(labelKey);
-    const auto* selected = dynamic_cast<const Node3D*>(session.selectedNode());
-    ImGui::BeginDisabled(selected == nullptr);
-    if (ImGui::Button(tr("editor.chain.fromSelected").c_str()) && selected) {
-        point = selected->worldPosition();
-    }
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    ImGui::DragFloat3(tr(labelKey).c_str(), &point.x, kDragSpeed);
-    ImGui::PopID();
-}
-
 } // namespace
 
 void ChainDialog::draw(EditorSession& session)
@@ -48,8 +34,8 @@ void ChainDialog::draw(EditorSession& session)
         return;
     }
 
-    pointField("editor.chain.start", m_settings.start, session);
-    pointField("editor.chain.end", m_settings.end, session);
+    worldPointField("editor.chain.start", m_settings.start, session);
+    worldPointField("editor.chain.end", m_settings.end, session);
     ImGui::DragFloat(
         tr("editor.chain.spacing").c_str(),
         &m_settings.spacing,

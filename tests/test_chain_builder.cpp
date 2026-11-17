@@ -3,6 +3,7 @@
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineServices.hpp>
+#include <yqlora/editor/BodyChainBuilder.hpp>
 #include <yqlora/editor/ChainBuilder.hpp>
 #include <yqlora/editor/EditorSession.hpp>
 #include <yqlora/editor/SceneEditing.hpp>
@@ -10,7 +11,9 @@
 #include <yqlora/physics/BoxCollider.hpp>
 #include <yqlora/physics/CapsuleCollider.hpp>
 #include <yqlora/physics/Joint.hpp>
+#include <yqlora/physics/PhysicsChain.hpp>
 #include <yqlora/physics/RigidBody.hpp>
+#include <yqlora/render/MeshRenderer.hpp>
 #include <yqlora/scene/Node3D.hpp>
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
@@ -109,4 +112,37 @@ TEST_CASE("Create chain: a free end has no joint, and a path of zero length buil
     }
     CHECK(joints == 1);
     CHECK_FALSE(buildChain({.start = Vec3(1.0f), .end = Vec3(1.0f)}, {}));
+}
+
+TEST_CASE_FIXTURE(Fixture, "Create body chain: a PhysicsChain with a capsule mesh along each link, one undo step")
+{
+    const BodyChainSettings settings{
+        .name = "Snake",
+        .position = {1.0f, 0.5f, 0.0f},
+        .segments = 4,
+        .length = 2.0f,
+        .radius = 0.1f,
+        .mass = 3.0f,
+    };
+    Node* snake = createBodyChain(session, settings);
+    REQUIRE(snake);
+    CHECK(snake->name() == "Snake");
+    const auto* chain = snake->getComponent<PhysicsChain>();
+    REQUIRE(chain);
+    CHECK(chain->segments() == 4);
+    CHECK(chain->length() == doctest::Approx(2.0f));
+    CHECK(chain->mass() == doctest::Approx(3.0f));
+    REQUIRE(snake->children().size() == 4);
+
+    // Меш звена лежит вдоль +Z от узла: ось капсулы (Y меша) смотрит по звену.
+    session.scene().updateTransforms();
+    const auto& last = static_cast<const Node3D&>(*snake->children().back());
+    CHECK(last.getComponent<MeshRenderer>());
+    CHECK(glm::length(last.worldPosition() - Vec3(1.0f, 0.5f, 1.75f)) < 1e-4f);
+    const Vec3 meshAxis = glm::normalize(Vec3(last.worldMatrix()[1]));
+    CHECK(glm::length(meshAxis - Vec3(0.0f, 0.0f, 1.0f)) < 1e-4f);
+
+    const NodeId snakeId = snake->id();
+    REQUIRE(session.undo());
+    CHECK(session.scene().find(snakeId) == nullptr);
 }

@@ -14,6 +14,7 @@
 #include "yqlora/physics/JoltMath.hpp"
 #include "yqlora/physics/MeshShapeCache.hpp"
 #include "yqlora/physics/PhysicsBodies.hpp"
+#include "yqlora/physics/PhysicsChain.hpp"
 #include "yqlora/physics/PhysicsContacts.hpp"
 #include "yqlora/physics/PhysicsMaterialCache.hpp"
 #include "yqlora/physics/PhysicsRuntime.hpp"
@@ -27,6 +28,7 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 
 #include <type_traits>
+#include <vector>
 
 namespace yqlora {
 
@@ -51,6 +53,7 @@ PhysicsWorld::Impl::Impl(Scene& scene, PhysicsRuntime& physicsRuntime, const Phy
     , bodies(scene, system.GetBodyInterface(), physicsRuntime.meshShapes(), physicsRuntime.materials())
     , characters(system, bodies, {objectVsBroadPhase, pairs}, physicsRuntime.tempAllocator())
     , joints(scene, system, bodies, ignores)
+    , chains(scene, system, bodies, physicsRuntime.materials())
     , contacts(scene, bodies)
     , queries(system, bodies)
 {
@@ -125,14 +128,17 @@ void PhysicsWorld::afterFixedUpdate(float stepSeconds)
 
     world.bodies.flush();
     world.joints.sync();
+    world.chains.sync();
     world.characters.sync();
     PhysicsMaterialCache& materials = world.runtime.materials();
     materials.refresh(scene().services().resources());
     if (materials.generation() != world.materials) {
         world.materials = materials.generation();
         world.bodies.wakeAll();
+        world.chains.wakeAll();
     }
     world.bodies.beforeStep(stepSeconds);
+    world.chains.beforeStep();
     const JPH::EPhysicsUpdateError errors = world.system.Update(
         stepSeconds,
         kCollisionStepsPerStep,
@@ -142,7 +148,9 @@ void PhysicsWorld::afterFixedUpdate(float stepSeconds)
     ++m_steps;
     world.bodies.afterStep();
     world.joints.afterStep(stepSeconds);
-    world.contacts.deliver(world.listener.take());
+    const std::vector<RawContact> touches = world.listener.take();
+    world.chains.afterStep(touches);
+    world.contacts.deliver(touches);
     // У флагов Jolt нет operator~: новые ошибки - побитово по числам.
     using Flags = std::underlying_type_t<JPH::EPhysicsUpdateError>;
     const auto fresh = static_cast<Flags>(static_cast<Flags>(errors) & ~static_cast<Flags>(world.reported));
@@ -155,7 +163,9 @@ void PhysicsWorld::afterFixedUpdate(float stepSeconds)
 void PhysicsWorld::update(float /*deltaSeconds*/)
 {
     if (m_impl) {
-        m_impl->bodies.interpolate(scene().time().fixedStepFraction());
+        const float fraction = scene().time().fixedStepFraction();
+        m_impl->bodies.interpolate(fraction);
+        m_impl->chains.interpolate(fraction);
     }
 }
 
@@ -202,6 +212,20 @@ const PhysicsJoints* PhysicsWorldJolt::jointsOf(const Component& component)
     return world && world->m_impl ? &world->m_impl->joints : nullptr;
 }
 
+const PhysicsChains* PhysicsWorldJolt::chainsOf(const Component& component)
+{
+    Node* node = component.owner();
+    Scene* scene = node ? node->scene() : nullptr;
+    PhysicsWorld* world = scene ? scene->system<PhysicsWorld>() : nullptr;
+    if (!world || !world->m_impl) {
+        return nullptr;
+    }
+    // Звенья, построенные или перенесённые по изменениям после шага.
+    world->m_impl->chains.sync();
+
+    return &world->m_impl->chains;
+}
+
 JoltWorld PhysicsWorldJolt::worldOf(const Component& component)
 {
     Node* node = component.owner();
@@ -226,6 +250,8 @@ void PhysicsWorldAccess::changed(Component& component)
         world->impl().characters.changed(*controller);
     } else if (auto* joint = dynamic_cast<Joint*>(&component)) {
         world->impl().joints.changed(*joint);
+    } else if (auto* chain = dynamic_cast<PhysicsChain*>(&component)) {
+        world->impl().chains.changed(*chain);
     } else {
         world->impl().bodies.branchChanged(*component.owner());
     }
@@ -241,6 +267,8 @@ void PhysicsWorldAccess::left(Component& component)
         world->m_impl->characters.left(*controller);
     } else if (const auto* joint = dynamic_cast<const Joint*>(&component)) {
         world->m_impl->joints.left(*joint);
+    } else if (const auto* chain = dynamic_cast<const PhysicsChain*>(&component)) {
+        world->m_impl->chains.left(*chain);
     } else {
         world->m_impl->bodies.componentLeft(component);
     }
@@ -249,9 +277,13 @@ void PhysicsWorldAccess::left(Component& component)
 void PhysicsWorldAccess::tuned(Component& component)
 {
     PhysicsWorld* world = worldOf(component);
-    auto* joint = dynamic_cast<Joint*>(&component);
-    if (world && world->m_impl && joint) {
+    if (!world || !world->m_impl) {
+        return;
+    }
+    if (auto* joint = dynamic_cast<Joint*>(&component)) {
         world->m_impl->joints.tuned(*joint);
+    } else if (auto* chain = dynamic_cast<PhysicsChain*>(&component)) {
+        world->m_impl->chains.tuned(*chain);
     }
 }
 
