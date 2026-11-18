@@ -164,7 +164,8 @@ room for it:
   from the sky (see [materials](materials.md#light-units-exposure-and-tone-mapping-done)).
 - **Post-processing** in and before the output pass: auto exposure (one
   more mode of the camera exposure), bloom, temporal anti-aliasing (TAA),
-  then depth of field, motion blur, colour grading.
+  then depth of field, motion blur, colour grading; volumes and a game's
+  own effects. The plan is [post-processing](post-processing.md).
 - **Lighting**: reflection probes placed in the scene, ambient occlusion
   (SSAO), then global illumination.
 - **Area lights**: a rectangle and a disc (computed with LTC); directional, point and spot lights exist from step 5,

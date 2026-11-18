@@ -323,8 +323,8 @@ axles, ragdolls, things hanging from a ceiling.
   added as one undo step (`ChainBuilder`). The number of links makes the
   spacing fit exactly; an attached end holds on to the body under its
   point, or to the world without one. Picking the points with a click in
-  the viewport is in PH.9. A soft rope and cloth (Jolt soft bodies) come
-  later as their own component.
+  the viewport is in PH.9. A soft rope and cloth (Jolt soft bodies) are
+  their own components: see [cloth and ropes](cloth.md).
 - **Stability**: a chain of many light links hanging a heavy body needs
   more solver steps; `velocitySteps` and `positionSteps` are in the
   Physics section of the project settings (10 and 2 by default), and each
@@ -606,9 +606,10 @@ Everything set in the inspector is a property with a setter (see
 
 ### PH.9 Editor
 
-- Collider gizmos and handles, "Show colliders", fitting to the mesh,
-  drops onto physics fields; joint gizmos; chain ends with a click in the
-  viewport.
+- Collider gizmos and handles (the face handles are one widget,
+  `BoxHandles`, which [blockout](blockout.md) uses too), "Show colliders",
+  fitting to the mesh, drops onto physics fields; joint gizmos; chain ends
+  with a click in the viewport.
 - Tests (logic without the interface): a new collider fits the mesh bounds
   of its node; a handle drag is one undo step.
 

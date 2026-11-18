@@ -16,16 +16,22 @@ documents keep only how the engine works.
 | [Types and reflection](reflection.md) | type registry, properties, methods, types declared at run time |
 | [Engine context and the frame](frame.md) | engine services, game time, scene systems, the order of a frame |
 | [Rendering](rendering.md) | cameras, layers, views, the RHI, shaders, Prepare and the render graph |
+| [Post-processing](post-processing.md) | auto exposure, bloom, anti-aliasing, depth of field, grading, volumes, a game's own effects (after the MVP) |
+| [Shader graph](shader-graph.md) | shaders from blocks compiled to `.yshader`, the graph editor shared with visual scripts (after the MVP) |
 | [Shaders, materials and lights](materials.md) | shaders, materials and their slots, lights, sky and atmosphere, ambient light, shadows, glTF materials |
 | [Noise](noise.md) | noise in code, scripts, textures and shaders from one set of algorithms |
 | [Animation](animation.md) | the animation resource, `AnimationPlayer`, the Animation panel with keys |
 | [Particles](particles.md) | particle effects: the effect resource, `ParticleEmitter`, instanced drawing |
+| [Wind](wind.md) | wind zones, gusts, one wind field for vegetation, cloth and particles on the CPU and the GPU (after the MVP) |
+| [Terrain and vegetation](terrain.md) | height map terrain with LOD, layers, holes, brushes; grass and placed trees and rocks (after the MVP) |
 | [Game interface](ui.md) | controls, layout, text, themes, focus and input, menus and run-time settings (step 8) |
 | [Audio](audio.md) | clips, sources and the listener, buses and effects, voices (step 7) |
 | [Documentation and the release](documentation.md) | API reference, the site, the editor guide, the tutorial, release 0.0.2 (step 10) |
 | [Building](build.md) | the player, cooking and the import cache, the package, scene changes, saves (step 9) |
 | [Physics](physics.md) | rigid bodies, colliders, contacts and triggers, queries, the character controller, joints (step 6) |
 | [Cameras](cameras.md) | camera rigs: flight, first and third person, following, transitions between shots (after step 6) |
+| [Blockout](blockout.md) | grid materials, block shapes, drawing and pulling a test level in the scene view (after cameras) |
+| [Cloth and ropes](cloth.md) | soft bodies: cloth and soft ropes with pinning, wind and a speed budget (after the MVP) |
 | [Navigation and player control](navigation.md) | navigation map, path finding, agents, `PlayerController` (after the MVP) |
 | [Scripts](scripting.md) | C++, Luau, visual scripts, hot reload, scene access from code, timers |
 | [Prefabs](prefabs.md) | prefabs with overrides, nesting and variants, creating objects in a game |
@@ -54,12 +60,21 @@ The rest of the MVP, in this order; each stage has its plan with phases
    [prefabs](prefabs.md), [events](events.md), [editor](editor.md).
 2. **Physics** (step 6): [physics](physics.md).
 3. **Cameras** (after step 6): [cameras](cameras.md).
-4. **The game interface** (step 8): [game interface](ui.md).
-5. **Running a game without the editor** (step 9): [building](build.md).
-6. **Audio** (step 7): [audio](audio.md).
-7. **Documents and version 0.0.2** (step 10): [documentation and the release](documentation.md).
+4. **Blockout** (after cameras): [blockout](blockout.md).
+5. **The game interface** (step 8): [game interface](ui.md).
+6. **Running a game without the editor** (step 9): [building](build.md).
+7. **Audio** (step 7): [audio](audio.md).
+8. **Documents and version 0.0.2** (step 10): [documentation and the release](documentation.md).
 
-After the MVP: animation, then particles and noise, then Luau, then 2D.
+After the MVP: animation; particles and noise; wind, terrain and
+vegetation ([wind](wind.md), [terrain](terrain.md)); cloth and ropes
+([cloth](cloth.md)); post-processing, the first part of the photorealism
+stage ([post-processing](post-processing.md)); Luau; the shader graph
+([shader graph](shader-graph.md)); 2D; visual scripts on the graph editor
+of the shader graph. The order follows the dependencies: wind needs noise,
+terrain needs the instancing of particles and the wind, cloth needs the
+wind and the run-time meshes of blockout, the shader graph needs the time
+of wind and the depth sampling of post-processing.
 
 ## Code layout
 

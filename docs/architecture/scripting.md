@@ -409,8 +409,9 @@ links, then attached to a node and works like a C++ or Luau script.
   C++ exception.
 - Visual scripts are their own type module (`visual`), reloaded when a graph
   is saved.
-- The graph editor is a panel of the editor; editing logic lives apart from
-  ImGui, like the rest of the editor.
+- The graph editor is the module `editor/graph`, shared with the
+  [shader graph](shader-graph.md) and built with it; editing logic lives
+  apart from ImGui, like the rest of the editor.
 
 ## Build and hot reload [done]
 
