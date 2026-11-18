@@ -135,6 +135,27 @@ is in [materials](materials.md).
   overrides of slot values (`MeshRenderer::overrides`) are run-time state
   and are not saved; the slots are properties and are.
 
+### Physics components [done]
+
+How bodies move and collide is in [physics](physics.md); in the scene they
+are components on `Node3D`:
+
+- **`RigidBody`** makes its node a body; **colliders** (`BoxCollider`,
+  `SphereCollider`, `CapsuleCollider`, `CylinderCollider`,
+  `ConvexCollider`, `MeshCollider`) give it its shape. A body is made of
+  the colliders of its node and its descendants down to the next node with
+  its own `RigidBody`; a collider without a body above it is a static body
+  by itself.
+- **Joints** (`FixedJoint`, `PointJoint`, `HingeJoint`, `SliderJoint`,
+  `DistanceJoint`, `ConeJoint`, `SwingTwistJoint`, `SixDofJoint`) stand on
+  a node with a `RigidBody` and link it to another body or the world; one
+  node may hold several.
+- **`CharacterController`** moves a capsule through the world for a
+  player; **`PhysicsChain`** is a row of linked bodies that bends (a snake,
+  a tail). Both stand instead of a `RigidBody`.
+- Physics state (velocities, contacts) lives in the physics world and is
+  not saved; the properties are.
+
 ## Lifecycle
 
 | Call | Where | What for |

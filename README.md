@@ -24,7 +24,7 @@ MVP: everything needed to build a small game prototype.
 - [x] Materials, custom shaders, lights, sky, sun and shadows ([your own shader, material and sky](docs/guide/shader-material-sky.md))
 - [x] Prefabs with overrides, nesting and variants, creating objects in a game and a pool ([prefabs](docs/guide/prefabs.md))
 - [x] Scene access from code, references in the inspector, events, timers, opening code in your editor ([first script](docs/guide/first-script.md))
-- [ ] Physics and collisions
+- [x] Physics: bodies, colliders, triggers, queries, a character controller, joints, body chains ([physics](docs/guide/physics.md))
 - [ ] Audio
 - [ ] Game UI
 - [ ] Running a game without the editor

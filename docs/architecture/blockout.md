@@ -39,7 +39,7 @@ later replaced by models piece by piece.
   A blockout shape gets a `MeshCollider` with `Renderer`: the collision
   is always the drawn shape, with nothing copied and nothing to keep in
   step. Without a `RigidBody` above, the collider makes a static body (see
-  [physics](physics.md#bodies-and-colliders-planned-step-6)); a moving
+  [physics](physics.md#bodies-and-colliders-done)); a moving
   block (a platform) takes a kinematic `RigidBody`, which mesh shapes
   allow. A block that must fall and tumble is not a blockout: it takes a
   `BoxCollider` and a dynamic body.

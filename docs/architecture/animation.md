@@ -169,7 +169,7 @@ A panel at the bottom, a tab next to Files and Log.
   pose of the animation and still react to hits, so a character stumbles
   instead of passing through; turning the motors off, or a blend from the
   animated pose, makes it fall limp. A body chain of
-  [physics](physics.md#body-chains-planned-step-6) drives the bones of one
+  [physics](physics.md#body-chains-done) drives the bones of one
   bending mesh the same way.
 - Blending and cross fading (`player.crossFade(run, 0.3f)`), layers, a state
   machine resource with transitions by parameters.

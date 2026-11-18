@@ -59,7 +59,7 @@ many of them in a game scene.
   vertices with edge and bend constraints, drawn as a tube (a run-time
   mesh with `radius` and `sides`). Two
   ends can be pinned to nodes or bodies. A rope that must pull bodies hard
-  (a crane, a tow) is a [body chain](physics.md#body-chains-planned-step-6)
+  (a crane, a tow) is a [body chain](physics.md#body-chains-done)
   or `DistanceJoint`; a soft rope hangs and wraps, it does not lift a truck.
 
 ## Cloth (`Cloth`)

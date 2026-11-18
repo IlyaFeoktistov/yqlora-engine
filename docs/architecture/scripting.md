@@ -225,7 +225,7 @@ The component lifecycle of the [scene](scene.md), as scripts see it:
      field values **[done]**.
    - 4c. An example game module in `examples/`, built with the repository: a
      `Rotator` script with fields (speed, axis) **[done]**. A movement
-     example is physics-based and comes with step 6.
+     example is physics-based: see the guide "Physics".
 5. Documents: this one, the game module, a "first script" guide and the
    limits (native code can crash the editor; one game module per project;
    how Luau and graphs fit the same boundaries) **[done]**.
@@ -248,9 +248,11 @@ bindings without extra work.
 - **Creating objects in a game** **[done]**: `scene().instantiate(prefab,
   parent)` for a prefab or a model and the `PrefabPool` for what comes
   often, see [prefabs](prefabs.md#in-a-game-done).
-- **Rays and overlaps** (step 6): `physics().raycast`, `sphereCast`,
-  `overlap` in the physics world, with layers. Picking of the editor stays
-  in the editor.
+- **Physics** **[done]**: `physics()` of a script gives rays, shape
+  sweeps and overlaps with layers, gravity and pairs that do not collide;
+  bodies, joints, the character controller and body chains are moved and
+  read through their methods, see [physics](physics.md#from-code-done).
+  Picking of the editor stays in the editor.
 - **Debug drawing** **[done]** (step 6): `debugDraw().line`, `arrow`,
   `sphere` and other shapes over the world by channel, see
   [rendering](rendering.md#debug-drawing-done). For now from C++; Luau

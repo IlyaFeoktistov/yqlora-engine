@@ -58,7 +58,7 @@ The rest of the MVP, in this order; each stage has its plan with phases
    (T.1, T.2), prefabs (PF.2 to PF.5), the external code editor (CE.1,
    CE.2), then the documents of the stage (SA.4, PF.6, EV.3, T.3, CE.3). See [scripting](scripting.md),
    [prefabs](prefabs.md), [events](events.md), [editor](editor.md).
-2. **Physics** (step 6): [physics](physics.md).
+2. **Physics** (step 6) **[done]**: [physics](physics.md), the guide [physics](../guide/physics.md).
 3. **Descriptions and the type picker** (PD.1, AC.1): a tooltip with what a
    field does and its usual values, see
    [editor](editor.md#descriptions-of-properties-planned-after-step-6); a
@@ -73,7 +73,9 @@ The rest of the MVP, in this order; each stage has its plan with phases
    in a built game, the bugs found fixed, before the release.
 10. **Documents and version 0.0.2** (step 10): [documentation and the release](documentation.md).
 
-After the MVP: animation; particles and noise; wind, terrain and
+After the MVP: protecting a game, before the first game is sold
+([building](build.md#protecting-a-game-planned-after-the-mvp)); animation;
+particles and noise; wind, terrain and
 vegetation ([wind](wind.md), [terrain](terrain.md)); cloth and ropes
 ([cloth](cloth.md)); post-processing, the first part of the photorealism
 stage ([post-processing](post-processing.md)); Luau; the shader graph
@@ -106,7 +108,7 @@ engine/include/yqlora/project/     Project, ProjectSettings, SettingsSection, Ge
 engine/include/yqlora/scripting/   Script, ModuleRegistrar; GameModule in internal/
 engine/include/yqlora/render/      Camera3D, MeshRenderer, RenderSystem, lights, Environment
 engine/include/yqlora/material/    MaterialOverrides, SharedMaterial (materials from scripts)
-engine/include/yqlora/physics/     RigidBody, colliders, PhysicsWorld                  [step 6]
+engine/include/yqlora/physics/     RigidBody, colliders, joints, PhysicsChain, PhysicsWorld
 engine/include/yqlora/camera/      CameraRig, rigs, CameraDirector                     [after step 6]
 engine/include/yqlora/audio/       AudioSource, AudioListener, AudioWorld              [step 7]
 engine/include/yqlora/ui/          Control, Label, Button                              [step 8]

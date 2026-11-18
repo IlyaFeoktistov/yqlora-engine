@@ -6,7 +6,7 @@ An event is something a component tells others about: a timer ran out, a
 button was pressed, a body entered a trigger. Code subscribes to it, and a
 scene can wire it in the inspector without code: "when this button is
 pressed, call `open` on that door". Timers, the game interface (step 8) and
-physics (step 6) are built on it.
+physics are built on it.
 
 Status marks: see [README](README.md).
 

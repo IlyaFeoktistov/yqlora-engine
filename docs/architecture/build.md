@@ -171,3 +171,90 @@ This file, frame (scene changes, global nodes), resources (cooking, the
 cache, the package, export and import), project (the cache folder), project settings
 (Display, Build), scripting (`scenes()`, `saveData()`, `display()`), the
 guide "Building a game", README.
+
+## Protecting a game [planned, after the MVP]
+
+Keeping a released game from being copied without paying, and its
+resources from being ripped. No protection holds forever: the aim is to
+hold off cracking through the first weeks of sales, when most copies are
+sold, and to stop casual copying and unpacking, without making the game
+worse for those who bought it. The engine does not write its own DRM in the
+league of Denuvo; it gives what such tools need and what a store already
+offers, and layers of its own that cost little.
+
+- **The engine stays compatible with commercial protectors.** Denuvo
+  (licensed by the publisher from Irdeto, per title), VMProtect, Themida and
+  the Steam DRM wrapper work on the finished executable. The engine
+  guarantees that a protected build runs: no self-modifying code, no
+  checks of its own executable that a protector would break, and the
+  timing of protected code kept out of the hot loops of a frame (the
+  protector is told which functions to cover through a list in the build
+  settings, not by guessing).
+- **A single executable for release.** The game module is a separate
+  library for hot reload in the editor; a protector covers one file best.
+  A release build links the engine, the player and the game module
+  statically into one executable (`Build > Single executable`), with
+  symbols stripped, hidden visibility and link-time optimization, so there
+  is no exported table of game functions to read.
+- **A protection step in the build.** After the executable is linked and
+  before it is packed, the build runs the tools listed in the Build
+  section of the project settings (a command line with the paths of the
+  output); a failing tool fails the build. This is where Denuvo, a
+  protector or a store's signing tool is applied, on any machine where the
+  publisher has it installed.
+- **The package is encrypted and signed.** Entries of the `.ypak` are
+  encrypted (AES-256-GCM, a key per build, kept in the executable split
+  and hidden, covered by the protector when there is one), and the table
+  of contents is signed, so a changed or swapped resource is refused at
+  load with an error. This stops ripping models and textures with a
+  generic unpacker and modding the game where it is not wanted; a game
+  that wants mods turns encryption off and reads mod folders.
+- **Store ownership.** A `Store` service with one interface and a backend
+  per store: Steamworks first (restart through Steam if not started from
+  it, ownership of the app and its DLC), then EGS and GOG; without a
+  backend everything is owned. The checks are calls a game makes where it
+  wants them, not one switch at the start that is easy to patch out.
+- **Not punishing buyers**: no online check is built in, a protected game
+  runs offline; the cost of a protector on frame time is measured by the
+  same frame statistics as everything else.
+
+## Where the engine ends and the game begins (protection)
+
+The engine gives the single executable, the protection step, the
+encrypted and signed package and store ownership. Which protector to buy,
+whether to use one, how a game reacts to a failed ownership check (a
+message, a limited mode) and online checks on the game's own servers are
+the publisher's and the game's.
+
+### GP.1 Encrypted and signed package
+
+- AES-256-GCM per entry, the key per build, the signed table of contents,
+  the switch for games that want mods.
+- Tests: an encrypted package loads the same resources as a plain one; a
+  changed byte of an entry or of the table is refused with an error; a
+  package of another build with another key is refused; the key is not
+  found as plain bytes in the executable.
+
+### GP.2 The single executable
+
+- Static linking of the engine and the game module into the player for
+  release, stripped symbols, hidden visibility, link-time optimization.
+- Tests: the single executable of the test game runs ten frames and exits
+  with code 0; it exports no symbols of game types; the debug build keeps
+  the separate module and hot reload.
+
+### GP.3 The protection step and store ownership
+
+- The list of tools in the Build section run after linking, the list of
+  functions to cover, `Store` with the Steamworks backend.
+- Tests: a tool from the list runs on the output with its paths and a
+  failing one fails the build with its output in the log; without a
+  backend every app and DLC is owned; the Steamworks backend is checked
+  against the Steamworks SDK test app in a manual check described in the
+  guide.
+
+### GP.4 Documents
+
+- This section - [done], a guide "Protecting a game" (what each layer
+  stops and what it does not, how to add Denuvo or a protector to the
+  build).

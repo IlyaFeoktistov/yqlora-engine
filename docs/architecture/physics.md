@@ -8,7 +8,7 @@ a character controller, joints and body chains on
 
 Status marks: see [README](README.md).
 
-## Decisions [planned, step 6]
+## Decisions [done]
 
 The design is the established one for a component physics engine, and Jolt
 is wired as its documentation and samples recommend; nothing here is new.
@@ -96,7 +96,7 @@ is wired as its documentation and samples recommend; nothing here is new.
   a hot reload and the Play copy start from the properties, as for any
   component.
 
-## Bodies and colliders [planned, step 6]
+## Bodies and colliders [done]
 
 - **`RigidBody`** (on a `Node3D`): `motion` `Static`, `Kinematic` or
   `Dynamic` (the Jolt motion type), `mass` (or from density and volume),
@@ -140,7 +140,7 @@ is wired as its documentation and samples recommend; nothing here is new.
   the new friction. Changing the default material in the settings
   rebuilds bodies: the material is in their shapes.
 
-## Contacts and triggers [planned, step 6]
+## Contacts and triggers [done]
 
 - **Collision events** (see [events](events.md)) on `RigidBody`:
   `onCollisionEnter`, `onCollisionStay`, `onCollisionExit` per collider
@@ -182,7 +182,7 @@ is wired as its documentation and samples recommend; nothing here is new.
   record is no longer found by its reference. A callback may destroy
   nodes: the step's events are gathered before the first call.
 
-## Queries [planned, step 6]
+## Queries [done]
 
 - `physics().raycast(origin, direction, maxDistance, filter)` gives the
   nearest `RaycastHit` (the body's node, the collider, point, normal,
@@ -200,7 +200,7 @@ is wired as its documentation and samples recommend; nothing here is new.
 - The queries live in `PhysicsQueries`, which only reads the Jolt world;
   `PhysicsWorld` prepares the bodies and hands the call over.
 
-## Character controller [planned, step 6]
+## Character controller [done]
 
 - **`CharacterController`** (on a `Node3D`, without a `RigidBody`): the Jolt
   virtual character, the established way to move a player through a world
@@ -256,7 +256,7 @@ double-jump or walk on walls), and animation. A ready player controller
 built on it, with input actions and a camera, is the game part of
 [navigation](navigation.md) (after the MVP).
 
-## Joints [planned, step 6]
+## Joints [done]
 
 A joint links two bodies (or a body and the world) and limits how they move
 relative to each other: chains, ropes, doors on hinges, drawers, wheels on
@@ -322,8 +322,8 @@ axles, ragdolls, things hanging from a ceiling.
   (RigidBody, CapsuleCollider, the built-in capsule mesh) and joints is
   added as one undo step (`ChainBuilder`). The number of links makes the
   spacing fit exactly; an attached end holds on to the body under its
-  point, or to the world without one. Picking the points with a click in
-  the viewport is in PH.9. A soft rope and cloth (Jolt soft bodies) are
+  point, or to the world without one; "Pick" puts a point with a click in
+  the scene view (see [editor](#editor-done)). A soft rope and cloth (Jolt soft bodies) are
   their own components: see [cloth and ropes](cloth.md).
 - **Stability**: a chain of many light links hanging a heavy body needs
   more solver steps; `velocitySteps` and `positionSteps` are in the
@@ -331,17 +331,9 @@ axles, ragdolls, things hanging from a ceiling.
   joint may raise both for itself (`solverStepsOverride`). With the
   defaults a chain of 20 links holding a body 10 times heavier stretches
   by about 2 percent, with 20 steps by about 0.5 percent.
-- **Editor**: the anchor, the axis and the limits of the selected joint are
-  drawn as gizmos (an arc for an angle limit, a segment for a slider), the
-  anchor is moved with the manipulator; a line joins linked bodies.
-- **Tests**: a body on a `PointJoint` to the world swings and stays at its
-  length; a `HingeJoint` with limits stops at them; a motor in `Velocity`
-  reaches its speed; `breakForce` breaks under a heavy body and calls
-  `onBreak` once; a chain of 20 links holding a body 10 times heavier than a
-  link stretches less than 1 percent with `solverStepsOverride` 20, and
-  less than without it; "Create > Chain" is one undo step.
+- **Editor**: the gizmo of joints is in [editor](#editor-done).
 
-## Body chains [planned, step 6]
+## Body chains [done]
 
 A long body that bends along its length and moves by bending: a snake, a
 worm, a tail, a tentacle. It is the established setup for such creatures
@@ -403,7 +395,7 @@ snake (side to side) or a worm (up and down), steering, speed. A ready
 "crawl forward" behaviour with its parameters is a plugin or an example
 script, not the engine.
 
-## From code [planned, step 6]
+## From code [done]
 
 Everything set in the inspector is a property with a setter (see
 [scripting](scripting.md#scene-access-from-code-done)); on top of it:
@@ -428,7 +420,7 @@ Everything set in the inspector is a property with a setter (see
 - Events of bodies and triggers from code (`connect`) and wired in the
   inspector.
 
-## Editor [planned, step 6]
+## Editor [done]
 
 - **Colliders of the selection** are drawn as wire shapes over the scene
   (`ColliderGizmo`): the colliders of the selected node, and fainter the
@@ -479,7 +471,7 @@ Everything set in the inspector is a property with a setter (see
   from the tree and from Files.
 - Play steps the physics; the edited scene does not move.
 
-## Phases (a commit per phase)
+## Phases of step 6 (a commit per phase) [done]
 
 ### PH.1 Jolt and the world
 

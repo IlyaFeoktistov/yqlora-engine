@@ -55,7 +55,7 @@ never go into the project.
 | Layers | names of the 32 node layers used by camera masks and physics | **[done]** |
 | Graphics | graphics API per platform (OpenGL; Vulkan and D3D12 come with the RHI), vsync, both applied at once (see [rendering](rendering.md)); shadows: on or off, distance, cascades, map and atlas sizes, sample counts, the penumbra limit (see [materials](materials.md#shadows-done)) | **[done]** |
 | Scripts | C++ build configuration (Debug, Release), used as `CMAKE_BUILD_TYPE`; each configuration has its own build folder. The toolchain is per machine: it comes from `sdk/toolchain.json`, overrides go to the editor settings (`editor.json`, `toolchain`), see [scripts](scripting.md); Luau later | **[done]** |
-| Physics | gravity, layers, collision matrix | **[planned, step 6]** |
+| Physics | gravity, solver steps, the default physics material, the collision matrix of the layers (see [physics](physics.md)) | **[done]** |
 | Audio | the bus tree with volumes and effects, the voice limit (see [audio](audio.md)) | **[planned, step 7]** |
 | Display | resolution, fullscreen, resizable window | **[planned, step 9]** |
 | Build | target platforms (Windows, Linux), scenes in the game, output folder, debug or release | **[planned, step 9]** |
@@ -129,7 +129,7 @@ Described in [input](input.md).
   still shown while it is selected, by its number.
 - `LayerSettings` (scene/) holds exactly 32 names; the editor shows them as
   fixed rows, the `Default` row disabled **[done]**.
-- Physics (step 6) takes the same layers for its collision matrix.
+- Physics takes the same layers for its collision matrix **[done]**.
 
 ## What the registry needs
 

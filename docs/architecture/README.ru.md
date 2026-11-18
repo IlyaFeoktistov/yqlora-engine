@@ -59,7 +59,7 @@
    документы этапа (SA.4, PF.6, EV.3, T.3, CE.3). См. [скрипты](scripting.ru.md),
    [префабы](prefabs.ru.md), [события](events.ru.md),
    [редактор](editor.ru.md).
-2. **Физика** (шаг 6): [физика](physics.ru.md).
+2. **Физика** (шаг 6) **[done]**: [физика](physics.ru.md), руководство [физика](../guide/physics.ru.md).
 3. **Описания и окно выбора типа** (PD.1, AC.1): подсказка, что делает
    поле и какие у него обычные значения, см.
    [редактор](editor.ru.md#описания-свойств-planned-after-step-6); окно
@@ -74,7 +74,9 @@
    собранной игре, найденные ошибки исправлены, до выпуска.
 10. **Документы и версия 0.0.2** (шаг 10): [документация и выпуск](documentation.ru.md).
 
-После MVP: анимация; частицы и шумы; ветер, ландшафт и растительность
+После MVP: защита игры, до продажи первой игры
+([сборка](build.ru.md#защита-игры-planned-after-the-mvp)); анимация;
+частицы и шумы; ветер, ландшафт и растительность
 ([ветер](wind.ru.md), [ландшафт](terrain.ru.md)); ткань и верёвки
 ([ткань](cloth.ru.md)); постобработка, первая часть этапа фотореализма
 ([постобработка](post-processing.ru.md)); Luau; граф шейдеров
@@ -107,7 +109,7 @@ engine/include/yqlora/project/     Project, ProjectSettings, SettingsSection, Ge
 engine/include/yqlora/scripting/   Script, ModuleRegistrar; GameModule in internal/
 engine/include/yqlora/render/      Camera3D, MeshRenderer, RenderSystem, свет, Environment
 engine/include/yqlora/material/    MaterialOverrides, SharedMaterial (материалы из скриптов)
-engine/include/yqlora/physics/     RigidBody, colliders, PhysicsWorld                  [step 6]
+engine/include/yqlora/physics/     RigidBody, colliders, joints, PhysicsChain, PhysicsWorld
 engine/include/yqlora/camera/      CameraRig, rigs, CameraDirector                     [after step 6]
 engine/include/yqlora/audio/       AudioSource, AudioListener, AudioWorld              [step 7]
 engine/include/yqlora/ui/          Control, Label, Button                              [step 8]
