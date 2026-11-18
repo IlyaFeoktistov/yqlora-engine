@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/editor/ChainBuilder.hpp"
+#include "yqlora/editor/ui/widgets/WorldPointField.hpp"
 
 namespace yqlora::editor {
 
@@ -21,6 +22,7 @@ public:
 private:
     bool m_requested = false;
     ChainSettings m_settings;
+    WorldPointFields m_points;
 };
 
 } // namespace yqlora::editor

@@ -5,6 +5,7 @@
 #include "yqlora/editor/GameLibrary.hpp"
 #include "yqlora/editor/Pings.hpp"
 #include "yqlora/editor/PlayMode.hpp"
+#include "yqlora/editor/PointPick.hpp"
 #include "yqlora/editor/PrefabEditing.hpp"
 #include "yqlora/editor/PreviewLighting.hpp"
 #include "yqlora/editor/ResourceEditing.hpp"
@@ -91,6 +92,12 @@ public:
     const Selection& selection() const
     {
         return m_selection;
+    }
+
+    // Точка мира щелчком в окне сцены для инструментов (концы цепи).
+    PointPick& pointPick()
+    {
+        return m_pointPick;
     }
 
     // Загруженные ресурсы: общие у редактируемой сцены и копии Play.
@@ -276,6 +283,7 @@ private:
     Selection m_selection;
     // Выделение до Play: к нему возвращаемся, если после игры выбранных узлов не осталось.
     Selection m_selectionBeforePlay;
+    PointPick m_pointPick;
     EditHistory m_history;
     float m_sinceModifiedCheck = 0.0f;
     SceneEditing m_editing{*this};

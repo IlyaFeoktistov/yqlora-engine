@@ -251,15 +251,28 @@ std::optional<ScreenVertex> nearestVertex(
     return best;
 }
 
+std::optional<Vec3> rayPlane(const Ray& ray, const Vec3& point, const Vec3& normal)
+{
+    const float along = glm::dot(ray.direction, normal);
+    if (along == 0.0f) {
+        return std::nullopt;
+    }
+    const float t = glm::dot(point - ray.origin, normal) / along;
+    if (t <= 0.0f) {
+        return std::nullopt;
+    }
+
+    return ray.at(t);
+}
+
 Vec3 placementPoint(const Ray& ray)
 {
     const Vec3 direction = glm::normalize(ray.direction);
-    // Плоскость y = 0: луч сверху вниз или снизу вверх, но не вдоль неё.
-    if (direction.y != 0.0f) {
-        const float t = -ray.origin.y / direction.y;
-        if (t > 0.0f && t <= kMaxPlacementDistance) {
-            return ray.origin + direction * t;
-        }
+    const Ray unit{ray.origin, direction};
+    // Плоскость земли y = 0.
+    if (const auto ground = rayPlane(unit, Vec3(0.0f), Vec3(0.0f, 1.0f, 0.0f));
+        ground && glm::length(*ground - ray.origin) <= kMaxPlacementDistance) {
+        return *ground;
     }
 
     return ray.origin + direction * kPlacementDistance;

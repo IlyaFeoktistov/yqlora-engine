@@ -175,6 +175,7 @@ void applyEditorColors(const Json& json, EditorColors& colors)
     read("cameraGizmo", colors.cameraGizmo);
     read("lightGizmo", colors.lightGizmo);
     read("colliderGizmo", colors.colliderGizmo);
+    read("jointGizmo", colors.jointGizmo);
     read("viewportBackground", colors.viewportBackground);
     read("playMode", colors.playMode);
     read("axisX", colors.axisX);

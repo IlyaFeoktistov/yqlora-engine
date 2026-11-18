@@ -59,6 +59,10 @@ std::optional<ScreenVertex> nearestVertex(
     const VertexFilter& filter
 );
 
+// Где луч ray пересекает плоскость через point с нормалью normal; nullopt,
+// если луч вдоль неё или смотрит от неё.
+std::optional<Vec3> rayPlane(const Ray& ray, const Vec3& point, const Vec3& normal);
+
 // Куда поставить ресурс, отпущенный в окне вида под лучом ray: точка на
 // плоскости земли (y = 0), если луч в неё смотрит не дальше
 // kMaxPlacementDistance, иначе точка луча на kPlacementDistance. Привязка к

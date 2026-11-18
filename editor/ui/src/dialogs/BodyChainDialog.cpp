@@ -10,6 +10,7 @@
 #include <imgui_stdlib.h>
 
 #include <string>
+#include <utility>
 
 namespace yqlora::editor {
 
@@ -25,17 +26,26 @@ constexpr float kMaxChainSize = 100.0f;
 void BodyChainDialog::draw(EditorSession& session)
 {
     const std::string title = tr("editor.bodyChain.title") + "###BodyChain";
-    if (m_requested) {
+    // Цепь тел лежит от своего места вдоль +Z мира.
+    const auto showPath = [&] {
+        session.pointPick().showGuide({m_settings.position, m_settings.position + Vec3(0.0f, 0.0f, m_settings.length)});
+    };
+    if (m_points.picking(session)) {
+        showPath();
+
+        return;
+    }
+    if (std::exchange(m_requested, false) || m_points.takeReopen()) {
         ImGui::OpenPopup(title.c_str());
-        m_requested = false;
     }
     ImGui::SetNextWindowSize(kWindowSize, ImGuiCond_Appearing);
     if (!ImGui::BeginPopupModal(title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         return;
     }
+    showPath();
 
     ImGui::InputText(tr("editor.bodyChain.name").c_str(), &m_settings.name);
-    worldPointField("editor.bodyChain.position", m_settings.position, session);
+    m_points.field("editor.bodyChain.position", m_settings.position, session);
     ImGui::DragInt(
         tr("editor.bodyChain.segments").c_str(),
         &m_settings.segments,

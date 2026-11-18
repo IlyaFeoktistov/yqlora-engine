@@ -10,6 +10,7 @@
 
 #include <iterator>
 #include <string>
+#include <utility>
 
 namespace yqlora::editor {
 
@@ -25,17 +26,23 @@ constexpr float kMaxLinkSize = 10.0f;
 void ChainDialog::draw(EditorSession& session)
 {
     const std::string title = tr("editor.chain.title") + "###Chain";
-    if (m_requested) {
+    if (m_points.picking(session)) {
+        session.pointPick().showGuide({m_settings.start, m_settings.end});
+
+        return;
+    }
+    if (std::exchange(m_requested, false) || m_points.takeReopen()) {
         ImGui::OpenPopup(title.c_str());
-        m_requested = false;
     }
     ImGui::SetNextWindowSize(kWindowSize, ImGuiCond_Appearing);
     if (!ImGui::BeginPopupModal(title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         return;
     }
+    // Путь цепи виден в окне сцены, пока окно открыто.
+    session.pointPick().showGuide({m_settings.start, m_settings.end});
 
-    worldPointField("editor.chain.start", m_settings.start, session);
-    worldPointField("editor.chain.end", m_settings.end, session);
+    m_points.field("editor.chain.start", m_settings.start, session);
+    m_points.field("editor.chain.end", m_settings.end, session);
     ImGui::DragFloat(
         tr("editor.chain.spacing").c_str(),
         &m_settings.spacing,

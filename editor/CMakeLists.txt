@@ -36,7 +36,9 @@ add_library(yqlora_editor STATIC
     src/ComponentSnapshot.cpp
     src/CodeEditor.cpp
     src/EditorCamera.cpp
+    src/JointEditing.cpp
     src/Picking.cpp
+    src/PointPick.cpp
     src/PropertyValues.cpp
     src/EditorSession.cpp
     src/EditorSettings.cpp
@@ -106,7 +108,9 @@ add_library(yqlora_editor_ui STATIC
     ui/src/gizmos/GizmoDrawing.cpp
     ui/src/gizmos/GizmoLayer.cpp
     ui/src/gizmos/ColliderGizmo.cpp
+    ui/src/gizmos/JointGizmo.cpp
     ui/src/gizmos/LightGizmo.cpp
+    ui/src/gizmos/PointPickGizmo.cpp
     ui/src/gizmos/GridGizmo.cpp
     ui/src/gizmos/ManipulatorGizmo.cpp
     ui/src/gizmos/SelectionGizmo.cpp

@@ -35,32 +35,6 @@ namespace yqlora {
 
 namespace {
 
-const Vec3 kDefaultAxis(0.0f, 1.0f, 0.0f);
-
-// Единичная ось, перпендикулярная единичной axis: нуль угла петли и
-// вторая ось рамки. Одна и та же для одной оси.
-Vec3 perpendicularTo(const Vec3& axis)
-{
-    const Vec3 helper = std::abs(axis.x) < 1.0f - math::kEpsilon ? Vec3(1.0f, 0.0f, 0.0f) : Vec3(0.0f, 0.0f, 1.0f);
-
-    return glm::normalize(glm::cross(glm::cross(axis, helper), axis));
-}
-
-// Ось вида, у которого она есть; у остальных - ось Y узла.
-Vec3 axisOf(const JointDefinition& definition)
-{
-    return std::visit(
-        [](const auto& kind) {
-            if constexpr (requires { kind.axis; }) {
-                return glm::normalize(kind.axis);
-            } else {
-                return kDefaultAxis;
-            }
-        },
-        definition
-    );
-}
-
 JointFrame toWorld(const Mat4& world, const JointFrame& local)
 {
     const Quat rotation = bodyPoseOf(world).rotation;
@@ -533,10 +507,10 @@ void PhysicsJoints::build(Entry& entry, JPH::BodyID own, JPH::BodyID connected, 
         return;
     }
     const JointDefinition definition = joint.definition();
-    const Vec3 axis = axisOf(definition);
+    const Vec3 axis = jointAxis(definition);
     const JointFrame ownWorld = toWorld(
         ownNode->worldMatrix(),
-        {.point = joint.anchor(), .axis = axis, .normal = perpendicularTo(axis)}
+        {.point = joint.anchor(), .axis = axis, .normal = jointNormal(axis)}
     );
     const Mat4 connectedMatrix = connectedNode ? connectedNode->worldMatrix() : Mat4(1.0f);
     if (!entry.connectedFrame || entry.connectedOwner != connectedOwner) {

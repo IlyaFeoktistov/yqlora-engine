@@ -133,6 +133,49 @@ documents.
   material inspector, and a wrong argument is a compile error with the
   line.
 
+## Adding components and nodes [planned, after step 6]
+
+"Add component" and "Add node" open one picker, `TypePicker`, instead of a
+plain list of type names: a person finds what they need by what it does,
+not by knowing its name.
+
+- **Shelves**: types are grouped by category on the left (Rendering,
+  Physics, Physics > Joints, Cameras, Audio, Interface, Scripts of the
+  game, ...); the right side lists the types of the chosen shelf as rows
+  with an icon, the name in the person's language and a one-line
+  description. "All" and "Recent" (the last types added in this project)
+  are shelves too.
+- **The category and the icon are the type's**: `.category("Physics/Joints")`
+  in the type builder, the icon in the table of type icons (as node icons
+  are now). One place each; a new type sets them where it is registered.
+  Scripts of the game take their folder in the project as the category and
+  the script icon unless they set their own.
+- **Details of the selected type** below the list: the full description,
+  what it adds with it (`requiresComponent`), where it goes
+  (`requiresNode`), and a link to its page in the guide.
+- **Types that do not fit** the node are shown greyed with the reason
+  ("only on a Node3D", "already on this node", "needs a RigidBody above"),
+  not hidden: a person learns why instead of searching for a missing row.
+- **Search** over names and descriptions in the current language and in
+  English, typing goes to the search at once; arrows move, Enter adds,
+  Escape closes. A search shows matches from all shelves with their shelf.
+- One widget for components and nodes: the node picker shows the
+  inheritance tree as its shelves; the logic (shelves, filtering, reasons,
+  recent types) lives in the editor without ImGui and is tested.
+
+### AC.1 The type picker
+
+- `.category` in the registry and categories of all engine types, icons of
+  component types, `TypePicker` with shelves, details, reasons, search and
+  recent types, used by "Add component" and "Add node".
+- Tests (logic without the interface): every engine component type has a
+  category and an icon; a shelf lists its types in name order and "All"
+  lists every creatable type; a type that does not fit the node gives its
+  reason; a search finds a type by a word of its Russian description and
+  by its English name; adding a type puts it first in "Recent", which keeps
+  `kRecentTypes` entries; a script of the game is on the shelf of its
+  folder.
+
 ## Log [done]
 
 - The engine log has subscribers (`log::subscribe`, internal): a listener

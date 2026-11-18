@@ -1,5 +1,6 @@
 #pragma once
 
+#include "yqlora/core/Export.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/physics/AxisLocks.hpp"
 #include "yqlora/reflection/EnumNames.hpp"
@@ -141,6 +142,15 @@ using JointDefinition = std::variant<
     ConeJointDefinition,
     SwingTwistJointDefinition,
     SixDofJointDefinition>;
+
+// Ось скрепления в осях его узла, единичная: ось вида, у которого она
+// есть, у остальных - ось Y узла. По ней физика строит ограничение, а
+// редактор рисует скрепление.
+YQLORA_API Vec3 jointAxis(const JointDefinition& definition);
+
+// Нуль угла петли и вторая ось рамки скрепления: единичный перпендикуляр к
+// единичной axis, всегда один и тот же для одной оси.
+YQLORA_API Vec3 jointNormal(const Vec3& axis);
 
 } // namespace yqlora
 

@@ -221,6 +221,7 @@ add_library(yqlora SHARED
     src/physics/CollisionIgnores.cpp
     src/physics/CylinderCollider.cpp
     src/physics/Joint.cpp
+    src/physics/JointDefinition.cpp
     src/physics/JointControl.cpp
     src/physics/JoltContacts.cpp
     src/physics/JoltLayers.cpp

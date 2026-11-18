@@ -5,8 +5,10 @@
 #include "yqlora/editor/ui/gizmos/CameraGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/ColliderGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/GridGizmo.hpp"
+#include "yqlora/editor/ui/gizmos/JointGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/LightGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/ManipulatorGizmo.hpp"
+#include "yqlora/editor/ui/gizmos/PointPickGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/SelectionGizmo.hpp"
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
@@ -118,10 +120,13 @@ bool drawDebugMenu(EditorContext& context, DebugChannels& shown, float& right, f
 
 ViewportPanel::ViewportPanel()
 {
-    // Порядок - приоритет мыши: ручки коллайдеров раньше манипулятора (они
-    // мельче и стоят на сторонах, манипулятор - в середине), манипулятор и
-    // оси раньше выбора кликом. Он же порядок проходов вида: сетка мышь не
-    // берёт и стоит перед выбором, чтобы контур выделения рисовался поверх неё.
+    // Порядок - приоритет мыши: выбор точки для инструмента забирает щелчок
+    // первым; ручки коллайдеров и скреплений раньше манипулятора (они мельче,
+    // манипулятор - в середине), манипулятор и оси раньше выбора кликом. Он
+    // же порядок проходов вида: сетка мышь не берёт и стоит перед выбором,
+    // чтобы контур выделения рисовался поверх неё.
+    m_gizmos.add(std::make_unique<PointPickGizmo>());
+    m_gizmos.add(std::make_unique<JointGizmo>());
     m_gizmos.add(std::make_unique<ColliderGizmo>());
     m_gizmos.add(std::make_unique<ManipulatorGizmo>());
     m_gizmos.add(std::make_unique<AxisGizmo>());

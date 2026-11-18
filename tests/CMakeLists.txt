@@ -63,6 +63,7 @@ add_executable(yqlora_tests
     test_physics_materials.cpp
     test_chain_builder.cpp
     test_collider_editing.cpp
+    test_joint_editing.cpp
     test_character_controller.cpp
     test_debug_draw.cpp
     test_physics_joints.cpp
