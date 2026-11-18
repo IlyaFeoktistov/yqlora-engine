@@ -56,7 +56,7 @@ later replaced by models piece by piece.
   texture, thin lines every quarter, a mark in the middle; with UVs in
   metres a cell is 1 m) are there for one's own materials and models.
 - **Editing goes through the tools of PH.9.** Face handles that change the
-  size of a box collider (PH.9) are one widget, `BoxHandles`; blockout uses
+  size of a box collider (PH.9) are one widget, `ShapeHandles`; blockout uses
   the same widget, so dragging a face, snapping and undo behave alike.
 - **On the grid.** Sizes, drawing and handles snap to the grid of
   [snapping](editor.md#snapping-while-moving-done) when it is on; the
@@ -174,7 +174,7 @@ game: its components on the nodes of the blocks or next to them.
 
 ### BL.4 Tools in the scene view
 
-- The Blockout tool (a block and a wall), `BoxHandles` from PH.9 on
+- The Blockout tool (a block and a wall), `ShapeHandles` from PH.9 on
   shapes, extrusion with Shift, handles of wall points, material by drop.
 - Tests (logic without the interface): a block drawn from two points and a
   height has that footprint and height on the grid; a wall of three

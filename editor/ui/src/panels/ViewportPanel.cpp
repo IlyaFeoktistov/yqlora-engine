@@ -3,6 +3,7 @@
 
 #include "yqlora/editor/ui/gizmos/AxisGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/CameraGizmo.hpp"
+#include "yqlora/editor/ui/gizmos/ColliderGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/GridGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/LightGizmo.hpp"
 #include "yqlora/editor/ui/gizmos/ManipulatorGizmo.hpp"
@@ -21,6 +22,7 @@
 #include "yqlora/editor/ui/core/EditorHost.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/material/MaterialData.hpp"
+#include "yqlora/physics/PhysicsDebug.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/FrameBuilder.hpp"
 #include "yqlora/render/FrameExtract.hpp"
@@ -77,6 +79,33 @@ bool drawToggle(
     return ImGui::IsItemHovered();
 }
 
+// Переключатель одного канала отладочной отрисовки: короткий путь к пункту
+// меню "Гизмо", состояние - тот же набор каналов.
+bool drawChannelToggle(
+    EditorContext& context,
+    const char* icon,
+    DebugChannels& shown,
+    std::string_view channel,
+    const char* tooltipKey,
+    float& right,
+    float top
+)
+{
+    placeAtRight(icon, right, top);
+    bool enabled = shown.contains(channel);
+    if (iconToggle(icon, enabled)) {
+        if (enabled) {
+            shown.emplace(channel);
+        } else {
+            shown.erase(shown.find(channel));
+        }
+        context.settings.save();
+    }
+    ImGui::SetItemTooltip("%s", tr(tooltipKey).c_str());
+
+    return ImGui::IsItemHovered();
+}
+
 // Меню "Гизмо" окна с правым краем right; right сдвигается левее него.
 bool drawDebugMenu(EditorContext& context, DebugChannels& shown, float& right, float top)
 {
@@ -89,9 +118,11 @@ bool drawDebugMenu(EditorContext& context, DebugChannels& shown, float& right, f
 
 ViewportPanel::ViewportPanel()
 {
-    // Порядок - приоритет мыши: манипулятор и оси раньше выбора кликом. Он же
-    // порядок проходов вида: сетка мышь не берёт и стоит перед выбором,
-    // чтобы контур выделения рисовался поверх неё.
+    // Порядок - приоритет мыши: ручки коллайдеров раньше манипулятора (они
+    // мельче и стоят на сторонах, манипулятор - в середине), манипулятор и
+    // оси раньше выбора кликом. Он же порядок проходов вида: сетка мышь не
+    // берёт и стоит перед выбором, чтобы контур выделения рисовался поверх неё.
+    m_gizmos.add(std::make_unique<ColliderGizmo>());
     m_gizmos.add(std::make_unique<ManipulatorGizmo>());
     m_gizmos.add(std::make_unique<AxisGizmo>());
     m_gizmos.add(std::make_unique<CameraGizmo>());
@@ -265,9 +296,18 @@ bool ViewportPanel::drawToggles(EditorContext& context, const ImVec2& origin, co
         top
     );
 
+    const bool overColliders = drawChannelToggle(
+        context,
+        icons::kShowColliders,
+        settings.sceneDebugChannels,
+        kCollidersDebugChannel,
+        "editor.viewport.showColliders",
+        right,
+        top
+    );
     const bool overDebug = drawDebugMenu(context, settings.sceneDebugChannels, right, top);
 
-    return overPreview || overSky || overLighting || overCascades || overDebug;
+    return overPreview || overSky || overLighting || overCascades || overColliders || overDebug;
 }
 
 void ViewportPanel::drawCameraPreview(EditorContext& context, const Camera3D& camera, const Rect& rect)

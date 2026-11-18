@@ -1,8 +1,12 @@
 #include "yqlora/editor/SceneEditing.hpp"
 
+#include "yqlora/editor/ColliderEditing.hpp"
+#include "yqlora/editor/ComponentSetup.hpp"
+#include "yqlora/editor/ComponentSnapshot.hpp"
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/editor/Picking.hpp"
 #include "yqlora/editor/SceneCommands.hpp"
+#include "yqlora/physics/Collider.hpp"
 #include "yqlora/reflection/ComponentRules.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/render/Camera3D.hpp"
@@ -123,6 +127,10 @@ Component* SceneEditing::addComponent(Node& node, const TypeInfo& type)
         commands.push_back(std::make_unique<AddComponentCommand>(node.id(), *required));
     }
     commands.push_back(std::make_unique<AddComponentCommand>(node.id(), type));
+    const PropertyTarget added{.node = node.id(), .component = node.components().size() + missing->size()};
+    for (PropertyEdit& edit : addedComponentSetup(registry, type, node, m_session.resources())) {
+        commands.push_back(std::make_unique<SetPropertyCommand>(added, *edit.property, std::move(edit.value)));
+    }
     if (!execute(std::make_unique<CompositeCommand>(std::move(commands)))) {
         return nullptr;
     }
@@ -206,6 +214,43 @@ bool SceneEditing::setParent(Node& node, Node& parent, KeepWorld keepWorld)
 bool SceneEditing::setTransform(Node3D& node, const TransformValues& values)
 {
     return execute(std::make_unique<SetTransformCommand>(node.id(), values));
+}
+
+bool SceneEditing::commitComponentEdit(Component& component, const ComponentSnapshot& before)
+{
+    Node* node = component.owner();
+    const auto index = node ? componentIndex(*node, component) : std::nullopt;
+    std::vector<PropertyEdit> edits = before.changes(component);
+    before.restore(component);
+    if (!index || edits.empty()) {
+        return false;
+    }
+
+    const PropertyTarget target{.node = node->id(), .component = index};
+    std::vector<std::unique_ptr<Command>> commands;
+    for (PropertyEdit& edit : edits) {
+        commands.push_back(std::make_unique<SetPropertyCommand>(target, *edit.property, std::move(edit.value)));
+    }
+    // Отдельный шаг истории, не слитый с соседней правкой.
+    m_session.finishEdit();
+    const bool done = execute(std::make_unique<CompositeCommand>(std::move(commands)));
+    m_session.finishEdit();
+
+    return done;
+}
+
+bool SceneEditing::fitCollider(Collider& collider)
+{
+    const auto* node = dynamic_cast<const Node3D*>(collider.owner());
+    if (!node) {
+        return false;
+    }
+    const ComponentSnapshot before(m_session.registry(), collider);
+    if (!editor::fitCollider(collider, *node, m_session.resources())) {
+        return false;
+    }
+
+    return commitComponentEdit(collider, before);
 }
 
 bool SceneEditing::makeMainCamera(Camera3D& camera)

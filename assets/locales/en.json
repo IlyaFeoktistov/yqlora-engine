@@ -253,13 +253,19 @@
             "copyPart": "Copy",
             "pastePart": "Paste into",
             "pressControl": "Press a key, a mouse or gamepad button...",
+            "collider": {
+                "fit": "Fit to mesh",
+                "fitTooltip": "Size and centre from the meshes of this node and its children (without child bodies); the rotation is reset. A mesh collider takes the mesh of the node",
+                "nothingToFit": "No meshes on this node or its children to fit to"
+            },
             "element": "Element"
         },
         "viewport": {
             "cameraPreview": "Preview of the selected camera",
             "sky": "Scene sky behind objects",
             "shadowCascades": "Sun shadow cascades in colour",
-            "previewLighting": "Preview lighting: a prefab without its own sky and sun is lit by the sun and sky of a new scene"
+            "previewLighting": "Preview lighting: a prefab without its own sky and sun is lit by the sun and sky of a new scene",
+            "showColliders": "Show all colliders (the same as Gizmos > Physics: colliders)"
         },
         "debug": {
             "gizmos": "Gizmos: debug drawing in this window",

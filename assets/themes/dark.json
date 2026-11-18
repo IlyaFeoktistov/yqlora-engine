@@ -84,6 +84,7 @@
         "selectionOutline": "#FF9A1A",
         "cameraGizmo": "#C8CDD6",
         "lightGizmo": "#F2D16B",
+        "colliderGizmo": "#7FD38A",
         "viewportBackground": "#14171F",
         "playMode": "#5FB878",
         "axisX": "#E5534B",

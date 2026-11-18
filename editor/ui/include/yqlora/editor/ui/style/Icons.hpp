@@ -19,6 +19,7 @@ inline constexpr const char* kDropDown = "\uE06D";       // chevron-down
 inline constexpr const char* kPick = "\uE345";           // circle-dot: окно выбора ресурса
 inline constexpr const char* kShadowCascades = "\uE529"; // layers-3: отладка каскадов теней
 inline constexpr const char* kDebugGizmos = "\uE4B3";    // shapes: меню отладочной отрисовки
+inline constexpr const char* kShowColliders = "\uE1CB";  // box-select: коллайдеры в окне сцены
 
 // Игра в редакторе.
 inline constexpr const char* kPlay = "\uE13C";  // play

@@ -11,6 +11,7 @@
 #include <span>
 
 namespace yqlora {
+class Collider;
 class MeshRenderer;
 struct Ray;
 class Camera3D;
@@ -22,6 +23,7 @@ class TypeInfo;
 
 namespace yqlora::editor {
 
+class ComponentSnapshot;
 class EditorSession;
 
 // Правка текущей сцены сессии командами с отменой: узлы, компоненты,
@@ -63,8 +65,9 @@ public:
     bool deleteNodes(std::span<const NodeId> ids);
 
     // Добавляет компонент вместе с недостающими обязательными одним шагом
-    // истории. nullptr, если тип нельзя создать или он не подходит узлу
-    // (см. canAttach и missingRequirements в ComponentRules.hpp).
+    // истории, сразу настроенный под узел (addedComponentSetup: коллайдер
+    // подогнан под меши). nullptr, если тип нельзя создать или он не
+    // подходит узлу (см. canAttach и missingRequirements в ComponentRules.hpp).
     Component* addComponent(Node& node, const TypeInfo& type);
 
     // Снимает компонент, если его можно снять (canDetach в ComponentRules.hpp).
@@ -74,6 +77,15 @@ public:
     bool setProperty(Component& component, const Property& property, const PropertyValue& value);
 
     bool setTransform(Node3D& node, const TransformValues& values);
+
+    // Правка, которую вели прямо на компоненте с мига снимка before
+    // (перетаскивание ручки), одним шагом истории: компонент возвращается к
+    // снимку, изменения делают команды. false, если ничего не изменилось.
+    bool commitComponentEdit(Component& component, const ComponentSnapshot& before);
+
+    // Подгоняет коллайдер под меши его узла одним шагом истории (см.
+    // fitCollider в ColliderEditing.hpp). false, если подгонять не подо что.
+    bool fitCollider(Collider& collider);
 
     // Ставит материал в слот slot рендерера одним шагом истории; список
     // слотов дорастает до slot пустыми. false, если ничего не поменялось.

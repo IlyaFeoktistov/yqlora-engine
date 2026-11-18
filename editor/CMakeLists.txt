@@ -31,6 +31,9 @@ add_library(yqlora_editor STATIC
     ${YQLORA_EDITOR_SHADERS_HEADER}
     src/BodyChainBuilder.cpp
     src/ChainBuilder.cpp
+    src/ColliderEditing.cpp
+    src/ComponentSetup.cpp
+    src/ComponentSnapshot.cpp
     src/CodeEditor.cpp
     src/EditorCamera.cpp
     src/Picking.cpp
@@ -55,6 +58,7 @@ add_library(yqlora_editor STATIC
     src/ResourceLabel.cpp
     src/SceneDocument.cpp
     src/SceneEditing.cpp
+    src/ShapeHandles.cpp
     src/Snapping.cpp
     src/SettingsCommands.cpp
     src/SettingsEditing.cpp
@@ -101,6 +105,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/gizmos/CameraGizmo.cpp
     ui/src/gizmos/GizmoDrawing.cpp
     ui/src/gizmos/GizmoLayer.cpp
+    ui/src/gizmos/ColliderGizmo.cpp
     ui/src/gizmos/LightGizmo.cpp
     ui/src/gizmos/GridGizmo.cpp
     ui/src/gizmos/ManipulatorGizmo.cpp

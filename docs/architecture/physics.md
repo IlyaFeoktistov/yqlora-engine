@@ -430,10 +430,48 @@ Everything set in the inspector is a property with a setter (see
 
 ## Editor [planned, step 6]
 
-- Colliders are drawn as wire shapes on the selected node (all of them
-  with "Show colliders" on the viewport toolbar); their size and centre are
-  changed with handles on the faces. A new collider fits the bounds of the
-  mesh of its node (or its children); "Fit to mesh" does it again.
+- **Colliders of the selection** are drawn as wire shapes over the scene
+  (`ColliderGizmo`): the colliders of the selected node, and fainter the
+  other colliders of its body. The shapes come from the same `DebugLines`
+  builders as the debug channel, so the gizmo and the channel draw a shape
+  alike; mesh and convex colliders show the bounds of their mesh.
+- **"Show colliders"** on the viewport toolbar turns on the
+  `physics.colliders` channel of the scene view: a shortcut to the same
+  entry of the "Gizmos" menu, one setting.
+- **Shape handles** (`ShapeHandles`): a box has a handle on each face, a
+  sphere on each axis, a capsule and a cylinder on the sides (radius) and
+  the caps (height). Dragging a handle moves that side alone (the opposite
+  stays: the size and the centre change together); with Alt both sides
+  move (the centre stays). Handles work in the collider's axes under the
+  node's scale and rotation, snap to the grid step when snapping is on, and
+  never go below `kMinColliderSize`. While dragging the component changes
+  directly; on release one step goes into the history (all changed
+  properties as one `CompositeCommand`), as the vertex snap does. The
+  logic (where the handles are, what a drag of a distance changes) is in
+  the editor without ImGui; blockout uses the same handles for its boxes.
+- **Fitting to the mesh**: a collider added in the editor takes the bounds
+  of the meshes of its node and its descendants (down to, not into, nodes
+  with their own `RigidBody`), in the collider's node axes, in the same
+  undo step: a box their size and centre, a sphere the largest half
+  extent, a capsule and a cylinder the height along Y and the radius
+  across, and the rotation is reset (the bounds are in the node's axes);
+  a mesh or convex collider without a mesh takes the mesh of its
+  node's renderer. "Fit to mesh" in the collider's inspector does it again;
+  without meshes the button is disabled with a tooltip.
+- **Joints** (`JointGizmo`) of the selected node: the anchor as a point,
+  a line to the anchor on the connected body (or the world point); the
+  axis of a hinge, a slider and a cone as an arrow; the limits: an arc of
+  a hinge from the lower to the upper angle, a segment of a slider, the
+  cone of a `ConeJoint` and the swing cone of a `SwingTwistJoint`, the
+  range of a `DistanceJoint`. The anchor is moved with a handle, one undo
+  step. A broken joint in Play is drawn in its own colour.
+- **Picking points in the view**: the start and end of a chain and a body
+  chain have a "Pick" button: the dialog steps aside, the next click in the
+  scene view puts the point on the surface under the cursor (the snapping
+  of moving applies), Escape cancels, and the dialog comes back with the
+  point. While the dialog is open the path of the chain is drawn in the
+  view. Picking is editor logic (`PointPick`), so other tools (blockout,
+  cloth anchors) ask for a point the same way.
 - The Physics section of the project settings: gravity, iterations, the
   default material and the collision matrix as a table of the named
   layers.
@@ -604,14 +642,35 @@ Everything set in the inspector is a property with a setter (see
   chain; contacts and queries name the link; "Create > Body chain" builds
   the chain with a mesh along each link in one undo step.
 
-### PH.9 Editor
+### PH.9a Editor: colliders
 
-- Collider gizmos and handles (the face handles are one widget,
-  `BoxHandles`, which [blockout](blockout.md) uses too), "Show colliders",
-  fitting to the mesh, drops onto physics fields; joint gizmos; chain ends
-  with a click in the viewport.
-- Tests (logic without the interface): a new collider fits the mesh bounds
-  of its node; a handle drag is one undo step.
+- `ColliderGizmo`, "Show colliders", `ShapeHandles` with snapping, Alt and
+  one undo step per drag, fitting on adding and "Fit to mesh"; a check
+  that the fields of bodies, colliders and physics materials take drops
+  (the reference fields of SA.3) with a test.
+- Tests (logic without the interface): the handles of a box, a sphere, a
+  capsule and a cylinder stand on its sides in world space under a
+  rotated, non-uniformly scaled node; dragging a face of a box by 0.5 m
+  grows the size by 0.5 m and moves the centre by 0.25 m, and with Alt
+  grows it by 1 m and keeps the centre; a drag snaps to the grid step and
+  stops at `kMinColliderSize`; a drag is one undo step that brings back
+  both the size and the centre; a box added to a node with a 2 x 1 x 3
+  mesh offset by (0, 0.5, 0) gets that size and centre, a capsule its
+  height and radius; meshes of a child with its own `RigidBody` are not
+  counted; a mesh collider takes the renderer's mesh; "Fit to mesh" is
+  one undo step; a physics material dropped onto a collider's field sets
+  it.
+
+### PH.9b Editor: joints and points
+
+- `JointGizmo` with limits and the anchor handle; `PointPick`, "Pick" in
+  the chain and body chain dialogs, the path preview.
+- Tests (logic without the interface): the limit arc of a hinge spans its
+  lower and upper angles around its axis in world space; moving the
+  anchor handle is one undo step; a picked point lands on the surface
+  under the ray and on the grid with snapping; Escape leaves the point as
+  it was; a pick request answered after the scene changed (Play, another
+  scene) is dropped.
 
 ### PH.10 Documents
 

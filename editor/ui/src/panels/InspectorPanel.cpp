@@ -7,6 +7,7 @@
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 
+#include "yqlora/editor/ColliderEditing.hpp"
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/editor/Inspection.hpp"
 #include "yqlora/editor/PrefabEditing.hpp"
@@ -14,9 +15,12 @@
 #include "yqlora/editor/ReferenceFields.hpp"
 #include "yqlora/editor/ResourceInspection.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
+#include "yqlora/editor/SceneEditing.hpp"
 #include "yqlora/i18n/Translate.hpp"
+#include "yqlora/physics/Collider.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/render/Camera3D.hpp"
+#include "yqlora/scene/Node3D.hpp"
 #include "yqlora/scene/PrefabInstance.hpp"
 
 #include <imgui.h>
@@ -120,6 +124,26 @@ void componentPrefabMarks(const PrefabView& prefab, const Node& node, std::size_
     ImGui::EndPopup();
 }
 
+// Подгонка коллайдера под меши узла; без мешей кнопка выключена с подсказкой.
+void drawColliderFit(EditorSession& session, Component& component)
+{
+    auto* collider = dynamic_cast<Collider*>(&component);
+    const auto* node = collider ? dynamic_cast<const Node3D*>(collider->owner()) : nullptr;
+    if (!node) {
+        return;
+    }
+    const bool fits = canFitCollider(*collider, *node, session.resources());
+    ImGui::BeginDisabled(!fits);
+    if (ImGui::Button(tr("editor.inspector.collider.fit").c_str(), ImVec2(-FLT_MIN, 0.0f))) {
+        session.editing().fitCollider(*collider);
+    }
+    ImGui::EndDisabled();
+    ImGui::SetItemTooltip(
+        "%s",
+        tr(fits ? "editor.inspector.collider.fitTooltip" : "editor.inspector.collider.nothingToFit").c_str()
+    );
+}
+
 bool drawComponent(
     EditorSession& session,
     const PropertyEditorContext& widgets,
@@ -171,6 +195,7 @@ bool drawComponent(
             inspected.component,
             overrides ? &*overrides : nullptr
         );
+        drawColliderFit(session, inspected.component);
     } else if (open) {
         ImGui::PushTextWrapPos(0.0f);
         ImGui::TextDisabled("%s", tr("editor.inspector.missingType").c_str());
