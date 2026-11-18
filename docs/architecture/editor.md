@@ -87,6 +87,52 @@ Status marks: see [README](README.md).
   (`resourceIcon`); a new type or kind is a row. A point of the world on the
   screen of a view is `projectToViewport`, for picking and for the gizmos.
 
+## Descriptions of properties [planned, after step 6]
+
+Every field of the inspector, of the project settings and of resource
+editors says what it is for when the mouse rests on its label: what it
+changes, in which units, what values are usual and what the ends of the
+range do. A person reads the field instead of guessing or opening the
+documents.
+
+- **One key per property of a type**: `help.<Type>.<property>` in the
+  language files, for the type that declares the property (a property of
+  `Collider` is described once for every collider). The `tooltip`
+  attribute stays only for a text shared by several properties (the colours
+  of the ambient light); otherwise the key is derived and never written in
+  the code twice. Enum values are described inside the text of their
+  property.
+- **What a text holds**, in two to four short lines: what the property
+  does, in the words of the person, not of the code; the units; usual
+  values with an example ("0.5 for a ball, 0 for a box that should not
+  bounce"); what 0 or the limits mean when it is not obvious ("0 - never
+  breaks").
+- **Where it shows**: the tooltip of the label in every property table
+  (inspector, project settings, physics and render materials, records),
+  after the full label when the label is clipped. Material fields take it
+  from the shader: `//@ tooltip("...")` in the annotations, so a project's
+  own shader describes its own fields.
+- **Games** describe their script properties with `.tooltip("...")` (a
+  key or a text) in the type builder; their properties are not required to
+  have one.
+- **Kept complete by a test**: every engine property and settings field
+  has a description in every language, as types and labels already must
+  (the "TypeRegistry" tests). A new property without a text fails the
+  build, so later steps write their descriptions with their properties.
+
+### PD.1 Descriptions of properties
+
+- The derived key, the tooltip in property tables and resource editors,
+  `//@ tooltip` in shader annotations, the test; the texts of all
+  properties, settings and built-in shader fields that exist, in English
+  and Russian.
+- Tests: every engine property has `help.<Type>.<property>` in every
+  language and the Russian text is its own; a property with an explicit
+  `tooltip` takes it instead; an inherited property uses the text of its
+  declaring type; a shader field with `//@ tooltip` gives it to the
+  material inspector, and a wrong argument is a compile error with the
+  line.
+
 ## Log [done]
 
 - The engine log has subscribers (`log::subscribe`, internal): a listener

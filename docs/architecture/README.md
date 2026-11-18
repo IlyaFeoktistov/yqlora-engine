@@ -59,12 +59,16 @@ The rest of the MVP, in this order; each stage has its plan with phases
    CE.2), then the documents of the stage (SA.4, PF.6, EV.3, T.3, CE.3). See [scripting](scripting.md),
    [prefabs](prefabs.md), [events](events.md), [editor](editor.md).
 2. **Physics** (step 6): [physics](physics.md).
-3. **Cameras** (after step 6): [cameras](cameras.md).
-4. **Blockout** (after cameras): [blockout](blockout.md).
-5. **The game interface** (step 8): [game interface](ui.md).
-6. **Running a game without the editor** (step 9): [building](build.md).
-7. **Audio** (step 7): [audio](audio.md).
-8. **Documents and version 0.0.2** (step 10): [documentation and the release](documentation.md).
+3. **Descriptions of properties** (PD.1): a tooltip with what a field does
+   and its usual values, see [editor](editor.md#descriptions-of-properties-planned-after-step-6).
+4. **Cameras** (after step 6): [cameras](cameras.md).
+5. **Blockout** (after cameras): [blockout](blockout.md).
+6. **The game interface** (step 8): [game interface](ui.md).
+7. **Running a game without the editor** (step 9): [building](build.md).
+8. **Audio** (step 7): [audio](audio.md).
+9. **Checking the whole MVP**: every step tried in the live editor and
+   in a built game, the bugs found fixed, before the release.
+10. **Documents and version 0.0.2** (step 10): [documentation and the release](documentation.md).
 
 After the MVP: animation; particles and noise; wind, terrain and
 vegetation ([wind](wind.md), [terrain](terrain.md)); cloth and ropes
