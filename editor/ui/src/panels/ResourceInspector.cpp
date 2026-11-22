@@ -45,12 +45,15 @@ void ResourceInspector::draw(EditorContext& context, const ResourceInspection& i
         }
     }
     const bool nested = !inspection.nestedKey.empty();
-    const std::string name = nested ? inspection.nestedKey : toUtf8(inspection.path.filename());
-    ImGui::Text("%s  %s", resourceIcon(inspection.kind), name.c_str());
+    ImGui::Text("%s  %s", resourceIcon(inspection.kind), inspection.name.c_str());
     const std::string kindName = inspection.kind.empty() ? tr("editor.resource.file")
                                                          : tr("editor.resourceKind." + std::string(inspection.kind));
     ImGui::TextDisabled("%s", kindName.c_str());
-    ImGui::SetItemTooltip("%s", toGenericUtf8(inspection.path).c_str());
+    if (inspection.path.empty()) {
+        ImGui::TextDisabled("%s", tr("editor.resource.builtin").c_str());
+    } else {
+        ImGui::SetItemTooltip("%s", toGenericUtf8(inspection.path).c_str());
+    }
     if (nested) {
         ImGui::TextDisabled("%s: %s", tr("editor.resource.nested").c_str(), toGenericUtf8(inspection.path).c_str());
     }

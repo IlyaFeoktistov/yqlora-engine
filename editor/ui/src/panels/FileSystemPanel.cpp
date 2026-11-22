@@ -15,6 +15,7 @@
 #include "yqlora/editor/PrefabEditing.hpp"
 #include "yqlora/editor/ResourceChoices.hpp"
 #include "yqlora/i18n/Translate.hpp"
+#include "yqlora/material/MaterialData.hpp"
 #include "yqlora/platform/Platform.hpp"
 #include "yqlora/project/Project.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
@@ -22,6 +23,7 @@
 #include "yqlora/resource/ResourceKinds.hpp"
 #include "yqlora/resource/ResourceLoader.hpp"
 #include "yqlora/scene/Prefab.hpp"
+#include "yqlora/shader/ShaderData.hpp"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -142,6 +144,7 @@ void FileSystemPanel::draw(EditorContext& context)
     drawCreateDialog(session, serializer, context.theme.colors());
     drawRenameDialog(session, context.theme.colors());
     drawVariantDialog(session, context.theme.colors());
+    drawMaterialDialog(session, context.theme.colors());
     drawBranchDialog(session, context.theme.colors());
     drawDeleteDialog(session);
     ImGui::End();
@@ -398,7 +401,19 @@ void FileSystemPanel::drawContextMenu(const ProjectFiles::Entry& entry, EditorSe
             toUtf8(entry.path.stem()) + " " + tr("editor.files.variantSuffix")
         ));
     }
-    if (!kind.empty() && kinds::fitsKind(kind, Prefab::kResourceKind)) {
+    // Материал с этим шейдером: настройки шейдера (размер солнца у неба)
+    // живут в материале, и в поля ставится материал, а не шейдер.
+    const bool shader = kinds::fitsKind(kind, ShaderData::kResourceKind);
+    if (shader && item(resourceIcon(MaterialData::kResourceKind), "editor.files.createMaterial")) {
+        m_materialShader = session.project()->resources().id(entry.path);
+        m_materialFolder = entry.path.parent_path();
+        m_materialDialog.open(files.suggestName(
+            *findNewResourceType(MaterialData::kResourceKind),
+            m_materialFolder,
+            toUtf8(entry.path.stem())
+        ));
+    }
+    if (!kind.empty() && (kinds::fitsKind(kind, Prefab::kResourceKind) || shader)) {
         ImGui::Separator();
     }
     if (item(icons::kRename, "editor.files.rename")) {
@@ -561,6 +576,38 @@ void FileSystemPanel::drawVariantDialog(EditorSession& session, const EditorColo
         return true;
     };
     m_variantDialog.draw(text, valid, create, colors);
+}
+
+void FileSystemPanel::drawMaterialDialog(EditorSession& session, const EditorColors& colors)
+{
+    const NewResourceType& type = *findNewResourceType(MaterialData::kResourceKind);
+    const NameDialog::Text text{
+        .title = tr("editor.files.createMaterial") + "###MaterialFromShader",
+        .label = tr("editor.files.name"),
+        .confirm = tr("editor.files.create"),
+        .invalid = tr("editor.files.error.name"),
+        .failed = tr("editor.files.error.exists"),
+    };
+    const auto valid = [&](std::string_view name) {
+        return isValidResourceName(type, name);
+    };
+    const auto create = [&](const std::string& name) {
+        Project& project = *session.project();
+        MaterialData data;
+        data.shader = m_materialShader;
+        const auto created = ProjectFiles(project).createMaterial(m_materialFolder, name, data);
+        if (!created) {
+            return false;
+        }
+        m_selected = *created;
+        m_selectedIsDirectory = false;
+        m_dirty = true;
+        // Сразу в инспекторе: дальше настраивают его поля.
+        session.selection().selectResource(project.resources().id(*created));
+
+        return true;
+    };
+    m_materialDialog.draw(text, valid, create, colors);
 }
 
 void FileSystemPanel::drawDeleteDialog(EditorSession& session)

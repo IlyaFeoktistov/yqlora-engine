@@ -78,6 +78,7 @@ private:
     // Вариант префаба или модели и префаб из узла, брошенного на папку: оба
     // через окно с именем.
     void drawVariantDialog(EditorSession& session, const EditorColors& colors);
+    void drawMaterialDialog(EditorSession& session, const EditorColors& colors);
     void drawBranchDialog(EditorSession& session, const EditorColors& colors);
     // Узел из дерева сцены отпущен над папкой folder: окно имени префаба.
     void acceptBranchDrop(EditorSession& session, const std::filesystem::path& folder);
@@ -109,6 +110,10 @@ private:
     ResourceId m_variantBase = 0;
     std::filesystem::path m_variantFolder;
     NameDialog m_variantDialog;
+    // "Создать материал" у шейдера: материал с ним рядом с файлом шейдера.
+    ResourceId m_materialShader = 0;
+    std::filesystem::path m_materialFolder;
+    NameDialog m_materialDialog;
     NodeId m_branchNode = 0;
     std::filesystem::path m_branchFolder;
     NameDialog m_branchDialog;

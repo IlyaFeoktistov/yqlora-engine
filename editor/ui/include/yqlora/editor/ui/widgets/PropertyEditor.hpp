@@ -66,6 +66,9 @@ struct PropertyEditorContext {
     std::function<void()> editLayers;
     // Показать цель ссылки в дереве и в "Файлах"; nullptr - поля только выбирают.
     Pings* pings = nullptr;
+    // Показать в инспекторе ресурс, которого нет в "Файлах" (встроенный):
+    // щелчок по полю с ним. Пусто - не показывается.
+    std::function<void(ResourceId)> showResource;
 };
 
 // Свойства объекта экземпляра префаба: переопределённые отмечены цветом

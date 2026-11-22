@@ -13,11 +13,14 @@ namespace yqlora::editor {
 
 class EditorSession;
 
-// Что инспектор показывает о любом выбранном файле ресурса. Своё у каждого
-// вида - в его инспекции (ModelInspection.hpp, TextureInspection.hpp).
+// Что инспектор показывает о любом выбранном ресурсе: файле проекта или
+// встроенном. Своё у каждого вида - в его инспекции (ModelInspection.hpp,
+// TextureInspection.hpp).
 struct ResourceInspection {
     ResourceId id = 0;
-    // Файл ресурса; у вложенного - файл, в котором он лежит.
+    // Подпись в заголовке: имя файла, ключ вложенного или имя встроенного.
+    std::string name;
+    // Файл ресурса; у вложенного - файл, в котором он лежит; у встроенного пусто.
     std::filesystem::path path;
     // Ключ вложенного ресурса без вида ("Bark"); пусто - ресурс сам файл.
     std::string nestedKey;
@@ -27,8 +30,9 @@ struct ResourceInspection {
     std::optional<ResourceStatus> status;
 };
 
-// nullopt, если проекта нет или ресурса id в нём нет. Файл загружается, если
-// ещё не был.
+// nullopt, если ресурса id нет ни в проекте, ни среди встроенных (или нет
+// проекта). Файл загружается, если ещё не был. Встроенный ресурс только
+// показывается: правится его копия в проекте.
 std::optional<ResourceInspection> inspectResource(EditorSession& session, ResourceId id);
 
 // Ресурс id - свой файл проекта, правка пишется в него. Вложенный ресурс

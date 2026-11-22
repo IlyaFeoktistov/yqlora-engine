@@ -415,7 +415,8 @@
                 "exists": "Could not create: this name is already taken"
             },
             "createVariant": "Create variant...",
-            "variantSuffix": "Variant"
+            "variantSuffix": "Variant",
+            "createMaterial": "Create material"
         },
         "play": {
             "play": "Play",
@@ -474,7 +475,8 @@
             "textures": "Textures",
             "noShader": "The shader of the material is not loaded: it draws with Error",
             "makeCopy": "Make a copy",
-            "copyTitle": "Copy of the material"
+            "copyTitle": "Copy of the material",
+            "makeCopyTooltip": "A read-only material: make your own copy in the project to change it, then choose the copy where the material is used."
         },
         "shader": {
             "open": "Open",
@@ -489,7 +491,12 @@
             "assets": "Assets",
             "nothing": "Nothing found",
             "pick": "Choose",
-            "choose": "Choose"
+            "choose": "Choose",
+            "shaderNotMaterial": "The field takes a material. Shader settings (like the sun size of a sky) live in a material: right click the shader in Files - Create material, then put the material here.",
+            "wrongKind": "The field takes: {}",
+            "use": {
+                "skyMaterial": "The field takes a sky material: a material whose shader is a sky shader (Physical Sky, a project sky shader)."
+            }
         },
         "eventTargets": {
             "method": "Method...",

@@ -10,9 +10,14 @@
 #include "yqlora/editor/ResourceChoices.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
 #include "yqlora/i18n/Translate.hpp"
+#include "yqlora/material/MaterialData.hpp"
 #include "yqlora/render/Renderer.hpp"
 #include "yqlora/render/TextureData.hpp"
+#include "yqlora/resource/BuiltinResources.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
+#include "yqlora/resource/ResourceDatabase.hpp"
+#include "yqlora/resource/ResourceKinds.hpp"
+#include "yqlora/shader/ShaderData.hpp"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -118,6 +123,29 @@ bool drawPicker(
     return chosen;
 }
 
+// Подсказка, когда на поле вида kind тянут неподходящий ресурс id. Шейдер на
+// поле материала - частая ошибка: настройки шейдера живут в материале.
+std::string refusedDropHint(
+    std::string_view kind,
+    std::string_view use,
+    ResourceId id,
+    const PropertyEditorContext& context
+)
+{
+    const std::string kindName = tr("editor.resourceKind." + std::string(kind));
+    const auto path = context.resources ? context.resources->path(id) : std::nullopt;
+    const std::string_view dropped = path ? context.cache.kindOf(*path) : std::string_view();
+    if (kind == MaterialData::kResourceKind && kinds::fitsKind(dropped, ShaderData::kResourceKind)) {
+        return tr("editor.resourceField.shaderNotMaterial");
+    }
+    // Вид тот, но назначение другое: материал поверхности на поле неба.
+    if (!use.empty() && kinds::fitsKind(dropped, kind)) {
+        return tr("editor.resourceField.use." + std::string(use));
+    }
+
+    return trFormat("editor.resourceField.wrongKind", kindName);
+}
+
 } // namespace
 
 bool resourceField(
@@ -139,7 +167,10 @@ bool resourceField(
         textureImage(value.id, context, kPreviewLines);
     }
     ImGui::EndGroup();
-    if (click == ReferenceClick::Field && value.id != 0 && context.pings) {
+    // Встроенного ресурса в "Файлах" нет: его показывает инспектор.
+    if (click == ReferenceClick::Field && builtin::isBuiltin(value.id) && context.showResource) {
+        context.showResource(value.id);
+    } else if (click == ReferenceClick::Field && value.id != 0 && context.pings) {
         context.pings->resource(value.id);
     } else if (click != ReferenceClick::None) {
         ImGui::OpenPopup(kPickerPopup);
@@ -149,7 +180,10 @@ bool resourceField(
     const auto fits = [&](std::span<const ResourceId> ids) {
         return resourceForField(kind, use, ids.front(), context.resources, context.cache).has_value();
     };
-    if (const auto dropped = acceptResourcesDrop(fits)) {
+    const auto whyNot = [&](std::span<const ResourceId> ids) {
+        return refusedDropHint(kind, use, ids.front(), context);
+    };
+    if (const auto dropped = acceptResourcesDrop(fits, whyNot)) {
         value.id = *resourceForField(kind, use, dropped->front(), context.resources, context.cache);
         changed = true;
     }

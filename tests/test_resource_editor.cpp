@@ -22,6 +22,7 @@
 #include <yqlora/import/ModelData.hpp>
 #include <yqlora/import/ModelPrefab.hpp>
 #include <yqlora/input/Input.hpp>
+#include <yqlora/material/MaterialData.hpp>
 #include <yqlora/material/MaterialFile.hpp>
 #include <yqlora/math/Ray.hpp>
 #include <yqlora/physics/PhysicsMaterialData.hpp>
@@ -416,6 +417,15 @@ TEST_CASE_FIXTURE(Fixture, "Resource inspection: meshes of a model, import setti
     CHECK(isResourceFile(session, model));
     CHECK_FALSE(isResourceFile(session, mesh("mesh:Door")));
     CHECK_FALSE(isResourceFile(session, builtin::kDefaultMaterial));
+    // Встроенный ресурс тоже показывается: под своим именем, без файла, только для чтения.
+    const auto sky = inspectResource(session, builtin::kDefaultSkyMaterial);
+    REQUIRE(sky);
+    CHECK(sky->name == "Default Sky");
+    CHECK(sky->path.empty());
+    CHECK(sky->kind == MaterialData::kResourceKind);
+    CHECK_FALSE(session.resourceEditing().editable(builtin::kDefaultSkyMaterial));
+    CHECK(inspected->name == "house.glb");
+    CHECK(nested->name == "Door");
     const auto scene = inspectResource(session, session.project()->settings().get<GeneralSettings>().startupScene.id);
     REQUIRE(scene);
     CHECK(scene->kind == SceneSerializer::kResourceKind);

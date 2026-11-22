@@ -282,7 +282,14 @@ what it does, not by knowing its name.
 - **Selection**: clicking a resource in Files selects it instead of nodes
   (`Selection::selectResource`), and the inspector shows the
   file; a nested resource is shown under the name of its key, with its
-  file, read-only (`isResourceFile` is false). `ResourceInspector` shows
+  file, read-only (`isResourceFile` is false). A built-in resource is not
+  in Files: a click on a resource field holding one shows it in the
+  inspector (`PropertyEditorContext::showResource`), read-only, under its
+  name. A field with a project file pings the file in Files.
+- **A resource that does not fit a field** is refused while dragged, with
+  a hint over the field: what it takes, and for a shader on a material
+  field how to make a material from it (a sky shader's settings, such as
+  the size of the sun, live in its material). `ResourceInspector` shows
   what every file has (name, kind, the state and the message if the file
   is not loaded, from `inspectResource`)
   and then the inspector of its kind (`ResourceKindInspector`): a model

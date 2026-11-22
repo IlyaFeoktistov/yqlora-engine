@@ -93,10 +93,14 @@ To use the shader, choose it in the Shader field of a material.
 
 The sky of a scene is the `sky` field of its `Environment` node (a new scene
 has one). The built-in `Default Sky` is the physical sky of the atmosphere:
-it follows the sun.
+it follows the sun. To change it (the size and softness of the sun disc),
+click the `sky` field: the inspector shows `Default Sky`; "Make a copy"
+writes your copy to the project, then choose the copy in the `sky` field.
 
-Your own sky: Create resource > Sky Shader, then a material with that
-shader, then put the material into the `sky` field of `Environment`. A sky
+Your own sky: Create resource > Sky Shader, then right click the shader -
+Create material (the field takes a material, not a shader: the settings
+of a shader live in its material), then put the material into the `sky`
+field of `Environment`. A sky
 shader defines one function:
 
 ```glsl

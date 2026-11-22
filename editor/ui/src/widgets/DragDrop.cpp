@@ -37,9 +37,14 @@ std::vector<std::uint64_t> idsOf(const ImGuiPayload& payload)
 }
 
 // Тянут ли сейчас данные type и подходят ли они цели: неподходящие цель не
-// подсвечивают, а курсор над ней показывает запрет.
+// подсвечивают, а курсор над ней показывает запрет и подсказку whyNot.
 template <typename Data>
-bool refused(const char* type, const std::function<bool(const Data&)>& fits, Data (*read)(const ImGuiPayload&))
+bool refused(
+    const char* type,
+    const std::function<bool(const Data&)>& fits,
+    Data (*read)(const ImGuiPayload&),
+    const std::function<std::string(const Data&)>& whyNot = {}
+)
 {
     const ImGuiPayload* dragged = ImGui::GetDragDropPayload();
     if (!dragged || !dragged->IsDataType(type) || fits(read(*dragged))) {
@@ -47,6 +52,9 @@ bool refused(const char* type, const std::function<bool(const Data&)>& fits, Dat
     }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
+        if (whyNot) {
+            ImGui::SetTooltip("%s", whyNot(read(*dragged)).c_str());
+        }
     }
 
     return true;
@@ -56,10 +64,11 @@ template <typename Data>
 std::optional<Data> acceptDrop(
     const char* type,
     const std::function<bool(const Data&)>& fits,
-    Data (*read)(const ImGuiPayload&)
+    Data (*read)(const ImGuiPayload&),
+    const std::function<std::string(const Data&)>& whyNot = {}
 )
 {
-    if ((fits && refused(type, fits, read)) || !ImGui::BeginDragDropTarget()) {
+    if ((fits && refused(type, fits, read, whyNot)) || !ImGui::BeginDragDropTarget()) {
         return std::nullopt;
     }
     std::optional<Data> dropped;
@@ -80,7 +89,11 @@ DraggedComponent componentOf(const ImGuiPayload& payload)
 }
 
 template <typename Id>
-std::optional<std::vector<Id>> acceptIds(const char* type, const std::function<bool(std::span<const Id>)>& fits)
+std::optional<std::vector<Id>> acceptIds(
+    const char* type,
+    const std::function<bool(std::span<const Id>)>& fits,
+    const std::function<std::string(std::span<const Id>)>& whyNot = {}
+)
 {
     std::function<bool(const std::vector<std::uint64_t>&)> wrapped;
     if (fits) {
@@ -88,8 +101,14 @@ std::optional<std::vector<Id>> acceptIds(const char* type, const std::function<b
             return fits(ids);
         };
     }
+    std::function<std::string(const std::vector<std::uint64_t>&)> wrappedWhy;
+    if (whyNot) {
+        wrappedWhy = [&](const std::vector<std::uint64_t>& ids) {
+            return whyNot(ids);
+        };
+    }
 
-    return acceptDrop<std::vector<std::uint64_t>>(type, wrapped, idsOf);
+    return acceptDrop<std::vector<std::uint64_t>>(type, wrapped, idsOf, wrappedWhy);
 }
 
 } // namespace
@@ -111,9 +130,12 @@ std::optional<ResourceId> acceptResourceDrop()
     return ids && !ids->empty() ? std::optional(ids->front()) : std::nullopt;
 }
 
-std::optional<std::vector<ResourceId>> acceptResourcesDrop(const std::function<bool(std::span<const ResourceId>)>& fits)
+std::optional<std::vector<ResourceId>> acceptResourcesDrop(
+    const std::function<bool(std::span<const ResourceId>)>& fits,
+    const std::function<std::string(std::span<const ResourceId>)>& whyNot
+)
 {
-    return acceptIds<ResourceId>(kResourcePayload, fits);
+    return acceptIds<ResourceId>(kResourcePayload, fits, whyNot);
 }
 
 void nodeDragSource(NodeId id, const std::string& label)

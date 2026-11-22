@@ -14,6 +14,7 @@
 #include "yqlora/material/MaterialData.hpp"
 #include "yqlora/render/RenderTarget.hpp"
 #include "yqlora/render/Renderer.hpp"
+#include "yqlora/resource/BuiltinResourceTable.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/resource/ResourceKinds.hpp"
 #include "yqlora/resource/ResourceLoader.hpp"
@@ -122,17 +123,22 @@ void MaterialInspector::draw(EditorContext& context, ResourceId id)
 void MaterialInspector::drawCopy(EditorContext& context, ResourceId id, const MaterialData& material)
 {
     auto& project = context.session.project();
-    const auto path = project ? project->resources().path(id) : std::nullopt;
-    // Встроенный материал не лежит в проекте: копировать его некуда.
-    if (!path) {
+    if (!project) {
+        return;
+    }
+    // Копия материала модели - рядом с моделью, встроенного - в корне проекта.
+    const BuiltinResourceEntry* builtin = findBuiltinResource(id);
+    const auto path = project->resources().path(id);
+    if (!builtin && !path) {
         return;
     }
     const NewResourceType& type = *findNewResourceType(MaterialData::kResourceKind);
-    const std::filesystem::path folder = path->parent_path();
+    const std::filesystem::path folder = path ? path->parent_path() : std::filesystem::path();
     if (ImGui::Button(tr("editor.material.makeCopy").c_str())) {
-        const std::string_view key = subresourceLocalKey(project->resources().key(id));
-        m_copyDialog.open(ProjectFiles(*project).suggestName(type, folder, key));
+        const std::string_view base = builtin ? builtin->name : subresourceLocalKey(project->resources().key(id));
+        m_copyDialog.open(ProjectFiles(*project).suggestName(type, folder, base));
     }
+    ImGui::SetItemTooltip("%s", tr("editor.material.makeCopyTooltip").c_str());
     const NameDialog::Text text{
         .title = tr("editor.material.copyTitle") + "###MaterialCopy",
         .label = tr("editor.files.name"),

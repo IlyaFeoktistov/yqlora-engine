@@ -33,6 +33,10 @@ PropertyEditorContext propertyEditorContext(const EditorContext& context)
                 open(typeNameOf<LayerSettings>());
             },
         .pings = &session.pings(),
+        .showResource =
+            [&session](ResourceId id) {
+                session.selection().selectResource(id);
+            },
     };
 }
 

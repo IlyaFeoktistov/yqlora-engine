@@ -696,7 +696,12 @@ that shadow maps do not give.
   `ResourceEditing` refuses nested resources (their path is the model
   file). To change it, the inspector offers "Make a copy", which writes a
   `.ymat` next to the model through the create window; the copy refers to
-  the nested textures of the model and is selected. A texture of a model
+  the nested textures of the model and is selected. A built-in material
+  (`Default Sky`) offers the same copy, written to the root of the
+  project under its name.
+- **A material from a shader**: the context menu of a shader in Files has
+  "Create material": a `.ymat` with that shader next to it, through the
+  create window, selected at once. A texture of a model
   shows the sampling of the file, read-only.
 - Dropping a model into the scene fills the slots of every `MeshRenderer`
   with the materials of the file (a submesh without a material leaves its

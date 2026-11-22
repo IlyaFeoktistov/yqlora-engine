@@ -27,8 +27,11 @@ void resourceDragSource(ResourceId id, const std::string& label);
 void resourceDragSource(std::span<const ResourceId> ids, const std::string& label);
 
 std::optional<ResourceId> acceptResourceDrop();
+// whyNot - подсказка над целью, когда тянут неподходящее: что цель берёт
+// и что сделать. Пусто - без подсказки, только запрещающий курсор.
 std::optional<std::vector<ResourceId>> acceptResourcesDrop(
-    const std::function<bool(std::span<const ResourceId>)>& fits
+    const std::function<bool(std::span<const ResourceId>)>& fits,
+    const std::function<std::string(std::span<const ResourceId>)>& whyNot = {}
 );
 
 // Узлы дерева сцены - к другому родителю или в поле ссылки на узел.
