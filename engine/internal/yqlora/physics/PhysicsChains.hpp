@@ -2,6 +2,7 @@
 
 // Только для кода движка, который включает Jolt (Jolt.h - раньше этого файла).
 
+#include "yqlora/core/WarnOnce.hpp"
 #include "yqlora/physics/BodyPose.hpp"
 #include "yqlora/physics/JoltContacts.hpp"
 #include "yqlora/scene/NodeId.hpp"
@@ -11,8 +12,6 @@
 #include <Jolt/Physics/Constraints/SwingTwistConstraint.h>
 
 #include <map>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace JPH {
@@ -112,8 +111,6 @@ private:
     BodyPose linkPose(const Link& link) const;
     void write(Entry& entry, const std::vector<BodyPose>& poses);
     const Link* linkOf(const PhysicsChain& chain, int index) const;
-    // Сообщение в лог о цепи один раз за жизнь мира.
-    bool firstWarning(ComponentId id);
 
     Scene& m_scene;
     JPH::PhysicsSystem& m_system;
@@ -122,11 +119,9 @@ private:
     ResourceCache& m_resources;
     // По ID компонентов: звенья строятся в устойчивом порядке.
     std::map<ComponentId, Entry> m_chains;
-    // Тело звена Jolt (GetIndexAndSequenceNumber) - цепь и номер звена.
-    std::unordered_map<std::uint32_t, std::pair<ComponentId, int>> m_links;
     // Группа столкновений следующей цепи: звенья одной цепи в одной группе.
     std::uint32_t m_nextGroup = 0;
-    std::unordered_set<ComponentId> m_warned;
+    WarnOnce m_warnings;
 };
 
 } // namespace yqlora

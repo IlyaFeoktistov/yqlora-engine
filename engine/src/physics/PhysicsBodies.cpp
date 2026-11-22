@@ -32,6 +32,8 @@ namespace {
 
 // Инерция тела без коллайдеров: как у шара такого радиуса, м.
 constexpr float kBareBodyRadius = 0.5f;
+// Момент инерции сплошного шара: 2/5 m r^2.
+constexpr float kSolidSphereInertia = 0.4f;
 
 // Масштаб узла тела берётся из длин столбцов мировой матрицы, а у
 // вращающегося тела они плавают в последних знаках: такая разница - не
@@ -45,8 +47,6 @@ bool sameScale(const Vec3& a, const Vec3& b)
 
     return glm::all(glm::lessThanEqual(difference, allowed));
 }
-// Момент инерции сплошного шара: 2/5 m r^2.
-constexpr float kSolidSphereInertia = 0.4f;
 
 const RigidBody* activeBodyOn(const Node& node)
 {
@@ -153,11 +153,6 @@ PhysicsBodies::PhysicsBodies(
 {
 }
 
-bool PhysicsBodies::firstWarning(std::uint64_t id)
-{
-    return m_warned.insert(id).second;
-}
-
 PhysicsBodies::~PhysicsBodies()
 {
     for (const auto& [owner, body] : m_bodies) {
@@ -170,16 +165,19 @@ void PhysicsBodies::branchChanged(const Node& node)
     m_dirtyBranches.push_back(node.id());
 }
 
-void PhysicsBodies::componentLeft(const Component& component)
+void PhysicsBodies::colliderLeft(const Collider& collider)
 {
-    if (const auto it = m_colliderOwners.find(component.id()); it != m_colliderOwners.end()) {
+    if (const auto it = m_colliderOwners.find(collider.id()); it != m_colliderOwners.end()) {
         m_dirtyOwners.insert(it->second);
         m_colliderOwners.erase(it);
     }
-    if (dynamic_cast<const RigidBody*>(&component) && component.owner()) {
-        // Коллайдеры под ним достанутся телу выше или станут неподвижными.
-        m_dirtyOwners.insert(component.owner()->id());
-        m_dirtyBranches.push_back(component.owner()->id());
+}
+
+void PhysicsBodies::rigidBodyLeft(const RigidBody& body)
+{
+    if (body.owner()) {
+        m_dirtyOwners.insert(body.owner()->id());
+        m_dirtyBranches.push_back(body.owner()->id());
     }
 }
 
@@ -327,82 +325,18 @@ void PhysicsBodies::rebuild(NodeId owner)
     JPH::EMotionType motion = rigidBody ? joltMotion(rigidBody->motion()) : JPH::EMotionType::Static;
     JPH::EAllowedDOFs allowed = rigidBody ? allowedDofs(*rigidBody) : JPH::EAllowedDOFs::All;
     if (motion == JPH::EMotionType::Dynamic && allowed == JPH::EAllowedDOFs::None) {
-        if (firstWarning(owner)) {
+        if (m_warnings.first(owner)) {
             log::warn("Physics: body '{}' has every axis locked and stays static", node->name());
         }
         motion = JPH::EMotionType::Static;
         allowed = JPH::EAllowedDOFs::All;
     }
 
-    // Фигуры - в осях тела без масштаба: масштаб узлов уходит в их размеры.
     const Mat4 ownerWorld = node3D->worldMatrix();
     const BodyPose pose = bodyPoseOf(ownerWorld);
-    const Mat4 toBody = glm::inverse(glm::translate(Mat4(1.0f), pose.position) * glm::mat4_cast(pose.rotation));
-    const PhysicsSettings& physics = physicsSettingsOf(m_scene.services());
-    std::vector<PlacedShape> shapes;
-    std::vector<BodyPart> parts;
-    std::vector<PendingSensor> triggers;
-    std::vector<std::pair<ResourceId, std::uint64_t>> meshes;
-    forEachBodyCollider(*node, rigidBody != nullptr, [&](const Collider& collider, const Node& colliderNode) {
-        const Mat4 local = toBody * static_cast<const Node3D&>(colliderNode).worldMatrix()
-                           * glm::translate(Mat4(1.0f), collider.center()) * glm::mat4_cast(collider.rotation());
-        const BodyPose place = bodyPoseOf(local);
-        const Vec3 scale = axisScaleOf(local);
-        ColliderShape shape = collider.shape();
-        PlacedShape placed{
-            .shape = {},
-            .part = static_cast<std::uint32_t>(parts.size()),
-            .material = m_materials.material(m_resources, physics.materialFor(collider.material())),
-            .position = place.position,
-            .rotation = place.rotation,
-            .scale = Vec3(1.0f),
-        };
-        if (auto* mesh = std::get_if<MeshShape>(&shape)) {
-            // Треугольники Jolt сталкивает только у неподвижных и кинематических
-            // тел; датчик триггера - кинематический.
-            if (!mesh->convex && motion == JPH::EMotionType::Dynamic && !collider.isTrigger()) {
-                if (firstWarning(collider.id())) {
-                    log::warn(
-                        "Physics: a mesh collider on '{}' moves with a dynamic body, its convex hull is used",
-                        colliderNode.name()
-                    );
-                }
-                mesh->convex = true;
-            }
-            meshes.emplace_back(mesh->mesh, MeshShapeCache::revisionOf(m_resources, mesh->mesh));
-            placed.scale = scale;
-        } else {
-            bool uniformLost = false;
-            shape = scaledShape(shape, scale, uniformLost);
-            if (uniformLost && firstWarning(collider.id())) {
-                log::warn(
-                    "Physics: collider '{}' on '{}' cannot follow a non-uniform scale, it takes the largest axis",
-                    collider.typeName(),
-                    colliderNode.name()
-                );
-            }
-        }
-        placed.shape = shape;
-        m_colliderOwners[collider.id()] = owner;
-        if (collider.isTrigger()) {
-            // Датчик стоит на месте коллайдера сам, его фигура - в начале осей.
-            const BodyPose offset{placed.position, placed.rotation};
-            placed.position = Vec3(0.0f);
-            placed.rotation = Quat(1.0f, 0.0f, 0.0f, 0.0f);
-            triggers.push_back({
-                .placed = std::move(placed),
-                .part = {collider.id(), colliderNode.id()},
-                .offset = offset,
-                .detectStatic = collider.detectStatic(),
-            });
-
-            return;
-        }
-        parts.push_back({collider.id(), colliderNode.id()});
-        shapes.push_back(std::move(placed));
-    });
-    const bool solid = rigidBody || !shapes.empty();
-    if (!solid && triggers.empty()) {
+    CollectedShapes collected = collectShapes(*node3D, owner, pose, motion, rigidBody != nullptr);
+    const bool solid = rigidBody || !collected.shapes.empty();
+    if (!solid && collected.triggers.empty()) {
         remove(owner);
 
         return;
@@ -433,60 +367,153 @@ void PhysicsBodies::rebuild(NodeId owner)
         .lastTarget = pose,
         .childRevisions = rigidBody ? childRevisionsOf(*node) : std::vector<std::uint64_t>{},
         .scale = axisScaleOf(ownerWorld),
-        .meshRevisions = std::move(meshes),
+        .meshRevisions = std::move(collected.meshes),
     };
     const MeshShapeSource meshSource = [&](ResourceId mesh, bool convex, const JPH::PhysicsMaterial* material) {
         return m_meshShapes.shape(m_resources, mesh, convex, material);
     };
     if (solid) {
-        const BodyShape shape = joltBodyShape(shapes, meshSource);
-        const PhysicsObjectLayer layer = physicsObjectLayer(node->layer(), motion != JPH::EMotionType::Static);
-        JPH::BodyCreationSettings settings(shape.shape, toJolt(pose.position), toJolt(pose.rotation), motion, layer);
-        settings.mUserData = owner;
-        if (rigidBody && motion != JPH::EMotionType::Static) {
-            settings.mLinearDamping = rigidBody->linearDamping();
-            settings.mAngularDamping = rigidBody->angularDamping();
-            settings.mGravityFactor = rigidBody->gravityScale();
-            settings.mAllowedDOFs = allowed;
-            if (rigidBody->continuousCollision()) {
-                settings.mMotionQuality = JPH::EMotionQuality::LinearCast;
-            }
-            const float mass = rigidBody->mass();
-            if (shapes.empty()) {
-                settings.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
-                settings.mMassPropertiesOverride.mMass = mass;
-                settings.mMassPropertiesOverride.mInertia = JPH::Mat44::sScale(
-                    kSolidSphereInertia * mass * kBareBodyRadius * kBareBodyRadius
-                );
-            } else {
-                settings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
-                settings.mMassPropertiesOverride.mMass = mass;
-            }
-        }
         const bool asleep = !existed && rigidBody && rigidBody->startAsleep();
-        const JPH::EActivation activation = motion == JPH::EMotionType::Static || asleep
-                                                ? JPH::EActivation::DontActivate
-                                                : JPH::EActivation::Activate;
-        body.id = m_interface.CreateAndAddBody(settings, activation);
-        if (body.id.IsInvalid()) {
-            log::error("Physics: no room for the body of node '{}', the world is full", node->name());
-
+        if (!addSolid(*node, owner, rigidBody, allowed, asleep, collected, meshSource, body)) {
             return;
         }
         if (motion == JPH::EMotionType::Dynamic) {
             m_interface.SetLinearAndAngularVelocity(body.id, linearVelocity, angularVelocity);
         }
-        body.parts = std::move(parts);
-        body.solePart = shape.solePart;
-        m_byJoltId[body.id.GetIndexAndSequenceNumber()] = {owner, JoltBodyKind::Body};
-        for (const BodyPart& part : body.parts) {
-            m_colliderBodies[part.collider] = body.id;
-        }
     }
-    for (PendingSensor& trigger : triggers) {
+    for (PendingSensor& trigger : collected.triggers) {
         addSensor(*node, owner, pose, trigger, meshSource, body);
     }
     m_bodies[owner] = std::move(body);
+}
+
+PhysicsBodies::CollectedShapes PhysicsBodies::collectShapes(
+    const Node3D& node,
+    NodeId owner,
+    const BodyPose& pose,
+    JPH::EMotionType motion,
+    bool withDescendants
+)
+{
+    // Фигуры - в осях тела без масштаба: масштаб узлов уходит в их размеры.
+    const Mat4 toBody = glm::inverse(glm::translate(Mat4(1.0f), pose.position) * glm::mat4_cast(pose.rotation));
+    const PhysicsSettings& physics = physicsSettingsOf(m_scene.services());
+    CollectedShapes collected;
+    forEachBodyCollider(node, withDescendants, [&](const Collider& collider, const Node& colliderNode) {
+        const Mat4 local = toBody * static_cast<const Node3D&>(colliderNode).worldMatrix()
+                           * glm::translate(Mat4(1.0f), collider.center()) * glm::mat4_cast(collider.rotation());
+        const BodyPose place = bodyPoseOf(local);
+        const Vec3 scale = axisScaleOf(local);
+        ColliderShape shape = collider.shape();
+        PlacedShape placed{
+            .shape = {},
+            .part = static_cast<std::uint32_t>(collected.parts.size()),
+            .material = m_materials.material(m_resources, physics.materialFor(collider.material())),
+            .position = place.position,
+            .rotation = place.rotation,
+            .scale = Vec3(1.0f),
+        };
+        if (auto* mesh = std::get_if<MeshShape>(&shape)) {
+            // Треугольники Jolt сталкивает только у неподвижных и кинематических
+            // тел; датчик триггера - кинематический.
+            if (!mesh->convex && motion == JPH::EMotionType::Dynamic && !collider.isTrigger()) {
+                if (m_warnings.first(collider.id())) {
+                    log::warn(
+                        "Physics: a mesh collider on '{}' moves with a dynamic body, its convex hull is used",
+                        colliderNode.name()
+                    );
+                }
+                mesh->convex = true;
+            }
+            collected.meshes.emplace_back(mesh->mesh, MeshShapeCache::revisionOf(m_resources, mesh->mesh));
+            placed.scale = scale;
+        } else {
+            bool uniformLost = false;
+            shape = scaledShape(shape, scale, uniformLost);
+            if (uniformLost && m_warnings.first(collider.id())) {
+                log::warn(
+                    "Physics: collider '{}' on '{}' cannot follow a non-uniform scale, it takes the largest axis",
+                    collider.typeName(),
+                    colliderNode.name()
+                );
+            }
+        }
+        placed.shape = shape;
+        m_colliderOwners[collider.id()] = owner;
+        if (collider.isTrigger()) {
+            // Датчик стоит на месте коллайдера сам, его фигура - в начале осей.
+            const BodyPose offset{placed.position, placed.rotation};
+            placed.position = Vec3(0.0f);
+            placed.rotation = Quat(1.0f, 0.0f, 0.0f, 0.0f);
+            collected.triggers.push_back({
+                .placed = std::move(placed),
+                .part = {collider.id(), colliderNode.id()},
+                .offset = offset,
+                .detectStatic = collider.detectStatic(),
+            });
+
+            return;
+        }
+        collected.parts.push_back({collider.id(), colliderNode.id()});
+        collected.shapes.push_back(std::move(placed));
+    });
+
+    return collected;
+}
+
+bool PhysicsBodies::addSolid(
+    const Node& node,
+    NodeId owner,
+    const RigidBody* rigidBody,
+    JPH::EAllowedDOFs allowed,
+    bool asleep,
+    CollectedShapes& collected,
+    const MeshShapeSource& meshes,
+    Body& body
+)
+{
+    const JPH::EMotionType motion = body.motion;
+    const BodyShape shape = joltBodyShape(collected.shapes, meshes);
+    const PhysicsObjectLayer layer = physicsObjectLayer(node.layer(), motion != JPH::EMotionType::Static);
+    JPH::BodyCreationSettings
+        settings(shape.shape, toJolt(body.remembered.position), toJolt(body.remembered.rotation), motion, layer);
+    settings.mUserData = owner;
+    if (rigidBody && motion != JPH::EMotionType::Static) {
+        settings.mLinearDamping = rigidBody->linearDamping();
+        settings.mAngularDamping = rigidBody->angularDamping();
+        settings.mGravityFactor = rigidBody->gravityScale();
+        settings.mAllowedDOFs = allowed;
+        if (rigidBody->continuousCollision()) {
+            settings.mMotionQuality = JPH::EMotionQuality::LinearCast;
+        }
+        const float mass = rigidBody->mass();
+        if (collected.shapes.empty()) {
+            settings.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
+            settings.mMassPropertiesOverride.mMass = mass;
+            settings.mMassPropertiesOverride.mInertia = JPH::Mat44::sScale(
+                kSolidSphereInertia * mass * kBareBodyRadius * kBareBodyRadius
+            );
+        } else {
+            settings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
+            settings.mMassPropertiesOverride.mMass = mass;
+        }
+    }
+    const JPH::EActivation activation = motion == JPH::EMotionType::Static || asleep ? JPH::EActivation::DontActivate
+                                                                                     : JPH::EActivation::Activate;
+    body.id = m_interface.CreateAndAddBody(settings, activation);
+    if (body.id.IsInvalid()) {
+        log::error("Physics: no room for the body of node '{}', the world is full", node.name());
+
+        return false;
+    }
+    body.parts = std::move(collected.parts);
+    body.solePart = shape.solePart;
+    m_byJoltId[body.id.GetIndexAndSequenceNumber()] = {owner, JoltBodyKind::Body};
+    for (const BodyPart& part : body.parts) {
+        m_colliderBodies[part.collider] = body.id;
+    }
+
+    return true;
 }
 
 void PhysicsBodies::addSensor(
@@ -546,17 +573,8 @@ void PhysicsBodies::beforeStep(float stepSeconds)
         const BodyPose pose = bodyPoseOf(node->worldMatrix());
         const bool moved = pose != body.remembered;
         body.remembered = pose;
-        // Датчики - туда, где их коллайдеры сейчас: тела не толкают, им
-        // скорость не нужна.
-        for (const Sensor& sensor : body.sensors) {
-            const BodyPose world = sensorPose(pose, sensor.offset);
-            m_interface.SetPositionAndRotation(
-                sensor.id,
-                toJolt(world.position),
-                toJolt(world.rotation),
-                JPH::EActivation::Activate
-            );
-        }
+        // Датчики тела не толкают, им скорость не нужна.
+        placeSensors(body, pose);
         if (body.id.IsInvalid()) {
             continue;
         }
@@ -574,9 +592,7 @@ void PhysicsBodies::beforeStep(float stepSeconds)
                 toJolt(pose.rotation),
                 JPH::EActivation::Activate
             );
-            body.previous = pose;
-            body.current = pose;
-            body.lastTarget = pose;
+            body.settle(pose);
         }
     }
 }
@@ -591,14 +607,17 @@ void PhysicsBodies::place(NodeId owner)
     Body& body = found->second;
     const BodyPose pose = bodyPoseOf(node->worldMatrix());
     body.remembered = pose;
-    body.previous = pose;
-    body.current = pose;
-    body.lastTarget = pose;
+    body.settle(pose);
     if (!body.id.IsInvalid()) {
         const JPH::EActivation activation = body.motion == JPH::EMotionType::Static ? JPH::EActivation::DontActivate
                                                                                     : JPH::EActivation::Activate;
         m_interface.SetPositionAndRotation(body.id, toJolt(pose.position), toJolt(pose.rotation), activation);
     }
+    placeSensors(body, pose);
+}
+
+void PhysicsBodies::placeSensors(const Body& body, const BodyPose& pose)
+{
     for (const Sensor& sensor : body.sensors) {
         const BodyPose world = sensorPose(pose, sensor.offset);
         m_interface.SetPositionAndRotation(
@@ -689,7 +708,7 @@ std::optional<ContactSide> PhysicsBodies::sideOf(std::uint32_t joltId, std::uint
     if (found == m_byJoltId.end()) {
         return std::nullopt;
     }
-    const auto [owner, kind, link] = found->second;
+    const auto [owner, kind, link, chain] = found->second;
     if (kind == JoltBodyKind::Character) {
         return ContactSide{owner, BodyPart{.collider = 0, .node = owner}, false};
     }
@@ -741,9 +760,9 @@ void PhysicsBodies::removeCharacterBody(JPH::BodyID id)
     m_byJoltId.erase(id.GetIndexAndSequenceNumber());
 }
 
-void PhysicsBodies::addChainLink(JPH::BodyID id, NodeId owner, int link)
+void PhysicsBodies::addChainLink(JPH::BodyID id, NodeId owner, ComponentId chain, int link)
 {
-    m_byJoltId[id.GetIndexAndSequenceNumber()] = {owner, JoltBodyKind::ChainLink, link};
+    m_byJoltId[id.GetIndexAndSequenceNumber()] = {owner, JoltBodyKind::ChainLink, link, chain};
     m_chainLinks[{owner, link}] = id;
 }
 
@@ -755,6 +774,16 @@ void PhysicsBodies::removeChainLink(JPH::BodyID id)
     }
     m_chainLinks.erase({found->second.owner, found->second.link});
     m_byJoltId.erase(found);
+}
+
+std::optional<std::pair<ComponentId, int>> PhysicsBodies::chainLinkOf(std::uint32_t joltId) const
+{
+    const auto found = m_byJoltId.find(joltId);
+    if (found == m_byJoltId.end() || found->second.kind != JoltBodyKind::ChainLink) {
+        return std::nullopt;
+    }
+
+    return std::pair{found->second.chain, found->second.link};
 }
 
 } // namespace yqlora

@@ -4,13 +4,13 @@
 // Управление телом из кода: часть RigidBody, которой нужен мир Jolt.
 
 #include "yqlora/physics/BodyPose.hpp"
+#include "yqlora/physics/JoltBodyMass.hpp"
 #include "yqlora/physics/JoltMath.hpp"
 #include "yqlora/physics/PhysicsWorldImpl.hpp"
 #include "yqlora/physics/RigidBody.hpp"
 #include "yqlora/scene/Node3D.hpp"
 
 #include <Jolt/Physics/Body/BodyInterface.h>
-#include <Jolt/Physics/Body/BodyLock.h>
 
 namespace yqlora {
 
@@ -47,21 +47,16 @@ BodyHandle handleOf(const RigidBody& body)
     };
 }
 
-float massOf(const BodyHandle& body)
+// Ускорение и прибавка скорости даны на единицу массы (инерции).
+bool isPerMass(ForceMode mode)
 {
-    const JPH::BodyLockRead lock(*body.locks, body.id);
-    const JPH::MotionProperties* motion = lock.Succeeded() ? lock.GetBody().GetMotionPropertiesUnchecked() : nullptr;
-    const float inverse = motion ? motion->GetInverseMass() : 0.0f;
-
-    return inverse > 0.0f ? 1.0f / inverse : 0.0f;
+    return mode == ForceMode::Acceleration || mode == ForceMode::VelocityChange;
 }
 
 // Импульс или сила по вектору режима: ускорение и прибавка скорости - на массу.
 JPH::Vec3 scaledByMass(const BodyHandle& body, const Vec3& value, ForceMode mode)
 {
-    const bool perMass = mode == ForceMode::Acceleration || mode == ForceMode::VelocityChange;
-
-    return toJolt(perMass ? value * massOf(body) : value);
+    return toJolt(isPerMass(mode) ? value * joltBodyMass(*body.locks, body.id) : value);
 }
 
 bool isImpulse(ForceMode mode)
@@ -144,7 +139,7 @@ void RigidBody::addTorque(const Vec3& torque, ForceMode mode)
     }
     JPH::Vec3 value = toJolt(torque);
     // Угловое ускорение и прибавка угловой скорости - на тензор инерции в мире.
-    if (mode == ForceMode::Acceleration || mode == ForceMode::VelocityChange) {
+    if (isPerMass(mode)) {
         value = body.bodies->GetInverseInertia(body.id).Inversed3x3().Multiply3x3(value);
     }
     if (isImpulse(mode)) {

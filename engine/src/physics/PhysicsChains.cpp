@@ -115,11 +115,6 @@ PhysicsChains::~PhysicsChains()
     }
 }
 
-bool PhysicsChains::firstWarning(ComponentId id)
-{
-    return m_warned.insert(id).second;
-}
-
 void PhysicsChains::changed(PhysicsChain& chain)
 {
     Entry& entry = m_chains[chain.id()];
@@ -187,8 +182,7 @@ void PhysicsChains::build(Entry& entry)
 
             return;
         }
-        m_bodies.addChainLink(id, node.id(), i);
-        m_links[id.GetIndexAndSequenceNumber()] = {chain.id(), i};
+        m_bodies.addChainLink(id, node.id(), chain.id(), i);
         entry.links.push_back(
             {.id = id, .rest = rest, .previous = world, .current = world, .groundNormal = Vec3(0.0f), .ground = {}}
         );
@@ -259,7 +253,6 @@ void PhysicsChains::destroy(Entry& entry)
     JPH::BodyInterface& bodies = m_system.GetBodyInterface();
     for (const Link& link : entry.links) {
         m_bodies.removeChainLink(link.id);
-        m_links.erase(link.id.GetIndexAndSequenceNumber());
         bodies.RemoveBody(link.id);
         bodies.DestroyBody(link.id);
     }
@@ -333,7 +326,7 @@ void PhysicsChains::sync()
             continue;
         }
         const bool rival = node->getComponent<RigidBody>() || node->getComponent<CharacterController>();
-        if (rival && firstWarning(id)) {
+        if (rival && m_warnings.first(id)) {
             log::warn(
                 "Physics: node '{}' has a PhysicsChain and a RigidBody or CharacterController; they would both move it",
                 node->name()
@@ -406,13 +399,13 @@ void PhysicsChains::afterStep(const std::vector<RawContact>& contacts)
     // Нормаль касания смотрит из первого тела во второе: земля толкает
     // второе по ней, а первое - против.
     const auto touch = [&](std::uint32_t self, std::uint32_t other, std::uint32_t otherPart, const Vec3& normal) {
-        const auto found = m_links.find(self);
-        if (found == m_links.end()) {
+        const auto selfLink = m_bodies.chainLinkOf(self);
+        if (!selfLink) {
             return;
         }
-        const auto [chainId, index] = found->second;
-        const auto otherLink = m_links.find(other);
-        if (otherLink != m_links.end() && otherLink->second.first == chainId) {
+        const auto [chainId, index] = *selfLink;
+        const auto otherLink = m_bodies.chainLinkOf(other);
+        if (otherLink && otherLink->first == chainId) {
             return;
         }
         const auto side = m_bodies.sideOf(other, otherPart);

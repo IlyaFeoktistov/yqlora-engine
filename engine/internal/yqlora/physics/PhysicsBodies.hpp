@@ -2,6 +2,7 @@
 
 // Только для кода движка, который включает Jolt (Jolt.h - раньше этого файла).
 
+#include "yqlora/core/WarnOnce.hpp"
 #include "yqlora/physics/BodyPose.hpp"
 #include "yqlora/physics/Collision.hpp"
 #include "yqlora/physics/JoltShapes.hpp"
@@ -9,6 +10,7 @@
 #include "yqlora/scene/NodeId.hpp"
 #include "yqlora/scene/ObjectId.hpp"
 
+#include <Jolt/Physics/Body/AllowedDOFs.h>
 #include <Jolt/Physics/Body/BodyID.h>
 #include <Jolt/Physics/Body/MotionType.h>
 
@@ -28,11 +30,13 @@ class BodyInterface;
 
 namespace yqlora {
 
-class Component;
+class Collider;
 class MeshShapeCache;
 class PhysicsMaterialCache;
 class Node;
+class Node3D;
 class ResourceCache;
+class RigidBody;
 class Scene;
 
 // Коллайдер тела: компонент и его узел.
@@ -70,8 +74,11 @@ public:
 
     // В ветке node мог смениться хозяин коллайдеров или состав тел.
     void branchChanged(const Node& node);
-    // Коллайдер или RigidBody уходит из сцены: его тело перестроится.
-    void componentLeft(const Component& component);
+    // Коллайдер уходит из сцены: его тело перестроится.
+    void colliderLeft(const Collider& collider);
+    // RigidBody уходит из сцены: коллайдеры под ним достанутся телу выше или
+    // станут неподвижными.
+    void rigidBodyLeft(const RigidBody& body);
 
     // Перестраивает изменённые тела и те, у которых дочерний коллайдер
     // сдвинулся относительно узла тела, сменился масштаб узла тела или
@@ -121,10 +128,12 @@ public:
     void addCharacterBody(JPH::BodyID id, NodeId owner);
     void removeCharacterBody(JPH::BodyID id);
 
-    // Тело звена link цепи узла owner (PhysicsChains): касания и попадания
-    // в него - в этот узел с номером звена.
-    void addChainLink(JPH::BodyID id, NodeId owner, int link);
+    // Тело звена link цепи chain на узле owner (PhysicsChains): касания и
+    // попадания в него - в этот узел с номером звена.
+    void addChainLink(JPH::BodyID id, NodeId owner, ComponentId chain, int link);
     void removeChainLink(JPH::BodyID id);
+    // Цепь и номер звена тела Jolt joltId; nullopt - это не звено.
+    std::optional<std::pair<ComponentId, int>> chainLinkOf(std::uint32_t joltId) const;
 
     // Зовётся перед тем, как тело Jolt уходит из мира (перестройка,
     // удаление): скрепления, которые на него ссылаются, снимаются раньше.
@@ -168,6 +177,14 @@ private:
         // Номер коллайдера, если форма не составная.
         std::uint32_t solePart = 0;
         std::vector<Sensor> sensors{};
+
+        // Тело встало в pose без движения: сглаживать не от чего.
+        void settle(const BodyPose& pose)
+        {
+            previous = pose;
+            current = pose;
+            lastTarget = pose;
+        }
     };
 
     // Триггер, для которого строится датчик.
@@ -185,14 +202,47 @@ private:
         ChainLink,
     };
 
-    // Хозяин тела Jolt и что это за тело; link - номер звена цепи.
+    // Хозяин тела Jolt и что это за тело; у звена - его цепь и номер.
     struct JoltBodyOwner {
         NodeId owner = 0;
         JoltBodyKind kind = JoltBodyKind::Body;
         int link = kNoLink;
+        ComponentId chain = 0;
+    };
+
+    // Что собрано из коллайдеров тела: фигуры тела, их коллайдеры,
+    // триггеры для датчиков и меши с ревизиями.
+    struct CollectedShapes {
+        std::vector<PlacedShape> shapes;
+        std::vector<BodyPart> parts;
+        std::vector<PendingSensor> triggers;
+        std::vector<std::pair<ResourceId, std::uint64_t>> meshes;
     };
 
     void rebuild(NodeId owner);
+    // Фигуры коллайдеров тела хозяина node в осях тела в pose;
+    // withDescendants - с коллайдерами потомков (у хозяина RigidBody).
+    CollectedShapes collectShapes(
+        const Node3D& node,
+        NodeId owner,
+        const BodyPose& pose,
+        JPH::EMotionType motion,
+        bool withDescendants
+    );
+    // Тело Jolt из фигур collected в body.remembered с движением body.motion;
+    // false - миру не хватило места.
+    bool addSolid(
+        const Node& node,
+        NodeId owner,
+        const RigidBody* rigidBody,
+        JPH::EAllowedDOFs allowed,
+        bool asleep,
+        CollectedShapes& collected,
+        const MeshShapeSource& meshes,
+        Body& body
+    );
+    // Датчики тела - туда, где их коллайдеры при положении тела pose.
+    void placeSensors(const Body& body, const BodyPose& pose);
     void addSensor(
         const Node& node,
         NodeId owner,
@@ -211,8 +261,6 @@ private:
     // Пишет положение тела в узел и запоминает, что в узле получилось.
     void writePose(Node& node, Body& body, const BodyPose& pose);
     void sortByDepth();
-    // Сообщение в лог об объекте id один раз за жизнь мира.
-    bool firstWarning(std::uint64_t id);
 
     Scene& m_scene;
     JPH::BodyInterface& m_interface;
@@ -221,7 +269,7 @@ private:
     ResourceCache& m_resources;
     // Материал по умолчанию, с которым построены тела.
     ResourceId m_defaultMaterial = 0;
-    std::unordered_set<std::uint64_t> m_warned;
+    WarnOnce m_warnings;
     std::unordered_map<NodeId, Body> m_bodies;
     // Хозяева тел в порядке глубины узлов.
     std::vector<NodeId> m_order;

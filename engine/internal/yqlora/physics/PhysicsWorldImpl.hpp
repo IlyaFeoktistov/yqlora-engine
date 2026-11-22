@@ -74,6 +74,11 @@ struct PhysicsWorldJolt {
     static const PhysicsJoints* jointsOf(const Component& component);
     // Цепи тел мира сцены компонента, готовые к чтению; nullptr - мира нет.
     static const PhysicsChains* chainsOf(const Component& component);
+
+    // Мир Jolt сцены компонента; created создаёт его, если его нет, existing
+    // - нет. nullptr - компонент не в сцене (или мира нет).
+    static PhysicsWorld::Impl* createdImplOf(const Component& component);
+    static PhysicsWorld::Impl* existingImplOf(const Component& component);
 };
 
 } // namespace yqlora

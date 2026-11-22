@@ -187,7 +187,7 @@ void PhysicsCharacters::sync()
             destroy(character);
             continue;
         }
-        if (node->getComponent<RigidBody>() && m_warned.insert(id).second) {
+        if (node->getComponent<RigidBody>() && m_warnings.first(id)) {
             log::warn(
                 "Physics: node '{}' has both a CharacterController and a RigidBody; they would both move it",
                 node->name()

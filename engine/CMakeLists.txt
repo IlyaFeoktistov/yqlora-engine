@@ -223,6 +223,7 @@ add_library(yqlora SHARED
     src/physics/Joint.cpp
     src/physics/JointDefinition.cpp
     src/physics/JointControl.cpp
+    src/physics/JoltBodyMass.cpp
     src/physics/JoltContacts.cpp
     src/physics/JoltLayers.cpp
     src/physics/JoltMaterials.cpp

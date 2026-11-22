@@ -449,11 +449,6 @@ void PhysicsJoints::remove(Entry& entry)
     entry.torque = 0.0f;
 }
 
-bool PhysicsJoints::firstWarning(ComponentId id)
-{
-    return m_warned.insert(id).second;
-}
-
 void PhysicsJoints::sync()
 {
     if (!m_scene.playing()) {
@@ -476,7 +471,7 @@ void PhysicsJoints::sync()
         if (connectedOwner != 0) {
             connected = m_bodies.bodyOf(connectedOwner);
             if (connected.IsInvalid()) {
-                if (firstWarning(id)) {
+                if (m_warnings.first(id)) {
                     log::warn(
                         "Physics: the joint on node '{}' waits for its connected node to have a body",
                         node->name()

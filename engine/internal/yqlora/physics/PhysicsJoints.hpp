@@ -2,6 +2,7 @@
 
 // Только для кода движка, который включает Jolt (Jolt.h - раньше этого файла).
 
+#include "yqlora/core/WarnOnce.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/scene/NodeId.hpp"
 #include "yqlora/scene/ObjectId.hpp"
@@ -11,7 +12,6 @@
 
 #include <map>
 #include <optional>
-#include <unordered_set>
 
 namespace JPH {
 
@@ -85,8 +85,6 @@ private:
     void remove(Entry& entry);
     void configure(Entry& entry);
     const Entry* find(const Joint& joint) const;
-    // Сообщение в лог о скреплении один раз за жизнь мира.
-    bool firstWarning(ComponentId id);
 
     Scene& m_scene;
     JPH::PhysicsSystem& m_system;
@@ -94,7 +92,7 @@ private:
     CollisionIgnores& m_ignores;
     // По ID компонентов: разрывы и создание идут в устойчивом порядке.
     std::map<ComponentId, Entry> m_joints;
-    std::unordered_set<ComponentId> m_warned;
+    WarnOnce m_warnings;
 };
 
 } // namespace yqlora

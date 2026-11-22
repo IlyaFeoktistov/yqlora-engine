@@ -2,6 +2,7 @@
 
 // Только для кода движка, который включает Jolt (Jolt.h - раньше этого файла).
 
+#include "yqlora/core/WarnOnce.hpp"
 #include "yqlora/math/Math.hpp"
 #include "yqlora/scene/NodeId.hpp"
 #include "yqlora/scene/ObjectId.hpp"
@@ -9,7 +10,6 @@
 #include <Jolt/Physics/Character/CharacterVirtual.h>
 
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace JPH {
@@ -103,7 +103,7 @@ private:
     std::unordered_map<ComponentId, Character> m_characters;
     // Касания идущего move: тело Jolt и номер подфигуры.
     std::vector<std::pair<JPH::BodyID, JPH::SubShapeID>> m_hits;
-    std::unordered_set<ComponentId> m_warned;
+    WarnOnce m_warnings;
 };
 
 } // namespace yqlora
