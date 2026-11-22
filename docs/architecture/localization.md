@@ -48,6 +48,10 @@ Status marks: see [README](README.md).
   label in every language; tests check it, so a new type, property or value
   without its key in `en.json` and `ru.json` fails the tests. A raw
   variable name never reaches the inspector.
+- Every shown property of an engine type (fields of records too) and every
+  field of a built-in shader has a description, `help.<Type>.<property>`,
+  in every language, the Russian text its own; see
+  [editor](editor.md#descriptions-of-properties-done).
 - A script names its fields with `displayName("key or text")`, a shader its
   material fields with `//@ label("key or text")`: a key is translated, a
   text is shown as it is.

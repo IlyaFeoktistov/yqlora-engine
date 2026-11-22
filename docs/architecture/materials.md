@@ -134,7 +134,8 @@ void main()
   - `range(min, max)`: only `float`, `int`, `uint`; a slider, `min < max`;
   - `default(...)`: as many numbers as the type has components; textures
     take `white`, `black` or `normal`;
-  - `label("text")`, `hidden`: any field or texture;
+  - `label("text")`, `tooltip("text")`, `hidden`: any field or texture;
+    the label and the tooltip take a translation key or the text itself;
   - an unknown word, a wrong number or type of arguments, an annotation not
     fitting the type, the same annotation twice: a compile error with the
     file and line.

@@ -9,16 +9,16 @@
 
 layout(set = 2, binding = 0, std140) uniform Material {
     //@ label("Sun disc") range(0, 1)
-    int sunDisc;              //@ default(1)
+    int sunDisc;              //@ default(1) tooltip("help.shader.physical_sky.sunDisc")
     // Насколько темнее край диска: 0 - ровный.
-    float limbDarkening;      //@ range(0, 1) default(0.6)
-    float sunDiscIntensity;   //@ range(0, 10) default(1)
+    float limbDarkening;      //@ range(0, 1) default(0.6) tooltip("help.shader.physical_sky.limbDarkening")
+    float sunDiscIntensity;   //@ range(0, 10) default(1) tooltip("help.shader.physical_sky.sunDiscIntensity")
     // Видимый угловой размер диска в градусах; 0 - как у света
     // (DirectionalLight3D::angularDiameter). Только вид: тени и свет солнца
     // считаются от размера света.
-    float sunDiscSize;        //@ range(0, 20) default(3.5)
+    float sunDiscSize;        //@ range(0, 20) default(3.5) tooltip("help.shader.physical_sky.sunDiscSize")
     // Доля радиуса, на которой край диска плавно гаснет; 0 - резкий край.
-    float sunDiscSoftness;    //@ range(0, 1) default(0.3)
+    float sunDiscSoftness;    //@ range(0, 1) default(0.3) tooltip("help.shader.physical_sky.sunDiscSoftness")
 } material;
 
 const float kPi = 3.14159265358979;

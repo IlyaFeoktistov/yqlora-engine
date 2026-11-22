@@ -11,7 +11,7 @@
 namespace yqlora {
 
 // Смысл пометок (разобранных parseShaderAnnotations) для поля материала:
-// color, range, default, label, hidden, каждая по типу поля из отражения.
+// color, range, default, label, tooltip, hidden, каждая по типу поля из отражения.
 // Незнакомая пометка, неверные аргументы, пометка не по типу и повтор -
 // ошибки в errors с файлом file и строкой пометки; такая пометка не
 // применяется.
@@ -22,7 +22,8 @@ YQLORA_API void applyAnnotations(
     std::vector<ShaderMessage>& errors
 );
 
-// То же для текстуры материала: default(white | black | normal), label, hidden.
+// То же для текстуры материала: default(white | black | normal), label, tooltip,
+// hidden.
 YQLORA_API void applyAnnotations(
     const AnnotatedDeclaration& declaration,
     MaterialTexture& texture,

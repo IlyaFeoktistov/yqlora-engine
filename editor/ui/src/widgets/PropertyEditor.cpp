@@ -6,6 +6,7 @@
 #include "yqlora/editor/ui/widgets/ChoiceFields.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
 #include "yqlora/editor/ui/widgets/EventTargetsField.hpp"
+#include "yqlora/editor/ui/widgets/HelpTooltip.hpp"
 #include "yqlora/editor/ui/widgets/InputControlField.hpp"
 #include "yqlora/editor/ui/widgets/LayerFields.hpp"
 #include "yqlora/editor/ui/widgets/NumberFields.hpp"
@@ -15,6 +16,7 @@
 #include "yqlora/editor/EventTargets.hpp"
 #include "yqlora/editor/ReferenceFields.hpp"
 
+#include "yqlora/editor/PropertyHelp.hpp"
 #include "yqlora/editor/PropertyValues.hpp"
 #include "yqlora/editor/ResourceLabel.hpp"
 
@@ -74,6 +76,21 @@ float dragSpeed(const Property& property, float value)
     }
 }
 
+// Подсказка подписи: описание свойства, а над ним полная подпись, если её
+// обрезало узкое окно.
+void labelTooltip(const Property& property, const std::string& label, bool clipped)
+{
+    const std::string help = propertyHelp(property);
+    if (help.empty() && !clipped) {
+        return;
+    }
+    std::string text = help;
+    if (clipped) {
+        text = help.empty() ? label : label + "\n" + help;
+    }
+    helpTooltip(text);
+}
+
 // Подпись строки. У одиночного числа её можно тянуть, у остальных - просто текст.
 void rowLabel(const Property& property, PropertyValue& value, PropertyResult& result)
 {
@@ -96,13 +113,7 @@ void rowLabel(const Property& property, PropertyValue& value, PropertyResult& re
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetStyle().FramePadding.x);
         ImGui::TextUnformatted(label.c_str());
     }
-    // Подсказка поля - ключ перевода или сам текст: tr без перевода вернёт его же.
-    const std::string& tooltip = property.attributes().tooltip;
-    if (!tooltip.empty()) {
-        ImGui::SetItemTooltip("%s%s%s", clipped ? label.c_str() : "", clipped ? "\n" : "", tr(tooltip).c_str());
-    } else if (clipped) {
-        ImGui::SetItemTooltip("%s", label.c_str());
-    }
+    labelTooltip(property, label, clipped);
 }
 
 void valueField(
@@ -133,7 +144,9 @@ void recordField(
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(propertyLabel(fields[i]).c_str());
+        const std::string label = propertyLabel(fields[i]);
+        ImGui::TextUnformatted(label.c_str());
+        labelTooltip(fields[i], label, false);
         ImGui::TableNextColumn();
         valueField(fields[i], fields[i].type(), record.fields[i], context, result);
         ImGui::PopID();
@@ -505,6 +518,7 @@ void recordRows(
     const auto& fields = property.fields();
     const bool
         open = ImGui::TreeNodeEx("##record", ImGuiTreeNodeFlags_SpanAllColumns, "%s", propertyLabel(property).c_str());
+    labelTooltip(property, propertyLabel(property), false);
     if (!open || fields.size() != record.fields.size()) {
         if (open) {
             ImGui::TreePop();

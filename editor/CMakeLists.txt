@@ -39,6 +39,7 @@ add_library(yqlora_editor STATIC
     src/JointEditing.cpp
     src/Picking.cpp
     src/PointPick.cpp
+    src/PropertyHelp.cpp
     src/PropertyValues.cpp
     src/EditorSession.cpp
     src/EditorSettings.cpp
@@ -148,6 +149,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/widgets/PropertyContext.cpp
     ui/src/widgets/PropertyEditor.cpp
     ui/src/widgets/PropertyTable.cpp
+    ui/src/widgets/HelpTooltip.cpp
     ui/src/widgets/ReferenceButton.cpp
     ui/src/widgets/ReleaseClick.cpp
     ui/src/widgets/ReferenceField.cpp

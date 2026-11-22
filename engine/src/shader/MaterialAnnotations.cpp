@@ -12,6 +12,7 @@ constexpr std::string_view kColor = "color";
 constexpr std::string_view kRange = "range";
 constexpr std::string_view kDefault = "default";
 constexpr std::string_view kLabel = "label";
+constexpr std::string_view kTooltip = "tooltip";
 constexpr std::string_view kHidden = "hidden";
 
 bool isNumberType(rhi::ValueType type)
@@ -106,18 +107,25 @@ private:
     std::vector<ShaderMessage>& m_errors;
 };
 
-// label и hidden есть у всего. false - пометка не из них.
-bool applyCommon(const Annotation& annotation, const Checker& check, std::string& label, bool& hidden)
+// Что есть у всего: подпись, подсказка, скрытость.
+struct CommonLook {
+    std::string& label;
+    std::string& tooltip;
+    bool& hidden;
+};
+
+// label, tooltip и hidden есть у всего. false - пометка не из них.
+bool applyCommon(const Annotation& annotation, const Checker& check, const CommonLook& look)
 {
-    if (annotation.word == kLabel) {
+    if (annotation.word == kLabel || annotation.word == kTooltip) {
         if (const std::string* text = check.string()) {
-            label = *text;
+            (annotation.word == kLabel ? look.label : look.tooltip) = *text;
         }
 
         return true;
     }
     if (annotation.word == kHidden) {
-        hidden = check.arguments(0) || hidden;
+        look.hidden = check.arguments(0) || look.hidden;
 
         return true;
     }
@@ -192,7 +200,7 @@ void applyAnnotations(
             applyRange(check, field);
         } else if (annotation.word == kDefault) {
             applyDefault(check, field);
-        } else if (!applyCommon(annotation, check, field.label, field.hidden)) {
+        } else if (!applyCommon(annotation, check, {field.label, field.tooltip, field.hidden})) {
             check.fail("unknown annotation");
         }
     });
@@ -214,7 +222,7 @@ void applyAnnotations(
             } else {
                 texture.defaultTexture = *found;
             }
-        } else if (!applyCommon(annotation, check, texture.label, texture.hidden)) {
+        } else if (!applyCommon(annotation, check, {texture.label, texture.tooltip, texture.hidden})) {
             check.fail("unknown annotation");
         }
     });

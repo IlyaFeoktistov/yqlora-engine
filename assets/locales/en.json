@@ -770,5 +770,340 @@
     },
     "tooltip": {
         "ambientColors": "Colours of the ambient light that lights objects. The visible sky is drawn by the sky material (the Sky field): for a sky of these colours choose the Gradient Sky material and set its colours."
+    },
+    "help": {
+        "GeneralSettings": {
+            "gameName": "The name of the game for players.",
+            "gameVersion": "The version of the game for players, set by you (for example 1.0.2). It is not the version of the project format.",
+            "company": "Who makes the game: you or your studio.",
+            "startupScene": "The scene that opens with the project and that the built game starts with.",
+            "icon": "A texture of the project shown as the icon of the game window."
+        },
+        "InputSettings": {
+            "actions": "Actions of the game (Move, Jump, Fire) and the keys, buttons and sticks bound to them. Scripts ask for an action by its name, so rebinding keys does not touch the code."
+        },
+        "InputAction": {
+            "name": "The name scripts use to ask for this action, for example Jump.",
+            "kind": "Button: pressed, held or released. Axis: a value from -1 to 1, the sum of the bindings times their scale (movement, look); the mouse can go beyond 1.",
+            "bindings": "Keys, mouse buttons and gamepad controls that trigger the action; any of them works."
+        },
+        "InputBinding": {
+            "control": "The key or button: click the field and press it.",
+            "scale": "For an axis the value of the control is multiplied by it: 1 and -1 make two keys one axis; for the mouse it is the sensitivity. A button ignores it."
+        },
+        "Node": {
+            "name": "The name of the node in the scene tree; scripts can find a node by it.",
+            "active": "An inactive node and all its children take no part in the game: they are not drawn, do not collide and their scripts do not run.",
+            "layer": "The layer of the node: cameras draw only the layers of their mask, and physics decides by layers what collides with what.",
+            "groups": "Tags of the node (enemies, pickups): scripts find all nodes of a group at once."
+        },
+        "Component": {
+            "enabled": "A disabled component takes no part in the game: a renderer does not draw, a collider does not collide, a script does not run."
+        },
+        "Transform3D": {
+            "position": "The position relative to the parent node, in metres.",
+            "rotation": "The rotation relative to the parent node: angles around X, Y and Z in degrees.",
+            "scale": "The size relative to the parent node along each axis: 1 is unchanged, 2 is twice as big. Children are scaled too."
+        },
+        "Timer": {
+            "duration": "Seconds from the start to the onTimeout event; with Repeat also the time between events. 0.5 for a blink, 3 for a respawn delay.",
+            "repeat": "Fire again every Duration seconds until stopped; off fires once.",
+            "autostart": "Start on its own when the game starts. Off - a script starts it with start().",
+            "unscaled": "Count real time: the timer runs during a pause and ignores slow motion. For menus and interface.",
+            "onTimeout": "Methods called when the time is up."
+        },
+        "EventTarget": {
+            "target": "The node whose method is called by the event.",
+            "method": "The method of a component of the target node that the event calls."
+        },
+        "PrefabPool": {
+            "prefab": "The prefab whose instances the pool makes: a bullet, a shell, a hit effect.",
+            "size": "How many instances are made when the game starts. About as many as can be alive at once: 30 bullets in the air - 30.",
+            "whenEmpty": "What happens when all instances are in use. Grow: make one more (a small hitch). Refuse: give nothing, the script gets no instance."
+        },
+        "ExecutionOrderSettings": {
+            "entries": "Component types with their order inside each phase of the frame. Types not in the list keep the order from code."
+        },
+        "ExecutionOrderEntry": {
+            "type": "The component type whose order is set.",
+            "order": "Smaller runs earlier in each phase of the frame: -100 for input before everything, 100 for a camera after the movement. 0 is usual."
+        },
+        "LayerSettings": {
+            "names": "Names of the 32 layers of nodes. A layer without a name is not offered in lists. Nodes keep the number, so renaming changes nothing in scenes."
+        },
+        "TimeSettings": {
+            "fixedStep": "The step of physics and onFixedUpdate, in seconds. 1/60 (0.0167) is usual; smaller is more accurate but costs more.",
+            "maxFrame": "The longest frame the game counts, in seconds: after a freeze or a pause in the debugger the game does not jump ahead. 0.1 is usual."
+        },
+        "Camera3D": {
+            "fov": "The vertical angle of view in degrees. 60 is usual, 90 and more is wide (racing), 30 and less is a zoom.",
+            "near": "The nearest distance the camera draws, in metres. Too small makes far surfaces flicker; 0.1 for a person, 0.01 for a close-up.",
+            "far": "The farthest distance the camera draws, in metres; things farther away are not drawn. 1000 is usual.",
+            "order": "Cameras draw in order, smaller first; the first one is the main camera. A second camera on top (hands of the player) has a bigger order.",
+            "cullingMask": "The layers of nodes this camera draws.",
+            "clear": "What the camera clears before drawing. Sky: the sky of the environment behind everything. Colour and depth: the background colour. Depth only: keep the picture under it (a camera on top of another). Nothing: draw over everything.",
+            "background": "The colour of empty pixels when Clear is Colour and depth.",
+            "exposure": "How much light the camera needs, in EV100: 15 for a sunny day, 12 for an overcast day, about 7 for a room, 2 for a street at night. Bigger is a darker picture.",
+            "toneMapping": "How bright colours fit the screen. AgX: soft, like film (default). Aces: more contrast, bright colours shift in hue. Neutral: keeps colours, compresses only the brightest. None: everything above white is cut off."
+        },
+        "Light3D": {
+            "color": "The colour of the light.",
+            "intensity": "The power of the light in physical units. Directional: illuminance in lux (sun 100000, overcast 10000, moon 0.3). Point and spot: luminous intensity in candelas (a 100 W bulb about 130).",
+            "shadows": "None: no shadows. Hard: sharp edges, cheap. Soft: the penumbra widens with the size of the source and the distance to the object, like real shadows.",
+            "shadowStrength": "How much the shadow hides the light: 1 fully, 0.5 half, 0 no shadow.",
+            "shadowSoftness": "The width of the soft penumbra: 1 as the size of the source gives, 0 sharp, bigger is softer than physical.",
+            "shadowBias": "Shifts the shadow test toward the light, in texels of the shadow map: against stripes of self-shadowing on surfaces. Too big detaches the shadow from the object. 0.5 is usual.",
+            "shadowNormalBias": "Shifts the shadow test along the surface normal, in texels of the shadow map: against stripes on surfaces at a steep angle to the light. 1 is usual."
+        },
+        "DirectionalLight3D": {
+            "sun": "This light is the sun of the scene: the sky and the atmosphere follow it. Without the flag on any light the brightest directional light is the sun.",
+            "angularDiameter": "The size of the source in the sky in degrees: 0.53 for the sun. Sets the width of soft shadows and the sun disc of the sky."
+        },
+        "PointLight3D": {
+            "range": "Beyond this distance in metres the light lights nothing; it fades smoothly to zero there. Smaller is cheaper.",
+            "sourceRadius": "The radius of the glowing body in metres (a filament 0.01, a lamp shade 0.2): sets the width of soft shadows."
+        },
+        "SpotLight3D": {
+            "innerAngle": "Inside this angle from the axis, in degrees, the spot shines at full power.",
+            "outerAngle": "At this angle from the axis, in degrees, the light goes out; between the angles it fades smoothly."
+        },
+        "Environment": {
+            "sky": "The sky material: Physical Sky (atmosphere and sun), Panoramic Sky (a picture) or Gradient Sky (colours). Empty - no sky.",
+            "ambientSource": "Where the ambient light (the light from all around) comes from. Sky: from the sky material. Gradient: three colours by height. Colour: one colour.",
+            "ambientIntensity": "A multiplier of the ambient light: 1 is physical, 0 turns it off, bigger lights the shadows more.",
+            "gradientLuminance": "The brightness of white in the gradient or colour, in nits: 10000 for daylight, 1000 for an overcast evening, 1 for night.",
+            "atmosphere": "The air of the planet: the colour of the sky, the colour of the sun near the horizon and the haze in the distance."
+        },
+        "Atmosphere": {
+            "enabled": "Off - no haze in the distance and the sunlight is not tinted by the air.",
+            "groundAlbedo": "How much light the ground reflects: lights the sky from below. 0.3 for the Earth, brighter for snow.",
+            "planetRadius": "The radius of the planet in km: 6360 for the Earth. A small planet has a more curved horizon.",
+            "atmosphereHeight": "The height of the atmosphere in km: 100 for the Earth.",
+            "rayleighScattering": "Scattering by molecules of air for red, green and blue, per Mm: makes the sky blue and sunsets red. Earth: 5.8, 13.6, 33.1.",
+            "rayleighHeight": "The height in km at which the air becomes 2.7 times thinner: 8 for the Earth.",
+            "mieScattering": "Scattering by dust and droplets, per Mm: the white haze and the glow around the sun. 4 for clear air, 20 and more for haze.",
+            "mieAbsorption": "Absorption by dust and droplets, per Mm: darkens the haze. 4.4 for the Earth.",
+            "mieHeight": "The height in km at which the dust becomes 2.7 times thinner: 1.2 for the Earth.",
+            "mieAnisotropy": "How much dust scatters forward: 0 in all directions, 0.8 a bright glow around the sun.",
+            "ozoneAbsorption": "Absorption by the ozone layer for red, green and blue, per Mm: deepens the blue of the sky at dusk. 0 - no ozone.",
+            "aerialPerspective": "The haze over distant objects: 0 none, 1 physical, bigger is thicker, for style."
+        },
+        "MeshRenderer": {
+            "mesh": "The mesh drawn at the position of the node: a built-in shape or a mesh from a model file.",
+            "materials": "Materials by parts of the mesh: slot 1 for part 1 and so on. An empty slot draws with the default material.",
+            "castShadows": "The mesh casts shadows of lights that have shadows.",
+            "receiveShadows": "Shadows fall on the mesh."
+        },
+        "GraphicsSettings": {
+            "windowsApi": "The graphics API of the game on Windows. Changing it rebuilds the renderer without a restart.",
+            "linuxApi": "The graphics API of the game on Linux. Changing it rebuilds the renderer without a restart.",
+            "vsync": "Do not draw frames faster than the screen refreshes: no tearing, less heat; the frame rate is limited by the screen.",
+            "shadows": "Shadows at all. Off - no light casts shadows, whatever its settings; the fastest.",
+            "shadowDistance": "Beyond this distance from the camera in metres the sun casts no shadows. Smaller is sharper near the camera. 100 is usual, 30 for a small scene.",
+            "shadowCascades": "The sun shadows are split into 1 to 4 parts by distance: more is sharper near and farther away, but costs more.",
+            "shadowCascadeSize": "The side of the shadow map of one cascade of the sun in texels: 2048 is usual, 4096 is sharper and takes 4 times the memory.",
+            "shadowAtlasSize": "The side of the shared shadow map of point and spot lights in texels: bigger is sharper shadows of more lights.",
+            "shadowBlockerSamples": "Samples for finding what casts a soft shadow: more is a more stable penumbra, but costs more. 16 is usual.",
+            "shadowFilterSamples": "Samples for smoothing soft shadows: more is a smoother penumbra, but costs more. 32 is usual.",
+            "shadowMaxPenumbra": "The widest penumbra of soft shadows, in metres: limits the softness of far shadows. 3 is usual."
+        },
+        "RigidBody": {
+            "motion": "Static: never moves (a wall, the floor). Kinematic: moved only by code and carries what stands on it (a platform, a door). Dynamic: moved by forces and collisions (a crate, a ball).",
+            "mass": "The mass of the body in kg: how hard it is to push. 1 for a ball, 20 for a crate, 1000 for a car.",
+            "linearDamping": "The share of speed the body loses per second, like air resistance: 0.05 almost none, 1 slows down quickly, 10 like in water.",
+            "angularDamping": "The share of rotation speed the body loses per second: bigger stops spinning sooner.",
+            "gravityScale": "A multiplier of gravity: 1 as everything, 0 floats, 2 falls faster, negative rises.",
+            "interpolation": "The node shows the position between two physics steps, so the movement is smooth at any frame rate. The body itself is not affected.",
+            "continuousCollision": "A fast small body (a bullet, a ball) is checked along its whole path in a step and does not pass through thin walls. Costs more.",
+            "lockPosition": "World axes the body does not move along: lock Z for a game in a plane.",
+            "lockRotation": "World axes the body does not rotate around: lock X and Z for a character that should not tip over.",
+            "startAsleep": "The body starts asleep: it does not fall or cost anything until something touches it (a pile of crates that stands until the first hit).",
+            "onCollisionEnter": "Methods called when a collider of this body starts touching another body.",
+            "onCollisionStay": "Methods called after every physics step while the bodies keep touching.",
+            "onCollisionExit": "Methods called when the bodies stop touching."
+        },
+        "AxisLocks": {
+            "x": "The X axis.",
+            "y": "The Y axis.",
+            "z": "The Z axis."
+        },
+        "Collider": {
+            "center": "The offset of the shape from the node, in metres, in the axes of the node.",
+            "rotation": "The rotation of the shape relative to the node, angles in degrees.",
+            "material": "The friction and bounciness of the surface. Empty - the default physics material of the project settings.",
+            "isTrigger": "A zone that pushes nothing but reports who entered and left it (onTriggerEnter, onTriggerExit): checkpoints, damage zones, doors that open.",
+            "detectStatic": "The trigger also notices static and kinematic bodies. Off - only dynamic bodies, so a zone on a big floor does not report every contact.",
+            "onTriggerEnter": "Methods called when another body enters the trigger.",
+            "onTriggerExit": "Methods called when another body leaves the trigger."
+        },
+        "BoxCollider": {
+            "size": "The full size of the box along X, Y and Z, in metres."
+        },
+        "SphereCollider": {
+            "radius": "The radius of the sphere in metres."
+        },
+        "CapsuleCollider": {
+            "radius": "The radius of the capsule in metres.",
+            "height": "The full height of the capsule along Y with both rounded ends, in metres."
+        },
+        "ConvexCollider": {
+            "mesh": "The mesh whose convex hull (the shape wrapped around it) is the collider. Works on moving bodies."
+        },
+        "MeshCollider": {
+            "mesh": "The mesh whose triangles are the collider: exact, but only for static and kinematic bodies (floors, walls, terrain)."
+        },
+        "CylinderCollider": {
+            "radius": "The radius of the cylinder in metres.",
+            "height": "The height of the cylinder along Y in metres."
+        },
+        "CharacterController": {
+            "radius": "The radius of the capsule of the character in metres: 0.3 to 0.5 for a person.",
+            "height": "The full height of the capsule in metres: 1.8 for a person.",
+            "center": "The centre of the capsule from the node, in world axes. Half the height up puts the node at the feet.",
+            "slopeLimit": "Ground steeper than this angle in degrees is a wall: the character stops at it and slides down. 45 is usual.",
+            "stepHeight": "Steps up to this height in metres are taken without a jump: 0.3 for stairs.",
+            "walkStairs": "Climb steps up to Step height without slowing down.",
+            "stickToGround": "On the way down stairs and slopes the feet stay on the ground instead of flying off each step.",
+            "stickDistance": "How far down in metres the ground may drop and the character still keeps to it; deeper is a fall. 0.5 is usual.",
+            "slopeSpeed": "Keep horizontal: on a slope the speed seen from above stays as asked, like a walking person. Along surface: the speed is measured along the slope, so going up is slower from above.",
+            "skinWidth": "The gap in metres the capsule keeps from walls: fewer cases of getting stuck. 0.02 is usual.",
+            "mass": "The mass in kg: how hard bodies push the character.",
+            "pushForce": "The force in newtons with which the character pushes dynamic bodies: 100 moves a crate, 0 pushes nothing.",
+            "onControllerHit": "Methods called when the character touches another body while moving, once per new touch."
+        },
+        "Joint": {
+            "connectedBody": "The node of the other body. Empty - the joint holds the body to a point of the world.",
+            "anchor": "The point of the joint in the axes of its node: the hinge of a door, the top of a pendulum.",
+            "collideConnected": "The joined bodies collide with each other. Usually off: the parts of a door would push each other.",
+            "breakForce": "Above this force in newtons the joint breaks. 0 - never breaks.",
+            "breakTorque": "Above this torque in N*m the joint breaks. 0 - never breaks.",
+            "solverStepsOverride": "Solver steps for this joint only. 0 - from the Physics section of the project settings. Long chains with a heavy load need more: 20 to 40.",
+            "onBreak": "Methods called when the joint breaks."
+        },
+        "AxisJoint": {
+            "axis": "The axis of the hinge or the slider in the axes of the node.",
+            "limits": "How far the joint can move: degrees for a hinge, metres for a slider. Off - it moves freely.",
+            "limitSpring": "Softness of the limits: the joint can go past them and comes back like on a spring. Frequency 0 - hard limits.",
+            "motor": "Off: no motor. Velocity: keeps the speed of the target (degrees per second for a hinge, m/s for a slider). Position: drives to the target (degrees, metres).",
+            "motorTarget": "The speed or the position the motor works toward, by its mode. A script changes it to open a door or spin a wheel.",
+            "maxMotorForce": "The largest force (N, slider) or torque (N*m, hinge) of the motor. 0 - the motor does nothing."
+        },
+        "JointLimits": {
+            "enabled": "Use the limits. Off - movement is free.",
+            "min": "The smallest position: degrees for rotation, metres for movement.",
+            "max": "The largest position: degrees for rotation, metres for movement."
+        },
+        "JointSpring": {
+            "frequency": "How fast the spring oscillates, in Hz: 0 is rigid, 1 to 5 soft, 10 and more almost rigid. Does not depend on the masses.",
+            "damping": "How fast oscillations die out: 0 swings forever, 1 comes to rest without swinging."
+        },
+        "DistanceJoint": {
+            "connectedAnchor": "The point on the other body, in the axes of its node (for the world, a point of the world).",
+            "minDistance": "The smallest distance between the points, in metres. Below zero - the distance at creation.",
+            "maxDistance": "The largest distance between the points, in metres: the length of a rope. Below zero - the distance at creation.",
+            "spring": "Softness of the distance limits: a rubber band instead of a rope. Frequency 0 - rigid."
+        },
+        "ConeJoint": {
+            "axis": "The axis of the cone in the axes of the node.",
+            "halfConeAngle": "How far the body can swing from the axis, in degrees: 0 not at all, 45 a quarter, 180 freely."
+        },
+        "SwingTwistJoint": {
+            "axis": "The twist axis in the axes of the node: along an arm or a tail.",
+            "normalHalfConeAngle": "How far the body can swing in one direction from the axis, in degrees (like an elbow in its plane).",
+            "planeHalfConeAngle": "How far the body can swing across that direction, in degrees.",
+            "twistMin": "How far the body can twist around the axis one way, in degrees (from -180 to 0).",
+            "twistMax": "How far the body can twist around the axis the other way, in degrees (from 0 to 180).",
+            "maxFrictionTorque": "Friction in the joint without a motor, in N*m: a ragdoll limb stops swinging sooner. 0 - no friction.",
+            "motor": "Off: no motor. Velocity: keeps the turning speeds of the target (degrees per second). Position: drives to the angles of the target (degrees).",
+            "motorTarget": "Angles or speeds for the motor: twist (X), swing around the normal (Y) and across it (Z).",
+            "maxMotorTorque": "The largest torque of the motor in N*m. 0 - the motor does nothing."
+        },
+        "SixDofJoint": {
+            "lockLinear": "Axes of the node the body does not move along at all.",
+            "lockAngular": "Axes of the node the body does not rotate around at all.",
+            "linearX": "Movement along the X axis of the node within limits, in metres.",
+            "linearY": "Movement along the Y axis of the node within limits, in metres.",
+            "linearZ": "Movement along the Z axis of the node within limits, in metres.",
+            "angularX": "Rotation around the X axis of the node within limits, in degrees (from -180 to 180).",
+            "angularY": "Rotation around the Y axis of the node within limits, in degrees (from -180 to 180).",
+            "angularZ": "Rotation around the Z axis of the node within limits, in degrees (from -180 to 180).",
+            "linearSpring": "Softness of the movement limits. Frequency 0 - hard limits."
+        },
+        "PhysicsChain": {
+            "segments": "The number of links: more bends more smoothly but costs more. 8 for a tail, 20 for a snake.",
+            "length": "The length of the whole chain in metres, laid back from the node along its +Z axis.",
+            "radius": "The radius of the links in metres: the thickness of the body.",
+            "mass": "The mass of the whole chain in kg, shared equally by the links.",
+            "bendLimit": "How far a link can bend from its neighbour, in degrees: 45 for a snake, 15 for a stiff tail.",
+            "twistLimit": "How far a link can twist around its own axis each way, in degrees.",
+            "stiffness": "The strength of the muscles toward the target bend, in N*m per radian. 0 - no muscles, the chain hangs limp. 50 holds a light tail.",
+            "damping": "Muscle damping, in N*m*s per radian: against swinging around the target bend.",
+            "maxTorque": "The largest torque of one muscle in N*m. 0 - no muscles.",
+            "sideGrip": "The share of sideways speed a link touching the ground loses per step, from 0 to 1. A snake crawls forward only when the side grip is bigger than the forward grip.",
+            "forwardGrip": "The share of speed along its axis a link touching the ground loses per step, from 0 to 1.",
+            "material": "The friction and bounciness of the links. Empty - the default physics material of the project settings.",
+            "onCollisionEnter": "Methods called when a link starts touching another body.",
+            "onCollisionStay": "Methods called after every physics step while a link keeps touching another body.",
+            "onCollisionExit": "Methods called when a link stops touching another body."
+        },
+        "PhysicsSettings": {
+            "gravity": "The acceleration of falling in m/s² for the whole world: -9.81 along Y on the Earth, -1.62 on the Moon.",
+            "velocitySteps": "Solver iterations for speeds in each step: more makes stacks and long chains steadier, but costs more. 10 is usual.",
+            "positionSteps": "Solver iterations that push overlapping bodies apart: more is less sinking into each other. 2 is usual.",
+            "defaultMaterial": "The physics material of colliders without their own. Empty - the built-in one: no bounce, friction like wood.",
+            "ignoredCollisions": "Pairs of layers whose nodes pass through each other: for example the player and their own bullets."
+        },
+        "LayerPair": {
+            "first": "The first layer of the pair.",
+            "second": "The second layer of the pair."
+        },
+        "ScriptsSettings": {
+            "configuration": "How the game module is built. Debug: slower code that a debugger can step through. Release: fast code for playing."
+        },
+        "PhysicsMaterialData": {
+            "friction": "How much the surface resists sliding: 0 ice, 0.5 wood or stone, 1 and more rubber.",
+            "restitution": "The share of the hit speed with which a body bounces back: 0 does not bounce, 0.5 a ball, 1 no loss of speed.",
+            "frictionCombine": "How the friction of two touching materials is combined: Average, Minimum, Multiply or Maximum. If the modes differ, the one later in the list wins.",
+            "restitutionCombine": "How the bounciness of two touching materials is combined: Average, Minimum, Multiply or Maximum. If the modes differ, the one later in the list wins."
+        },
+        "shader": {
+            "standard": {
+                "baseColor": "The colour of the surface; alpha is the opacity. Multiplied by the base colour map.",
+                "emission": "The colour of the glow of the surface. Multiplied by the emission map.",
+                "emissionIntensity": "The brightness of the glow in nits: 0 does not glow, a screen about 200, a lamp under a shade thousands.",
+                "emissionExposureWeight": "1: the glow follows the exposure of the camera like light. 0: on screen it always has the set brightness (signs, interface in the world, style).",
+                "metallic": "0 for everything that is not metal (wood, plastic, skin), 1 for bare metal. Values between are rare: rust, dirt over metal.",
+                "roughness": "0 a mirror, 0.5 plastic, 1 matte like chalk. Multiplied by the G channel of the ORM map.",
+                "occlusionStrength": "How much the R channel of the ORM map darkens creases and corners: 0 not at all, 1 fully.",
+                "normalScale": "The strength of the bumps of the normal map: 0 flat, 1 as made, 2 doubled.",
+                "heightScale": "The depth of the relief of the height map: 0 off, 0.02 to 0.05 for bricks and stones.",
+                "alphaCutoff": "Pixels with alpha below this are not drawn at all: leaves, fences. 0 - off.",
+                "baseColorMap": "A texture of the colour of the surface in sRGB; alpha is the opacity.",
+                "ormMap": "A linear texture: R occlusion of creases, G roughness, B metallic, as in glTF.",
+                "normalMap": "A texture of small bumps of the surface that catch the light without extra geometry.",
+                "heightMap": "A texture of the relief: white is high, black is deep. Shifts the textures for depth.",
+                "emissionMap": "A texture of the glow in sRGB, multiplied by the emission colour."
+            },
+            "gradient_sky": {
+                "skyColor": "The colour of the sky straight up.",
+                "equatorColor": "The colour of the sky at the horizon.",
+                "groundColor": "The colour below the horizon.",
+                "luminance": "The brightness of white in nits: 10000 for daylight, 1 for night.",
+                "falloff": "How fast the colour moves away from the horizon: below 1 a wide band of the horizon colour, above 1 a narrow one."
+            },
+            "physical_sky": {
+                "sunDisc": "1 draws the disc of the sun in the sky, 0 does not.",
+                "limbDarkening": "How much darker the edge of the disc is than its centre: 0 even, 0.6 like the real sun.",
+                "sunDiscIntensity": "A multiplier of the brightness of the disc: 1 is physical.",
+                "sunDiscSize": "The visible size of the disc in degrees; 0 as the angular diameter of the sun light. Only the look: light and shadows use the size of the light.",
+                "sunDiscSoftness": "The share of the radius over which the edge of the disc fades: 0 a sharp edge."
+            },
+            "panoramic_sky": {
+                "tint": "A colour the panorama is multiplied by.",
+                "luminance": "The brightness of white of the panorama in nits: 20000 for a sunny sky, 1 for night.",
+                "rotation": "The rotation of the panorama around the vertical, in degrees.",
+                "panorama": "The picture of the sky in the equirectangular projection (2:1), preferably HDR."
+            }
+        }
     }
 }

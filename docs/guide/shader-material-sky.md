@@ -75,7 +75,8 @@ void main()
 - The `Material` block (set 2, binding 0) and the textures of set 2 become
   the fields of every material with this shader. The `//@` comments say how
   the inspector shows them: `color`, `range(min, max)`, `default(...)`,
-  `label("...")`, `hidden`.
+  `label("...")`, `tooltip("...")` (what the field does, shown when the
+  mouse rests on it), `hidden`.
 - `shade(surface)` lights the surface with every light of the scene, their
   shadows, the light of the sky and its reflections. A shader that sets
   only `baseColor` still gets all of that.

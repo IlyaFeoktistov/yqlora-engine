@@ -29,10 +29,16 @@
 //   )
 //
 // Из этого описания реестр берёт поля для файлов и редактора; значение по
-// умолчанию новой записи - ExecutionOrderEntry{}.
+// умолчанию новой записи - ExecutionOrderEntry{}. Имя записи без пространства
+// имён - начало ключей описаний её полей (Property::helpKey).
 #define YQLORA_RECORD(Type, ...)                                                                                       \
     template <>                                                                                                        \
     struct yqlora::RecordFields<Type> {                                                                                \
+        static constexpr std::string_view name()                                                                       \
+        {                                                                                                              \
+            return ::yqlora::unqualifiedName(#Type);                                                                   \
+        }                                                                                                              \
+                                                                                                                       \
         static auto fields()                                                                                           \
         {                                                                                                              \
             using ::yqlora::field;                                                                                     \
@@ -46,6 +52,14 @@ namespace yqlora {
 // Поля записи T; определяет YQLORA_RECORD.
 template <typename T>
 struct RecordFields;
+
+// Имя без пространств имён: "yqlora::Atmosphere" -> "Atmosphere".
+constexpr std::string_view unqualifiedName(std::string_view name)
+{
+    const std::size_t separator = name.rfind("::");
+
+    return separator == std::string_view::npos ? name : name.substr(separator + 2);
+}
 
 template <typename T>
 concept Record = requires { RecordFields<T>::fields(); };
@@ -141,6 +155,7 @@ std::vector<Property> recordFieldsOf()
             (result.push_back([&] {
                 using Value = std::remove_cvref_t<decltype(std::declval<T>().*(fields.member))>;
                 Property described = Property::field(std::string(fields.name), propertyTypeOf<Value>(), fields.hint);
+                described.setOwnerName(std::string(RecordFields<T>::name()));
                 described.attributes() = fields.attributes;
                 describeValue<Value>(described);
 

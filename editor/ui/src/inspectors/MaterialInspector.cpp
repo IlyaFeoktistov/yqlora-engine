@@ -4,6 +4,7 @@
 #include "yqlora/editor/ui/core/EditorHost.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
 #include "yqlora/editor/ui/widgets/EnumCombo.hpp"
+#include "yqlora/editor/ui/widgets/HelpTooltip.hpp"
 #include "yqlora/editor/ui/widgets/PropertyContext.hpp"
 #include "yqlora/editor/ui/widgets/ResourceField.hpp"
 
@@ -37,6 +38,14 @@ constexpr int kMaxComponents = 4;
 std::string fieldLabel(const std::string& label, const std::string& name)
 {
     return (label.empty() ? name : tr(label)) + "##" + name;
+}
+
+// Подсказка поля из пометки tooltip шейдера: ключ перевода или сам текст.
+void fieldTooltip(const std::string& tooltip)
+{
+    if (!tooltip.empty()) {
+        helpTooltip(tr(tooltip));
+    }
 }
 
 // Виджет поля по типу и пометкам; true, если значение поменяли.
@@ -210,7 +219,9 @@ void MaterialInspector::drawFields(
         }
         const std::span<const float> stored = materialValue(material, field);
         std::vector<float> value(stored.begin(), stored.end());
-        if (fieldWidget(field, value)) {
+        const bool changed = fieldWidget(field, value);
+        fieldTooltip(field.tooltip);
+        if (changed) {
             editing.change<MaterialData>(id, [&](MaterialData& edited) {
                 edited.values[field.name] = value;
             });
@@ -241,6 +252,7 @@ void MaterialInspector::drawTextures(
         }
         ImGui::PushID(texture.name.c_str());
         ImGui::TextUnformatted((texture.label.empty() ? texture.name : tr(texture.label)).c_str());
+        fieldTooltip(texture.tooltip);
         ResourceRef value{materialTexture(material, texture)};
         if (resourceField(kinds::kTexture, {}, value, fields)) {
             editing.change<MaterialData>(id, [&](MaterialData& edited) {

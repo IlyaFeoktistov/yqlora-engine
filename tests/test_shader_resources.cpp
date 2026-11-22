@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <yqlora/editor/ProjectFiles.hpp>
+#include <yqlora/i18n/Localization.hpp>
 #include <yqlora/import/ShaderLoader.hpp>
 #include <yqlora/material/MaterialData.hpp>
 #include <yqlora/project/Project.hpp>
@@ -158,6 +159,54 @@ TEST_CASE("Shader data: the material layout comes from the reflection, its look 
     // Текстуры, которой шейдер не читает, в отражении нет.
     CHECK(data.findTexture("detail") == nullptr);
     CHECK(data.materialSize >= 20);
+}
+
+TEST_CASE("Shader data: a tooltip annotation gives the field and the texture their tooltip")
+{
+    const ShaderDataResult result = build(shaderWith(
+        "    vec4 baseColor;  //@ tooltip(\"Colour of the surface\")\n"
+        "    float roughness; //@ tooltip(\"help.shader.roughness\")\n",
+        "layout(set = 2, binding = 1) uniform sampler2D detail; //@ tooltip(\"Fine detail\")\n"
+    ));
+    REQUIRE(result.data);
+    CHECK(result.data->findField("baseColor")->tooltip == "Colour of the surface");
+    CHECK(result.data->findField("roughness")->tooltip == "help.shader.roughness");
+    CHECK(hasError(build(shaderWith("    vec4 baseColor; //@ tooltip(Colour)\n    float roughness;\n")), 4, "quotes"));
+    CHECK(hasError(build(shaderWith("    vec4 baseColor; //@ tooltip(1, 2)\n    float roughness;\n")), 4, "quotes"));
+}
+
+TEST_CASE("ResourceCache: every visible field of a built-in shader has a tooltip in every language")
+{
+    Localization en(YQLORA_LOCALES_DIR);
+    REQUIRE(en.load("en"));
+    Localization ru(YQLORA_LOCALES_DIR);
+    REQUIRE(ru.load("ru"));
+    const auto check = [&](const std::string& name, const std::string& tooltip) {
+        CAPTURE(name);
+        REQUIRE_FALSE(tooltip.empty());
+        CHECK(en.has(tooltip));
+        CHECK(ru.translate(tooltip) != en.translate(tooltip));
+    };
+    ResourceCache cache;
+    for (const ResourceId id : {
+             builtin::kStandardShader,
+             builtin::kPhysicalSkyShader,
+             builtin::kPanoramicSkyShader,
+             builtin::kGradientSkyShader,
+         }) {
+        const ShaderData* shader = cache.find<ShaderData>(id);
+        REQUIRE(shader);
+        for (const MaterialField& field : shader->fields) {
+            if (!field.hidden) {
+                check(field.name, field.tooltip);
+            }
+        }
+        for (const MaterialTexture& texture : shader->textures) {
+            if (!texture.hidden) {
+                check(texture.name, texture.tooltip);
+            }
+        }
+    }
 }
 
 TEST_CASE("Shader data: unknown, misused and repeated annotations are rejected with their line")

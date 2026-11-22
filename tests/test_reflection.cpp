@@ -1,14 +1,19 @@
 #include <doctest/doctest.h>
 
 #include <yqlora/core/EngineTypes.hpp>
+#include <yqlora/editor/PropertyHelp.hpp>
 #include <yqlora/i18n/Localization.hpp>
+#include <yqlora/physics/PhysicsMaterialData.hpp>
+#include <yqlora/reflection/TypeBuilder.hpp>
 #include <yqlora/reflection/TypeRegistry.hpp>
+#include <yqlora/render/Atmosphere.hpp>
 #include <yqlora/render/Camera3D.hpp>
 #include <yqlora/scene/Node3D.hpp>
 #include <yqlora/scene/Scene.hpp>
 #include <yqlora/scene/SceneSerializer.hpp>
 
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -217,6 +222,66 @@ TEST_CASE("TypeRegistry: every engine property and enum value has a label in eve
             }
         }
     }
+}
+
+TEST_CASE("TypeRegistry: every engine property has a description in every language")
+{
+    TypeRegistry registry;
+    registerEngineTypes(registry);
+    Localization en(YQLORA_LOCALES_DIR);
+    REQUIRE(en.load("en"));
+    Localization ru(YQLORA_LOCALES_DIR);
+    REQUIRE(ru.load("ru"));
+
+    // Поля записей - тоже строки инспектора, и записи бывают вложенными.
+    std::function<void(const Property&)> check = [&](const Property& property) {
+        if (!property.attributes().shown) {
+            return;
+        }
+        const std::string key = editor::propertyHelpSource(property);
+        CAPTURE(key);
+        CHECK(en.has(key));
+        // Без своего перевода ru показал бы английский текст.
+        CHECK(ru.translate(key) != en.translate(key));
+        for (const Property& field : property.fields()) {
+            check(field);
+        }
+    };
+    for (const auto& type : registry.types()) {
+        for (const Property& property : type->ownProperties()) {
+            check(property);
+        }
+    }
+    // Ресурсы-записи: их инспектор строит поля из описания записи.
+    for (const Property& field : recordProperty<PhysicsMaterialData>().fields()) {
+        check(field);
+    }
+}
+
+TEST_CASE("Property help: the key is of the declaring type, an explicit tooltip goes first")
+{
+    TypeRegistry registry;
+    registerEngineTypes(registry);
+
+    // Свойство Collider описано один раз для всех коллайдеров.
+    const auto& boxProperties = registry.properties(*registry.find("BoxCollider"));
+    const auto inherited = std::ranges::find_if(boxProperties, [](const Property* property) {
+        return property->ownerName() == "Collider";
+    });
+    REQUIRE(inherited != boxProperties.end());
+    CHECK(editor::propertyHelpSource(**inherited) == "help.Collider." + (*inherited)->name());
+
+    // Поле записи - по имени записи без пространства имён.
+    const Property& atmosphere = recordProperty<Atmosphere>();
+    REQUIRE_FALSE(atmosphere.fields().empty());
+    CHECK(atmosphere.fields()[0].helpKey() == "help.Atmosphere." + atmosphere.fields()[0].name());
+
+    const auto environment = registry.properties(*registry.find("Environment"));
+    const auto shared = std::ranges::find_if(environment, [](const Property* property) {
+        return !property->attributes().tooltip.empty();
+    });
+    REQUIRE(shared != environment.end());
+    CHECK(editor::propertyHelpSource(**shared) == (*shared)->attributes().tooltip);
 }
 
 namespace {

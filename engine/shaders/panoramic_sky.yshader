@@ -6,13 +6,13 @@
 #include <yqlora/sky.glsl>
 
 layout(set = 2, binding = 0, std140) uniform Material {
-    vec3 tint;        //@ color default(1, 1, 1)
-    float luminance;  //@ default(20000)
+    vec3 tint;        //@ color default(1, 1, 1) tooltip("help.shader.panoramic_sky.tint")
+    float luminance;  //@ default(20000) tooltip("help.shader.panoramic_sky.luminance")
     // Поворот вокруг вертикали в градусах.
-    float rotation;   //@ range(0, 360) default(0)
+    float rotation;   //@ range(0, 360) default(0) tooltip("help.shader.panoramic_sky.rotation")
 } material;
 
-layout(set = 2, binding = 1) uniform sampler2D panorama; //@ default(black)
+layout(set = 2, binding = 1) uniform sampler2D panorama; //@ default(black) tooltip("help.shader.panoramic_sky.panorama")
 
 const float kPi = 3.14159265358979;
 

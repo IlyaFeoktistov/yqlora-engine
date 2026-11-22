@@ -52,6 +52,8 @@ struct MaterialField {
     // По числу компонент типа; без default - нули.
     std::vector<float> defaultValue{};
     std::string label{};
+    // Подсказка в инспекторе материала: ключ перевода или сам текст.
+    std::string tooltip{};
     bool hidden = false;
 };
 
@@ -62,6 +64,8 @@ struct MaterialTexture {
     rhi::TextureDimension dimension = rhi::TextureDimension::Texture2D;
     DefaultTexture defaultTexture = DefaultTexture::White;
     std::string label{};
+    // Подсказка в инспекторе материала: ключ перевода или сам текст.
+    std::string tooltip{};
     bool hidden = false;
 };
 

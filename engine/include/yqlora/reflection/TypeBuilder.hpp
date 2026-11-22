@@ -38,6 +38,7 @@ public:
     // Свойство, уже описанное значениями (Property::forNode, forComponent, forSettings).
     Self& property(Property property)
     {
+        property.setOwnerName(m_info.m_name);
         m_info.m_properties.push_back(std::move(property));
 
         return self();

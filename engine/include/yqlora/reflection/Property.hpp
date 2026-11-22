@@ -348,7 +348,9 @@ struct PropertyAttributes {
     std::optional<float> max;
     // Подпись в инспекторе; пусто - перевод property.<имя> или само имя.
     std::string displayName;
-    // Подсказка при наведении: ключ перевода или сам текст.
+    // Подсказка при наведении: ключ перевода или сам текст. Пусто - описание
+    // по ключу Property::helpKey; задают только текст, общий для нескольких
+    // свойств.
     std::string tooltip;
     // Заголовок, под которым свойство стоит в инспекторе; пусто - без группы.
     std::string group;
@@ -536,6 +538,19 @@ public:
     // displayName, если она задана, важнее.
     std::string labelKey() const;
 
+    // Тип, который объявил свойство (у поля записи - запись): описание одно на
+    // все его наследники. Задаёт строитель типа и описание записи.
+    const std::string& ownerName() const
+    {
+        return m_ownerName;
+    }
+
+    void setOwnerName(std::string name);
+
+    // Ключ описания в подсказке: help.<тип>.<имя>, см. ownerName. Явный
+    // tooltip в атрибутах важнее.
+    std::string helpKey() const;
+
     PropertyType type() const
     {
         return m_type;
@@ -618,6 +633,7 @@ private:
     bool acceptsAs(PropertyType type, const PropertyValue& value) const;
 
     std::string m_name;
+    std::string m_ownerName;
     PropertyType m_type = PropertyType::Bool;
     PropertyHint m_hint = PropertyHint::None;
     PropertyType m_elementType = PropertyType::Bool;

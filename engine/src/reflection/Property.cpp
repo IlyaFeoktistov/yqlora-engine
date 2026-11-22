@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <utility>
 
 namespace yqlora {
 
@@ -221,12 +222,23 @@ namespace {
 
 constexpr std::string_view kPropertyLabelPrefix = "property.";
 constexpr std::string_view kEnumValueLabelPrefix = "enum.";
+constexpr std::string_view kHelpPrefix = "help.";
 
 } // namespace
 
 std::string Property::labelKey() const
 {
     return std::string(kPropertyLabelPrefix) + m_name;
+}
+
+void Property::setOwnerName(std::string name)
+{
+    m_ownerName = std::move(name);
+}
+
+std::string Property::helpKey() const
+{
+    return std::string(kHelpPrefix) + m_ownerName + "." + m_name;
 }
 
 std::string enumValueLabelKey(std::string_view valueName)
