@@ -358,8 +358,11 @@ are undone like any other.
     `limbDarkening`, `sunDiscIntensity` (1 is physical), `sunDiscSize`
     (the angular size seen, in degrees, 3.5 by default; 0 takes the angular
     diameter of the light, `DirectionalLight3D::angularDiameter`) and
-    `sunDiscSoftness` (the outer part of the radius where the edge fades,
-    0.3 by default; 0 is a hard edge). The luminance of the disc is the
+    `sunDiscSoftness` (the width of the soft edge outside the disc, in its
+    radii, 0.6 by default, up to 4; 0 is a hard edge; the disc itself keeps
+    its size; the edge fades by steps of
+    brightness, `softDiscEdge` in `sky.glsl`, so a disc hundreds of times
+    brighter than white still looks soft at any exposure). The luminance of the disc is the
     illuminance of the sun divided by the solid angle of the disc, dimmed by
     the atmosphere, so a larger disc gives the same light and is less
     blinding. The size of the disc is only how it looks: shadows and the

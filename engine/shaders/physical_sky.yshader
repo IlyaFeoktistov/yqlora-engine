@@ -17,8 +17,8 @@ layout(set = 2, binding = 0, std140) uniform Material {
     // (DirectionalLight3D::angularDiameter). Только вид: тени и свет солнца
     // считаются от размера света.
     float sunDiscSize;        //@ range(0, 20) default(3.5) tooltip("help.shader.physical_sky.sunDiscSize")
-    // Доля радиуса, на которой край диска плавно гаснет; 0 - резкий край.
-    float sunDiscSoftness;    //@ range(0, 1) default(0.3) tooltip("help.shader.physical_sky.sunDiscSoftness")
+    // Ширина мягкого края за диском в его радиусах; 0 - резкий край.
+    float sunDiscSoftness;    //@ range(0, 4) default(0.6) tooltip("help.shader.physical_sky.sunDiscSoftness")
 } material;
 
 const float kPi = 3.14159265358979;
@@ -31,22 +31,22 @@ vec3 sunDiscLuminance(vec3 direction)
         return vec3(0.0);
     }
     float cosAngle = dot(direction, atmosphereToSun());
-    float cosRadius = cos(radius);
-    if (cosAngle < cosRadius) {
+    // Мягкий край - снаружи диска, до (1 + softness) радиусов.
+    float outer = min(radius * (1.0 + material.sunDiscSoftness), kPi);
+    if (cosAngle < cos(outer)) {
         return vec3(0.0);
     }
-    float solidAngle = 2.0 * kPi * (1.0 - cosRadius);
+    float solidAngle = 2.0 * kPi * (1.0 - cos(radius));
     float fromCenter = acos(min(cosAngle, 1.0)) / radius;
-    float mu = sqrt(max(1.0 - fromCenter * fromCenter, 0.0));
+    float inDisc = min(fromCenter, 1.0);
+    float mu = sqrt(max(1.0 - inDisc * inDisc, 0.0));
     // Закон потемнения к краю, нормированный: средняя яркость диска та же.
     float limb = (1.0 - material.limbDarkening * (1.0 - mu)) / (1.0 - material.limbDarkening / 3.0);
-    // Мягкий край: яркость плавно уходит в ноль на внешней доле радиуса.
-    // smoothstep с равными краями не определён: при 0 край резкий.
-    float softness = material.sunDiscSoftness;
-    float edge = softness > 0.0 ? 1.0 - smoothstep(1.0 - softness, 1.0, fromCenter) : 1.0;
     vec3 transmittance = atmosphereTransmittance(view.cameraPosition, direction);
+    vec3 disc = frame.sunColor / solidAngle * transmittance * material.sunDiscIntensity;
+    float peak = max(disc.r, max(disc.g, disc.b)) * view.exposure;
 
-    return frame.sunColor / solidAngle * limb * edge * transmittance * material.sunDiscIntensity;
+    return disc * limb * softDiscEdge(fromCenter, material.sunDiscSoftness, peak);
 }
 
 vec3 sky(vec3 direction)

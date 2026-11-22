@@ -1136,7 +1136,7 @@
                 "limbDarkening": "How much darker the edge of the disc is than its centre: 0 even, 0.6 like the real sun.",
                 "sunDiscIntensity": "A multiplier of the brightness of the disc: 1 is physical.",
                 "sunDiscSize": "The visible size of the disc in degrees; 0 as the angular diameter of the sun light. Only the look: light and shadows use the size of the light.",
-                "sunDiscSoftness": "The share of the radius over which the edge of the disc fades: 0 a sharp edge."
+                "sunDiscSoftness": "The width of the soft edge outside the disc, in its radii: 0 a sharp edge, 0.6 soft, 2 to 4 a wide glow. The disc itself keeps its size."
             },
             "panoramic_sky": {
                 "tint": "A colour the panorama is multiplied by.",

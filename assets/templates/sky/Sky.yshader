@@ -21,8 +21,8 @@ layout(set = 2, binding = 0, std140) uniform Material {
     // Видимый угловой размер диска в градусах; 0 - как у света
     // (angularDiameter у DirectionalLight3D). Только вид: тени - от света.
     float sunDiscSize;      //@ range(0, 20) default(3.5)
-    // Доля радиуса, на которой край диска плавно гаснет; 0 - резкий край.
-    float sunDiscSoftness;  //@ range(0, 1) default(0.3)
+    // Ширина мягкого края за диском в его радиусах; 0 - резкий край.
+    float sunDiscSoftness;  //@ range(0, 4) default(0.6)
 } material;
 
 const float kPi = 3.14159265358979;
@@ -38,14 +38,13 @@ vec3 sky(vec3 direction)
         // Сцену солнце освещает как источник, поэтому в захвате для
         // освещения (YQLORA_SKY_CAPTURE) диска нет.
         float radius = material.sunDiscSize > 0.0 ? radians(material.sunDiscSize) * 0.5 : frame.sunAngularRadius;
-        float cosRadius = cos(radius);
-        if (radius > 0.0 && toSun >= cosRadius) {
-            // Мягкий край: яркость уходит в ноль на внешней доле радиуса;
-            // smoothstep с равными краями не определён, поэтому при 0 край резкий.
+        // Мягкий край - снаружи диска, до (1 + softness) радиусов (softDiscEdge из sky.glsl).
+        float outer = min(radius * (1.0 + material.sunDiscSoftness), kPi);
+        if (radius > 0.0 && toSun >= cos(outer)) {
             float fromCenter = acos(min(toSun, 1.0)) / radius;
-            float softness = material.sunDiscSoftness;
-            float edge = softness > 0.0 ? 1.0 - smoothstep(1.0 - softness, 1.0, fromCenter) : 1.0;
-            color += frame.sunColor / (2.0 * kPi * (1.0 - cosRadius)) * material.sunDiscIntensity * edge;
+            vec3 disc = frame.sunColor / (2.0 * kPi * (1.0 - cos(radius))) * material.sunDiscIntensity;
+            float peak = max(disc.r, max(disc.g, disc.b)) * view.exposure;
+            color += disc * softDiscEdge(fromCenter, material.sunDiscSoftness, peak);
         }
 #endif
     }

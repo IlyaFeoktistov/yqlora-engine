@@ -24,6 +24,36 @@
 
 vec3 sky(vec3 direction);
 
+// Ступеней яркости (раз по 2), за которые край гаснет от белого на экране:
+// меньше - спад идёт по всей ширине края, а не только у его начала.
+const float YQLORA_DISC_EDGE_BLACK_STOPS = 4.0;
+// Как быстро край тратит ступени выше белого: больше - раньше.
+const float YQLORA_DISC_EDGE_BRIGHT_FALLOFF = 8.0;
+
+// Мягкий край диска на небе (солнце): множитель его яркости в точке на
+// fromCenter радиусов от центра. Сам диск (до 1) - в полную силу, за ним
+// край гаснет на softness радиусов наружу, 0 - резкий край: мягкость не
+// уменьшает видимый диск. exposedPeak - яркость диска после экспозиции, 1 -
+// белый на экране. Диск солнца ярче белого в сотни раз: плавный спад самой
+// яркости ушёл бы ниже белого только у внешней границы, и край выглядел бы
+// резким. Поэтому ступени выше белого тратятся в начале края, а остальная
+// его ширина гаснет от белого до чёрного по ступеням, как видит глаз, при
+// любой экспозиции.
+float softDiscEdge(float fromCenter, float softness, float exposedPeak)
+{
+    if (fromCenter <= 1.0) {
+        return 1.0;
+    }
+    if (fromCenter >= 1.0 + softness) {
+        return 0.0;
+    }
+    float t = smoothstep(0.0, 1.0, (fromCenter - 1.0) / softness);
+    float brightStops = log2(max(exposedPeak, 1.0));
+    float stops = brightStops * (1.0 - pow(1.0 - t, YQLORA_DISC_EDGE_BRIGHT_FALLOFF)) + YQLORA_DISC_EDGE_BLACK_STOPS * t;
+
+    return exp2(-stops) * (1.0 - t);
+}
+
 #ifdef YQLORA_VERTEX
 
 layout(location = 0) out vec2 vClip;
