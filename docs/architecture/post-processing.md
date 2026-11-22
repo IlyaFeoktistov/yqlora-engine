@@ -86,9 +86,20 @@ This is the post-processing part of
 ## The effects
 
 - **`AutoExposure`**: above.
-- **`Bloom`**: threshold with a soft knee, intensity, scatter, tint, a
-  dirt texture with its intensity; a progressive downsample and upsample
-  with a 13-tap filter (no flicker on small bright points).
+- **`Bloom`**: the glare of bright light in the eye and the lens. By
+  default physical: no threshold, a small share of the energy of every
+  pixel (`intensity`, 0.04 by default) is spread over a wide, soft kernel
+  (`scatter`), so only what is far brighter than white visibly glows: the
+  sun turns into a blinding glow without a visible disc, a lamp has a soft
+  halo, a white wall has none. The energy is kept (the spread share is
+  taken from the pixel), so the exposure does not change. An optional
+  `threshold` with a soft knee (off by default) gives the stylised kind;
+  tint, a dirt texture with its intensity. A progressive downsample and
+  upsample with a 13-tap filter (no flicker on small bright points).
+- **`LensFlare`**: ghosts and a halo of bright sources along the line
+  through the centre of the frame, as a camera lens makes them: a look,
+  not what an eye sees, so it is off by default; intensity, count and
+  spacing of the ghosts, halo width, chromatic shift, a starburst texture.
 - **`Antialiasing`**: `None`, `FXAA` (cheap, after tone mapping), `TAA`
   (jitter, reprojection by motion vectors, neighbourhood clamping, a
   sharpening amount). TAA is the default; an MSAA target is not used with
@@ -155,9 +166,11 @@ and the game's own effects are the game.
   `Auto` exposure mode; bloom.
 - Tests: a scene twice as bright settles to an exposure half as large
   within `minEV` and `maxEV`; adaptation takes the time its speed gives;
-  `compensation` of +1 doubles the exposure; bloom of a pixel above the
-  threshold spreads light around it and a pixel below does not; turning
-  an effect off removes its pass from the graph.
+  `compensation` of +1 doubles the exposure; physical bloom keeps the
+  energy of the frame and a pixel 1000 times brighter than white glows
+  around while a white one stays almost unchanged; with a threshold a
+  pixel below it does not spread; turning an effect off removes its pass
+  from the graph.
 
 ### PP.3 Motion vectors and anti-aliasing
 
@@ -171,11 +184,13 @@ and the game's own effects are the game.
 ### PP.4 Depth of field, motion blur and the look
 
 - Depth of field, motion blur, vignette, grain, chromatic aberration,
-  lens distortion.
+  lens distortion, lens flare.
 - Tests: a point at the focus distance stays sharp and one far from it is
   blurred by the circle of confusion of the lens; motion blur of zero
   intensity changes nothing; each look effect at intensity 0 changes
-  nothing (compared to the pass turned off).
+  nothing (compared to the pass turned off); a lens flare of a bright
+  point lies on the line through the centre of the frame and moves with
+  the point.
 
 ### PP.5 Colour grading and custom effects
 
