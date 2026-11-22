@@ -25,6 +25,7 @@ public:
     void setHeight(float height);
 
     ColliderShape shape() const override;
+    void setShape(const ColliderShape& shape) override;
 
 private:
     float m_radius = 0.5f;

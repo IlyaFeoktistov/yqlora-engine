@@ -13,11 +13,11 @@ std::string propertyHelpSource(const Property& property)
 
 std::string propertyHelp(const Property& property)
 {
-    // Явный tooltip может быть самим текстом: tr без перевода вернёт его же.
+    // Явный tooltip может быть самим текстом: без перевода - он же.
     // Выведенный ключ без перевода - описания нет.
-    std::string text = tr(propertyHelpSource(property));
+    const std::string source = propertyHelpSource(property);
 
-    return text == property.helpKey() ? std::string() : text;
+    return trOr(source, source == property.helpKey() ? std::string_view() : std::string_view(source));
 }
 
 } // namespace yqlora::editor

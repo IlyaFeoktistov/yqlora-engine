@@ -26,21 +26,6 @@ namespace {
 
 // Прозрачность коллайдеров тела, которые не на выбранном узле.
 constexpr float kFaintAlpha = 0.35f;
-constexpr float kHandleRadius = 5.0f;
-// Ручка ловится, если курсор к ней ближе этого, в пикселях.
-constexpr float kHandlePickPixels = 9.0f;
-
-Vec2 mouseInView(const GizmoContext& context)
-{
-    const ImVec2 mouse = ImGui::GetMousePos();
-
-    return {mouse.x - context.origin.x, mouse.y - context.origin.y};
-}
-
-Ray mouseRay(const GizmoContext& context)
-{
-    return context.camera.screenRay(mouseInView(context), {context.size.x, context.size.y});
-}
 
 // Фигура коллайдера отрезками в его собственных осях: те же построители,
 // что у отладочной отрисовки. Меш - коробкой своих границ.
@@ -127,7 +112,6 @@ bool ColliderGizmo::drawHandles(GizmoContext& context, Node3D& node)
     }
 
     ImDrawList& list = *ImGui::GetWindowDrawList();
-    const ImVec2 mouse = ImGui::GetMousePos();
     const Mat4& world = node.worldMatrix();
     struct Hovered {
         std::size_t component = 0;
@@ -154,7 +138,7 @@ bool ColliderGizmo::drawHandles(GizmoContext& context, Node3D& node)
                 continue;
             }
             placed.push_back({*screen, index, handle});
-            const float distance = glm::length(Vec2(screen->x - mouse.x, screen->y - mouse.y));
+            const float distance = mouseDistance(*screen);
             if (context.mouseFree && distance <= kHandlePickPixels && (!hovered || distance < hovered->distance)) {
                 hovered = Hovered{index, handle, distance};
             }
@@ -166,11 +150,7 @@ bool ColliderGizmo::drawHandles(GizmoContext& context, Node3D& node)
         const bool active = m_drag
                                 ? m_drag->component == handle.component && m_drag->handle == handle.handle
                                 : hovered && hovered->component == handle.component && hovered->handle == handle.handle;
-        list.AddCircleFilled(
-            handle.screen,
-            kHandleRadius,
-            toImU32(active ? colors.selectionOutline : colors.colliderGizmo)
-        );
+        drawHandle(list, handle.screen, toImU32(active ? colors.selectionOutline : colors.colliderGizmo));
     }
 
     if (!m_drag && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {

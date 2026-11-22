@@ -670,17 +670,13 @@ std::string propertyLabel(const Property& property)
     if (!property.attributes().displayName.empty()) {
         return property.attributes().displayName;
     }
-    const std::string& name = property.name();
-    const std::string key = property.labelKey();
-    std::string label = tr(key);
-    if (label == key) {
-        label = name;
-        if (!label.empty()) {
-            label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
-        }
+    // Без перевода - имя свойства с заглавной буквы.
+    std::string name = property.name();
+    if (!name.empty()) {
+        name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
     }
 
-    return label;
+    return trOr(property.labelKey(), name);
 }
 
 } // namespace yqlora::editor

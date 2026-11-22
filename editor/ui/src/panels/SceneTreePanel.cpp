@@ -179,10 +179,10 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection, const Edit
         // Сам узел первым, корня в списке нет: перенос корня невозможен.
         std::vector<NodeId> dragged{node.id()};
         if (selected) {
-            for (const NodeId id : selection.nodes()) {
-                const Node* other = node.scene() ? node.scene()->find(id) : nullptr;
-                if (id != node.id() && other && other->parent()) {
-                    dragged.push_back(id);
+            for (const NodeId otherId : selection.nodes()) {
+                const Node* other = node.scene() ? node.scene()->find(otherId) : nullptr;
+                if (otherId != node.id() && other && other->parent()) {
+                    dragged.push_back(otherId);
                 }
             }
         }

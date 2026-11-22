@@ -1,6 +1,7 @@
 #include "yqlora/physics/SphereCollider.hpp"
 
 #include <algorithm>
+#include <variant>
 
 namespace yqlora {
 
@@ -13,6 +14,13 @@ void SphereCollider::setRadius(float radius)
 ColliderShape SphereCollider::shape() const
 {
     return SphereShape{m_radius};
+}
+
+void SphereCollider::setShape(const ColliderShape& shape)
+{
+    if (const auto* sphere = std::get_if<SphereShape>(&shape)) {
+        setRadius(sphere->radius);
+    }
 }
 
 } // namespace yqlora

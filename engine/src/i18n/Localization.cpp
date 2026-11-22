@@ -90,6 +90,11 @@ bool Localization::load(std::string_view language)
 
 std::string Localization::translate(std::string_view key) const
 {
+    return find(key).value_or(std::string(key));
+}
+
+std::optional<std::string> Localization::find(std::string_view key) const
+{
     if (const auto it = m_strings.find(key); it != m_strings.end()) {
         return it->second;
     }
@@ -97,7 +102,7 @@ std::string Localization::translate(std::string_view key) const
         return it->second;
     }
 
-    return std::string(key);
+    return std::nullopt;
 }
 
 bool Localization::has(std::string_view key) const
@@ -139,6 +144,13 @@ void Localization::setActive(const Localization* localization)
 std::string tr(std::string_view key)
 {
     return g_active ? g_active->translate(key) : std::string(key);
+}
+
+std::string trOr(std::string_view key, std::string_view fallback)
+{
+    std::optional<std::string> text = g_active ? g_active->find(key) : std::nullopt;
+
+    return text ? std::move(*text) : std::string(fallback);
 }
 
 } // namespace yqlora

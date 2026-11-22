@@ -48,13 +48,6 @@ constexpr float kStepDragSpeed = 0.01f;
 constexpr float kAngleDragSpeed = 0.5f;
 constexpr const char* kSnapPopup = "##snapSteps";
 
-Vec2 mouseInView(const GizmoContext& context)
-{
-    const ImVec2 mouse = ImGui::GetMousePos();
-
-    return {mouse.x - context.origin.x, mouse.y - context.origin.y};
-}
-
 void drawMarker(const GizmoContext& context, const Vec3& world, ImU32 color)
 {
     if (const auto screen = worldToScreen(context, world)) {
@@ -272,8 +265,7 @@ bool ManipulatorGizmo::drawManipulator(GizmoContext& context)
     );
     if (moved && m_tool == Tool::Move) {
         if (surface) {
-            const Vec2 mouse = mouseInView(context);
-            const Ray ray = context.camera.screenRay(mouse, {context.size.x, context.size.y});
+            const Ray ray = mouseRay(context);
             if (const auto hit = raycastSurfaces(context.session.scene(), ray, node)) {
                 world = withWorldPosition(*node, hit->point);
                 if (snap.alignToSurface) {

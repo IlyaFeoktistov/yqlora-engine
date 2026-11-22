@@ -1,7 +1,10 @@
 #include "yqlora/editor/ui/gizmos/GizmoDrawing.hpp"
 
 #include "yqlora/debug/DebugLines.hpp"
+#include "yqlora/editor/EditorCamera.hpp"
 #include "yqlora/editor/ViewportProjection.hpp"
+
+#include <glm/geometric.hpp>
 
 #include <span>
 
@@ -51,6 +54,30 @@ void drawDebugLines(
     };
     draw(lines.tested());
     draw(lines.overlay());
+}
+
+Vec2 mouseInView(const GizmoContext& context)
+{
+    const ImVec2 mouse = ImGui::GetMousePos();
+
+    return {mouse.x - context.origin.x, mouse.y - context.origin.y};
+}
+
+Ray mouseRay(const GizmoContext& context)
+{
+    return context.camera.screenRay(mouseInView(context), {context.size.x, context.size.y});
+}
+
+float mouseDistance(const ImVec2& screen)
+{
+    const ImVec2 mouse = ImGui::GetMousePos();
+
+    return glm::length(Vec2(screen.x - mouse.x, screen.y - mouse.y));
+}
+
+void drawHandle(ImDrawList& list, const ImVec2& screen, ImU32 color)
+{
+    list.AddCircleFilled(screen, kHandleRadius, color);
 }
 
 } // namespace yqlora::editor

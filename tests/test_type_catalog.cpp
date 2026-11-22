@@ -4,6 +4,7 @@
 #include <yqlora/editor/GuideLink.hpp>
 #include <yqlora/editor/ScriptComment.hpp>
 #include <yqlora/editor/TypeCatalog.hpp>
+#include <yqlora/editor/TypeTexts.hpp>
 #include <yqlora/editor/ui/style/TypeIcons.hpp>
 #include <yqlora/i18n/Localization.hpp>
 #include <yqlora/reflection/TypeBuilder.hpp>
@@ -242,6 +243,26 @@ TEST_CASE("Type picker: an added type goes first in Recent, which keeps kRecentT
         names(catalog.list(shelf(catalog, ShelfKind::Recent), {}, shown))
         == std::vector<std::string>{"Timer", "BoxCollider"}
     );
+}
+
+TEST_CASE("Type picker: the selection stays while its type is shown and arrows step within the list")
+{
+    TypeRegistry registry;
+    registerEngineTypes(registry);
+    Node3D node;
+    const TypeCatalog catalog = TypeCatalog::components(registry, node, {}, nullptr);
+    const std::vector<std::string> shown{"Timer", "BoxCollider", "RigidBody"};
+    const std::vector<const TypeEntry*> entries = catalog.list(shelf(catalog, ShelfKind::Recent), {}, shown);
+    REQUIRE(entries.size() == shown.size());
+
+    CHECK(keptSelection(entries, "BoxCollider") == "BoxCollider");
+    CHECK(keptSelection(entries, "Gone") == "Timer");
+    CHECK(keptSelection({}, "Timer").empty());
+
+    CHECK(steppedSelection(entries, "Timer", 1) == "BoxCollider");
+    CHECK(steppedSelection(entries, "Timer", -1) == "Timer");
+    CHECK(steppedSelection(entries, "RigidBody", 1) == "RigidBody");
+    CHECK(steppedSelection({}, "Timer", 1).empty());
 }
 
 TEST_CASE("Type picker: a script of the game is on the shelf of its folder, or its own")

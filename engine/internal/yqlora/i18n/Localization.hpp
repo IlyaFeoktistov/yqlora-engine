@@ -5,6 +5,7 @@
 
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -28,6 +29,9 @@ public:
     // Перевод по ключу. Если ключа нет ни в одном языке, возвращается сам ключ,
     // чтобы пропущенный перевод было видно, а не получить пустую строку.
     std::string translate(std::string_view key) const;
+
+    // Перевод по ключу (с запасным языком); nullopt - ключа нет.
+    std::optional<std::string> find(std::string_view key) const;
 
     // Есть ли ключ в самом загруженном языке, без запасного английского.
     bool has(std::string_view key) const;

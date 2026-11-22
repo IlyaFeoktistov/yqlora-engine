@@ -9,6 +9,7 @@
 #include "yqlora/editor/EditorSession.hpp"
 #include "yqlora/editor/EditorSettings.hpp"
 #include "yqlora/editor/GuideLink.hpp"
+#include "yqlora/editor/TypeTexts.hpp"
 #include "yqlora/i18n/Language.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/platform/Platform.hpp"
@@ -131,16 +132,12 @@ void TypePickerDialog::draw(EditorContext& context)
         m_search,
         recent ? *recent : noRecent
     );
-    if (std::ranges::none_of(entries, [&](const TypeEntry* e) {
-            return e->type->name() == m_selected;
-        })) {
-        m_selected = entries.empty() ? std::string() : entries.front()->type->name();
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
-        moveSelection(entries, 1);
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
-        moveSelection(entries, -1);
+    m_selected = keptSelection(entries, m_selected);
+    const int step = (ImGui::IsKeyPressed(ImGuiKey_DownArrow) ? 1 : 0)
+                     - (ImGui::IsKeyPressed(ImGuiKey_UpArrow) ? 1 : 0);
+    if (step != 0) {
+        m_selected = steppedSelection(entries, m_selected, step);
+        m_scrollToSelected = true;
     }
 
     const float footer = ImGui::GetTextLineHeightWithSpacing() * kDetailsLines + ImGui::GetFrameHeightWithSpacing();
@@ -279,8 +276,7 @@ void TypePickerDialog::drawDetails(EditorContext& context, const TypeEntry* entr
             );
         }
         if (!entry->requiredNode.empty()) {
-            const TypeInfo* node = registry.find(entry->requiredNode);
-            const std::string nodeName = node ? typeDisplayName(*node) : entry->requiredNode;
+            const std::string nodeName = typeDisplayName(registry, entry->requiredNode);
             ImGui::TextDisabled("%s", trFormat("editor.typePicker.goesOn", nodeName).c_str());
         }
         if (!entry->addsWith.empty()) {
@@ -296,20 +292,6 @@ void TypePickerDialog::drawDetails(EditorContext& context, const TypeEntry* entr
         }
     }
     ImGui::EndChild();
-}
-
-void TypePickerDialog::moveSelection(const std::vector<const TypeEntry*>& entries, int step)
-{
-    if (entries.empty()) {
-        return;
-    }
-    const auto current = std::ranges::find_if(entries, [&](const TypeEntry* e) {
-        return e->type->name() == m_selected;
-    });
-    const auto index = static_cast<int>(current - entries.begin());
-    const int next = std::clamp(index + step, 0, static_cast<int>(entries.size()) - 1);
-    m_selected = entries[static_cast<std::size_t>(next)]->type->name();
-    m_scrollToSelected = true;
 }
 
 void TypePickerDialog::add(EditorContext& context, const TypeEntry& entry)

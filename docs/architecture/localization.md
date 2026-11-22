@@ -33,6 +33,9 @@ Status marks: see [README](README.md).
 - `tr(key)` gives the text in the current language. A key missing in it is
   taken from English; a key missing everywhere comes back as the key itself,
   so a forgotten translation is seen, not an empty string.
+- `trOr(key, fallback)` gives `fallback` instead of the key: for labels that
+  have a sensible untranslated name (a type, an enum value, a debug channel
+  of the game). `Localization::find(key)` says whether a translation exists.
 - `trFormat(key, values...)` puts values into the translation at its `{}`
   (`std::format`): the translation decides where a value stands, so word
   order can differ between languages; texts are never glued from pieces. A

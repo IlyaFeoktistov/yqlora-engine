@@ -76,6 +76,12 @@ public:
 
     // Фигура в собственных осях коллайдера.
     virtual ColliderShape shape() const = 0;
+    // Ставит размеры из фигуры своего вида (того же, что у shape()): так
+    // фигуру меняют, не зная типа коллайдера. Фигура другого вида, как и
+    // меш у коллайдеров по мешу (их меш - setMesh), ничего не меняет.
+    virtual void setShape(const ColliderShape& /*shape*/)
+    {
+    }
 
 protected:
     Collider() = default;

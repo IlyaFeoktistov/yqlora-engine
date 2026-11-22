@@ -1,6 +1,7 @@
 #include "yqlora/physics/CapsuleCollider.hpp"
 
 #include <algorithm>
+#include <variant>
 
 namespace yqlora {
 
@@ -19,6 +20,14 @@ void CapsuleCollider::setHeight(float height)
 ColliderShape CapsuleCollider::shape() const
 {
     return CapsuleShape{m_radius, std::max(m_height * 0.5f - m_radius, 0.0f)};
+}
+
+void CapsuleCollider::setShape(const ColliderShape& shape)
+{
+    if (const auto* capsule = std::get_if<CapsuleShape>(&shape)) {
+        setRadius(capsule->radius);
+        setHeight((capsule->halfHeight + capsule->radius) * 2.0f);
+    }
 }
 
 } // namespace yqlora

@@ -40,18 +40,6 @@ constexpr float kFullTurnDegrees = 360.0f;
 constexpr float kMaxDrawnHalfAngle = 89.0f;
 constexpr float kMarkSize = 0.05f;
 constexpr float kFaintAlpha = 0.5f;
-constexpr float kHandleRadius = 5.0f;
-constexpr float kHandlePickPixels = 9.0f;
-
-Ray mouseRay(const GizmoContext& context)
-{
-    const ImVec2 mouse = ImGui::GetMousePos();
-
-    return context.camera.screenRay(
-        {mouse.x - context.origin.x, mouse.y - context.origin.y},
-        {context.size.x, context.size.y}
-    );
-}
 
 void polyline(DebugLines& lines, const std::vector<Vec3>& points, const DebugPen& pen)
 {
@@ -216,7 +204,6 @@ bool JointGizmo::drawAnchorHandles(GizmoContext& context, Node3D& node)
     }
 
     const EditorColors& colors = context.theme.colors();
-    const ImVec2 mouse = ImGui::GetMousePos();
     ImDrawList& list = *ImGui::GetWindowDrawList();
     std::optional<std::size_t> hovered;
     float hoveredDistance = kHandlePickPixels;
@@ -227,13 +214,13 @@ bool JointGizmo::drawAnchorHandles(GizmoContext& context, Node3D& node)
         if (!screen) {
             continue;
         }
-        const float distance = glm::length(Vec2(screen->x - mouse.x, screen->y - mouse.y));
+        const float distance = mouseDistance(*screen);
         if (context.mouseFree && distance <= hoveredDistance) {
             hovered = index;
             hoveredDistance = distance;
         }
         const bool active = m_drag ? m_drag->component == index : hovered == index;
-        list.AddCircleFilled(*screen, kHandleRadius, toImU32(active ? colors.selectionOutline : colors.jointGizmo));
+        drawHandle(list, *screen, toImU32(active ? colors.selectionOutline : colors.jointGizmo));
     }
 
     if (!m_drag && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {

@@ -2,7 +2,7 @@
 
 #include "yqlora/core/Text.hpp"
 #include "yqlora/core/Utf8Path.hpp"
-#include "yqlora/editor/ScriptComment.hpp"
+#include "yqlora/editor/TypeTexts.hpp"
 #include "yqlora/i18n/Localization.hpp"
 #include "yqlora/i18n/Translate.hpp"
 #include "yqlora/reflection/TypeCategories.hpp"
@@ -35,32 +35,16 @@ std::vector<std::string_view> pathParts(std::string_view path)
     return parts;
 }
 
-// Перевод, если он есть; иначе пусто.
-std::string translatedOrEmpty(const std::string& key)
-{
-    std::string text = tr(key);
-
-    return text == key ? std::string() : text;
-}
-
 std::string englishOrEmpty(const Localization* english, const std::string& key)
 {
-    if (!english) {
-        return {};
-    }
-    std::string text = english->translate(key);
-
-    return text == key ? std::string() : text;
+    return english ? english->find(key).value_or(std::string()) : std::string();
 }
 
 // Подпись части пути полки компонентов: перевод category.<часть>, у папок
 // скриптов - сама часть.
 std::string categoryPartLabel(std::string_view part)
 {
-    const std::string key = std::string(kCategoryKeyPrefix) + std::string(part);
-    std::string label = translatedOrEmpty(key);
-
-    return label.empty() ? std::string(part) : label;
+    return trOr(std::string(kCategoryKeyPrefix) + std::string(part), part);
 }
 
 // Полка скрипта без своей категории - папка его исходника в проекте под
@@ -196,9 +180,7 @@ TypeCatalog TypeCatalog::nodes(const TypeRegistry& registry, const Localization*
     // Часть пути полки узлов - имя базового типа.
     catalog.addShelves(
         [&](std::string_view part) {
-            const TypeInfo* base = registry.find(part);
-
-            return base ? typeDisplayName(*base) : std::string(part);
+            return typeDisplayName(registry, std::string(part));
         },
         false
     );
@@ -303,6 +285,33 @@ const TypeEntry* TypeCatalog::find(std::string_view typeName) const
     return found != m_entries.end() ? &*found : nullptr;
 }
 
+std::string keptSelection(std::span<const TypeEntry* const> entries, const std::string& selected)
+{
+    const bool shown = std::ranges::any_of(entries, [&](const TypeEntry* entry) {
+        return entry->type->name() == selected;
+    });
+    if (shown) {
+        return selected;
+    }
+
+    return entries.empty() ? std::string() : entries.front()->type->name();
+}
+
+std::string steppedSelection(std::span<const TypeEntry* const> entries, const std::string& selected, int step)
+{
+    if (entries.empty()) {
+        return {};
+    }
+    const auto current = std::ranges::find_if(entries, [&](const TypeEntry* entry) {
+        return entry->type->name() == selected;
+    });
+    // Выбранного нет в списке - шаг считается от первой строки.
+    const int index = current == entries.end() ? 0 : static_cast<int>(current - entries.begin());
+    const int next = std::clamp(index + step, 0, static_cast<int>(entries.size()) - 1);
+
+    return entries[static_cast<std::size_t>(next)]->type->name();
+}
+
 void rememberRecentType(std::vector<std::string>& recent, std::string_view typeName)
 {
     std::erase(recent, typeName);
@@ -314,55 +323,16 @@ void rememberRecentType(std::vector<std::string>& recent, std::string_view typeN
 
 std::string attachProblemText(const TypeRegistry& registry, const AttachCheck& check)
 {
-    const auto named = [&](const std::string& typeName) {
-        const TypeInfo* type = registry.find(typeName);
-
-        return type ? typeDisplayName(*type) : typeName;
-    };
     switch (check.problem) {
     case AttachProblem::None: return {};
-    case AttachProblem::WrongNode: return trFormat("editor.typePicker.wrongNode", named(check.type));
+    case AttachProblem::WrongNode:
+        return trFormat("editor.typePicker.wrongNode", typeDisplayName(registry, check.type));
     case AttachProblem::AlreadyAttached: return tr("editor.typePicker.alreadyAttached");
     case AttachProblem::RequirementUnavailable:
-        return trFormat("editor.typePicker.requirementUnavailable", named(check.type));
+        return trFormat("editor.typePicker.requirementUnavailable", typeDisplayName(registry, check.type));
     }
 
     return {};
-}
-
-// TODO: имя на языке человека есть только в окне выбора, дерево сцены и
-// заголовки компонентов показывают имя типа. Решить: переводить имя типа
-// везде или нигде.
-std::string typeDisplayName(const TypeInfo& type)
-{
-    std::string name = translatedOrEmpty(type.nameKey());
-
-    return name.empty() ? type.name() : name;
-}
-
-std::string typeDescription(const TypeInfo& type, const std::filesystem::path& projectDirectory)
-{
-    if (std::string translated = translatedOrEmpty(type.descriptionKey()); !translated.empty()) {
-        return translated;
-    }
-    if (!type.description().empty()) {
-        return type.description();
-    }
-    if (type.isScript() && !type.sourceFile().empty()) {
-        return scriptComment(scriptSourcePath(type, projectDirectory), type.name());
-    }
-
-    return {};
-}
-
-std::filesystem::path scriptSourcePath(const TypeInfo& type, const std::filesystem::path& projectDirectory)
-{
-    if (type.sourceFile().empty()) {
-        return {};
-    }
-    const std::filesystem::path source = fromUtf8(type.sourceFile());
-
-    return source.is_absolute() ? source : projectDirectory / source;
 }
 
 } // namespace yqlora::editor

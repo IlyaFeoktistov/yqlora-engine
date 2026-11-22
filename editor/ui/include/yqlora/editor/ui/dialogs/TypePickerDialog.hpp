@@ -41,7 +41,6 @@ private:
     // true, если тип выбрали двойным щелчком.
     bool drawList(EditorContext& context, const std::vector<const TypeEntry*>& entries);
     void drawDetails(EditorContext& context, const TypeEntry* entry);
-    void moveSelection(const std::vector<const TypeEntry*>& entries, int step);
     void add(EditorContext& context, const TypeEntry& entry);
 
     bool m_requested = false;

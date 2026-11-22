@@ -43,6 +43,7 @@ add_library(yqlora_editor STATIC
     src/PropertyHelp.cpp
     src/ScriptComment.cpp
     src/TypeCatalog.cpp
+    src/TypeTexts.cpp
     src/PropertyValues.cpp
     src/EditorSession.cpp
     src/EditorSettings.cpp

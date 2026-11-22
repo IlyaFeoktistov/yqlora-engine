@@ -21,10 +21,7 @@ constexpr std::string_view kChannelKeyPrefix = "editor.debug.channel.";
 // Каналы подсистем - переведёнными названиями, свои каналы игры - как их назвали.
 std::string channelLabel(const std::string& channel)
 {
-    const std::string key = std::string(kChannelKeyPrefix) + channel;
-    std::string label = tr(key);
-
-    return label == key ? channel : label;
+    return trOr(std::string(kChannelKeyPrefix) + channel, channel);
 }
 
 } // namespace

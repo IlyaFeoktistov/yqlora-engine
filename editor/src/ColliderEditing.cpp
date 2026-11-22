@@ -1,12 +1,8 @@
 #include "yqlora/editor/ColliderEditing.hpp"
 
-#include "yqlora/physics/BoxCollider.hpp"
-#include "yqlora/physics/CapsuleCollider.hpp"
 #include "yqlora/physics/ConvexCollider.hpp"
-#include "yqlora/physics/CylinderCollider.hpp"
 #include "yqlora/physics/MeshCollider.hpp"
 #include "yqlora/physics/RigidBody.hpp"
-#include "yqlora/physics/SphereCollider.hpp"
 #include "yqlora/render/MeshRenderer.hpp"
 #include "yqlora/resource/ResourceCache.hpp"
 #include "yqlora/scene/Node3D.hpp"
@@ -16,6 +12,7 @@
 #include <glm/gtx/quaternion.hpp>
 
 #include <algorithm>
+#include <variant>
 
 namespace yqlora::editor {
 
@@ -72,42 +69,45 @@ bool fitMesh(MeshShapeCollider& collider, const Node3D& node)
 
 std::optional<HandleShape> colliderHandleShape(const Collider& collider)
 {
-    HandleShape shape{.center = collider.center(), .rotation = collider.rotation()};
-    if (const auto* box = dynamic_cast<const BoxCollider*>(&collider)) {
-        shape.halfExtents = box->size() * 0.5f;
-        shape.links = ShapeLinks::None;
-    } else if (const auto* sphere = dynamic_cast<const SphereCollider*>(&collider)) {
-        shape.halfExtents = Vec3(sphere->radius());
-        shape.links = ShapeLinks::All;
-    } else if (const auto* capsule = dynamic_cast<const CapsuleCollider*>(&collider)) {
-        shape.halfExtents = Vec3(capsule->radius(), capsule->height() * 0.5f, capsule->radius());
-        shape.links = ShapeLinks::Radial;
-    } else if (const auto* cylinder = dynamic_cast<const CylinderCollider*>(&collider)) {
-        shape.halfExtents = Vec3(cylinder->radius(), cylinder->height() * 0.5f, cylinder->radius());
-        shape.links = ShapeLinks::Radial;
+    HandleShape handles{.center = collider.center(), .rotation = collider.rotation()};
+    // Ручки стоят на поверхности фигуры: у капсулы высота - с полусферами.
+    const ColliderShape shape = collider.shape();
+    if (const auto* box = std::get_if<BoxShape>(&shape)) {
+        handles.halfExtents = box->halfExtents;
+        handles.links = ShapeLinks::None;
+    } else if (const auto* sphere = std::get_if<SphereShape>(&shape)) {
+        handles.halfExtents = Vec3(sphere->radius);
+        handles.links = ShapeLinks::All;
+    } else if (const auto* capsule = std::get_if<CapsuleShape>(&shape)) {
+        handles.halfExtents = Vec3(capsule->radius, capsule->halfHeight + capsule->radius, capsule->radius);
+        handles.links = ShapeLinks::Radial;
+    } else if (const auto* cylinder = std::get_if<CylinderShape>(&shape)) {
+        handles.halfExtents = Vec3(cylinder->radius, cylinder->halfHeight, cylinder->radius);
+        handles.links = ShapeLinks::Radial;
     } else {
         return std::nullopt;
     }
 
-    return shape;
+    return handles;
 }
 
-void applyHandleShape(Collider& collider, const HandleShape& shape)
+void applyHandleShape(Collider& collider, const HandleShape& handles)
 {
-    if (auto* box = dynamic_cast<BoxCollider*>(&collider)) {
-        box->setSize(shape.halfExtents * 2.0f);
-    } else if (auto* sphere = dynamic_cast<SphereCollider*>(&collider)) {
-        sphere->setRadius(shape.halfExtents.x);
-    } else if (auto* capsule = dynamic_cast<CapsuleCollider*>(&collider)) {
-        capsule->setRadius(shape.halfExtents.x);
-        capsule->setHeight(shape.halfExtents.y * 2.0f);
-    } else if (auto* cylinder = dynamic_cast<CylinderCollider*>(&collider)) {
-        cylinder->setRadius(shape.halfExtents.x);
-        cylinder->setHeight(shape.halfExtents.y * 2.0f);
+    const Vec3 half = handles.halfExtents;
+    ColliderShape shape = collider.shape();
+    if (auto* box = std::get_if<BoxShape>(&shape)) {
+        box->halfExtents = half;
+    } else if (auto* sphere = std::get_if<SphereShape>(&shape)) {
+        sphere->radius = half.x;
+    } else if (auto* capsule = std::get_if<CapsuleShape>(&shape)) {
+        *capsule = {.radius = half.x, .halfHeight = half.y - half.x};
+    } else if (auto* cylinder = std::get_if<CylinderShape>(&shape)) {
+        *cylinder = {.radius = half.x, .halfHeight = half.y};
     } else {
         return;
     }
-    collider.setCenter(shape.center);
+    collider.setShape(shape);
+    collider.setCenter(handles.center);
 }
 
 Mat4 colliderWorldMatrix(const Collider& collider, const Node3D& node)
@@ -177,7 +177,7 @@ bool fitCollider(Collider& collider, const Node3D& node, ResourceCache& resource
 
 bool canFitCollider(const Collider& collider, const Node3D& node, ResourceCache& resources)
 {
-    if (dynamic_cast<const MeshCollider*>(&collider) || dynamic_cast<const ConvexCollider*>(&collider)) {
+    if (std::holds_alternative<MeshShape>(collider.shape())) {
         return rendererMesh(node).id != 0;
     }
 

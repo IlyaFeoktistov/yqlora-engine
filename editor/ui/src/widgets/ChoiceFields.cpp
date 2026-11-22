@@ -16,10 +16,7 @@ namespace {
 // Подпись значения перечисления на языке редактора; без перевода - его имя.
 std::string enumValueLabel(const std::string& name)
 {
-    const std::string key = enumValueLabelKey(name);
-    const std::string label = tr(key);
-
-    return label == key ? name : label;
+    return trOr(enumValueLabelKey(name), name);
 }
 
 } // namespace

@@ -18,6 +18,7 @@ public:
     void setSize(const Vec3& size);
 
     ColliderShape shape() const override;
+    void setShape(const ColliderShape& shape) override;
 
 private:
     Vec3 m_size{1.0f};

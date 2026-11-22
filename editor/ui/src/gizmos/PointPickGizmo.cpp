@@ -55,10 +55,7 @@ bool PointPickGizmo::draw(GizmoContext& context)
     }
 
     const ImVec2 mouse = ImGui::GetMousePos();
-    const Ray ray = context.camera.screenRay(
-        {mouse.x - context.origin.x, mouse.y - context.origin.y},
-        {context.size.x, context.size.y}
-    );
+    const Ray ray = mouseRay(context);
     SnapSettings snap = context.settings.snap;
     snap.grid = snap.grid || ImGui::GetIO().KeyCtrl;
     drawMarker(list, context, dropPoint(context.session.scene(), ray, snap), color);

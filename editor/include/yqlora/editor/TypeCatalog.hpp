@@ -111,22 +111,18 @@ private:
     std::vector<TypeEntry> m_entries;
 };
 
+// Выбранный тип среди показанных entries: прежний selected, если он ещё в
+// списке, иначе первый; пусто - список пуст.
+std::string keptSelection(std::span<const TypeEntry* const> entries, const std::string& selected);
+
+// Тип на step строк ниже (вверх - отрицательный) от selected, не дальше
+// краёв списка; пусто - список пуст.
+std::string steppedSelection(std::span<const TypeEntry* const> entries, const std::string& selected, int step);
+
 // Тип добавлен: он первым в недавних, без повтора, их не больше kRecentTypes.
 void rememberRecentType(std::vector<std::string>& recent, std::string_view typeName);
 
 // Почему тип не подходит, на языке человека; пусто, если подходит.
 std::string attachProblemText(const TypeRegistry& registry, const AttachCheck& check);
-
-// Имя типа на языке человека (type.<имя>.name); без перевода - имя типа.
-std::string typeDisplayName(const TypeInfo& type);
-
-// Описание типа: перевод type.<имя>.description, иначе заданное при
-// регистрации, иначе у скрипта - комментарий над его классом (исходник
-// ищется от projectDirectory). Пусто - нет.
-std::string typeDescription(const TypeInfo& type, const std::filesystem::path& projectDirectory);
-
-// Исходник скрипта на диске: TypeInfo::sourceFile от папки проекта (так его
-// пишет сборка модуля игры) или уже полный путь. Пусто у типов движка.
-std::filesystem::path scriptSourcePath(const TypeInfo& type, const std::filesystem::path& projectDirectory);
 
 } // namespace yqlora::editor
