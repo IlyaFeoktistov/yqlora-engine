@@ -1150,6 +1150,23 @@
                 "luminance": "The brightness of white of the panorama in nits: 20000 for a sunny sky, 1 for night.",
                 "rotation": "The rotation of the panorama around the vertical, in degrees.",
                 "panorama": "The picture of the sky in the equirectangular projection (2:1), preferably HDR."
+            },
+            "surface_template": {
+                "baseColor": "The colour of the surface; alpha is the opacity. Multiplied by the colour map.",
+                "metallic": "0 for everything that is not metal (wood, plastic, skin), 1 for bare metal.",
+                "roughness": "0 a mirror, 0.5 plastic, 1 matte like chalk.",
+                "baseColorMap": "A texture of the colour of the surface in sRGB; alpha is the opacity."
+            },
+            "sky_template": {
+                "zenithColor": "The colour of the sky straight up.",
+                "horizonColor": "The colour of the sky at the horizon.",
+                "groundColor": "The colour below the horizon. The sky lights the scene: a bright ground lights everything from below, and objects look flat, as in milk.",
+                "luminance": "The brightness of white in nits: 8000 for daylight, 1 for night.",
+                "sunGlow": "The brightness of the glow around the sun, as a share of a white surface under the sun: 0 no glow, 0.2 usual.",
+                "sunGlowFalloff": "How narrow the glow is: 4 a wide haze, 16 usual, 128 a tight halo.",
+                "sunDiscIntensity": "A multiplier of the brightness of the disc: 1 is physical.",
+                "sunDiscSize": "The visible size of the disc in degrees; 0 as the angular diameter of the sun light. Only the look: light and shadows use the size of the light.",
+                "sunDiscSoftness": "The width of the soft edge outside the disc, in its radii: 0 a sharp edge, 0.6 soft, 2 to 4 a wide glow. The disc itself keeps its size."
             }
         }
     },
@@ -1160,5 +1177,61 @@
         "Colliders": "Colliders",
         "Joints": "Joints",
         "Scripts": "Scripts"
+    },
+    "shaderField": {
+        "standard": {
+            "baseColor": "Base colour",
+            "emission": "Emission colour",
+            "emissionIntensity": "Emission, nits",
+            "emissionExposureWeight": "Emission follows exposure",
+            "metallic": "Metallic",
+            "roughness": "Roughness",
+            "occlusionStrength": "Occlusion",
+            "normalScale": "Normal strength",
+            "heightScale": "Height depth",
+            "alphaCutoff": "Alpha cutoff",
+            "baseColorMap": "Colour map",
+            "ormMap": "ORM map",
+            "normalMap": "Normal map",
+            "heightMap": "Height map",
+            "emissionMap": "Emission map"
+        },
+        "gradient_sky": {
+            "skyColor": "Zenith",
+            "equatorColor": "Horizon",
+            "groundColor": "Ground",
+            "luminance": "Luminance, nits",
+            "falloff": "Horizon falloff"
+        },
+        "physical_sky": {
+            "sunDisc": "Sun disc",
+            "limbDarkening": "Limb darkening",
+            "sunDiscIntensity": "Disc brightness",
+            "sunDiscSize": "Disc size, °",
+            "sunDiscSoftness": "Edge softness"
+        },
+        "panoramic_sky": {
+            "tint": "Tint",
+            "luminance": "Luminance, nits",
+            "rotation": "Rotation, °",
+            "panorama": "Panorama"
+        },
+        "surface_template": {
+            "baseColor": "Base colour",
+            "metallic": "Metallic",
+            "roughness": "Roughness",
+            "baseColorMap": "Colour map"
+        },
+        "sky_template": {
+            "zenithColor": "Zenith",
+            "horizonColor": "Horizon",
+            "groundColor": "Ground",
+            "luminance": "Luminance, nits",
+            "sunGlow": "Sun glow",
+            "sunGlowFalloff": "Glow narrowness",
+            "sunDiscIntensity": "Disc brightness",
+            "sunDiscSize": "Disc size, °",
+            "sunDiscSoftness": "Edge softness"
+        }
     }
 }

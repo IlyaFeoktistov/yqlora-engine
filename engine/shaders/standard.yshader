@@ -6,31 +6,31 @@
 #include <yqlora/standard.glsl>
 
 layout(set = 2, binding = 0, std140) uniform Material {
-    vec4 baseColor;          //@ color default(1, 1, 1, 1) tooltip("help.shader.standard.baseColor")
-    vec3 emission;           //@ color default(1, 1, 1) tooltip("help.shader.standard.emission")
+    vec4 baseColor;          //@ color default(1, 1, 1, 1) label("shaderField.standard.baseColor") tooltip("help.shader.standard.baseColor")
+    vec3 emission;           //@ color default(1, 1, 1) label("shaderField.standard.emission") tooltip("help.shader.standard.emission")
     // Яркость свечения в нитах: экран около 200, лампа под абажуром - тысячи.
-    float emissionIntensity; //@ default(0) tooltip("help.shader.standard.emissionIntensity")
+    float emissionIntensity; //@ default(0) label("shaderField.standard.emissionIntensity") tooltip("help.shader.standard.emissionIntensity")
     // 1 - свечение подчиняется экспозиции камеры, как свет; 0 - на экране
     // всегда той яркости, что задана (вывески, интерфейс в мире, стиль).
-    float emissionExposureWeight; //@ range(0, 1) default(1) tooltip("help.shader.standard.emissionExposureWeight")
-    float metallic;          //@ range(0, 1) default(0) tooltip("help.shader.standard.metallic")
-    float roughness;         //@ range(0, 1) default(0.5) tooltip("help.shader.standard.roughness")
-    float occlusionStrength; //@ range(0, 1) default(1) tooltip("help.shader.standard.occlusionStrength")
-    float normalScale;       //@ range(0, 2) default(1) tooltip("help.shader.standard.normalScale")
-    float heightScale;       //@ range(0, 0.1) default(0) tooltip("help.shader.standard.heightScale")
+    float emissionExposureWeight; //@ range(0, 1) default(1) label("shaderField.standard.emissionExposureWeight") tooltip("help.shader.standard.emissionExposureWeight")
+    float metallic;          //@ range(0, 1) default(0) label("shaderField.standard.metallic") tooltip("help.shader.standard.metallic")
+    float roughness;         //@ range(0, 1) default(0.5) label("shaderField.standard.roughness") tooltip("help.shader.standard.roughness")
+    float occlusionStrength; //@ range(0, 1) default(1) label("shaderField.standard.occlusionStrength") tooltip("help.shader.standard.occlusionStrength")
+    float normalScale;       //@ range(0, 2) default(1) label("shaderField.standard.normalScale") tooltip("help.shader.standard.normalScale")
+    float heightScale;       //@ range(0, 0.1) default(0) label("shaderField.standard.heightScale") tooltip("help.shader.standard.heightScale")
     // Альфа-тест: фрагменты с альфой ниже порога не рисуются (листва,
     // решётки). 0 - выключен.
-    float alphaCutoff;       //@ range(0, 1) default(0) tooltip("help.shader.standard.alphaCutoff")
+    float alphaCutoff;       //@ range(0, 1) default(0) label("shaderField.standard.alphaCutoff") tooltip("help.shader.standard.alphaCutoff")
 } material;
 
 // sRGB, альфа - прозрачность.
-layout(set = 2, binding = 1) uniform sampler2D baseColorMap; //@ default(white) tooltip("help.shader.standard.baseColorMap")
+layout(set = 2, binding = 1) uniform sampler2D baseColorMap; //@ default(white) label("shaderField.standard.baseColorMap") tooltip("help.shader.standard.baseColorMap")
 // Линейная: R - затенение, G - шероховатость, B - металличность, как в glTF.
-layout(set = 2, binding = 2) uniform sampler2D ormMap;       //@ default(white) tooltip("help.shader.standard.ormMap")
-layout(set = 2, binding = 3) uniform sampler2D normalMap;    //@ default(normal) tooltip("help.shader.standard.normalMap")
-layout(set = 2, binding = 4) uniform sampler2D heightMap;    //@ default(white) tooltip("help.shader.standard.heightMap")
+layout(set = 2, binding = 2) uniform sampler2D ormMap;       //@ default(white) label("shaderField.standard.ormMap") tooltip("help.shader.standard.ormMap")
+layout(set = 2, binding = 3) uniform sampler2D normalMap;    //@ default(normal) label("shaderField.standard.normalMap") tooltip("help.shader.standard.normalMap")
+layout(set = 2, binding = 4) uniform sampler2D heightMap;    //@ default(white) label("shaderField.standard.heightMap") tooltip("help.shader.standard.heightMap")
 // sRGB, множитель свечения.
-layout(set = 2, binding = 5) uniform sampler2D emissionMap;  //@ default(white) tooltip("help.shader.standard.emissionMap")
+layout(set = 2, binding = 5) uniform sampler2D emissionMap;  //@ default(white) label("shaderField.standard.emissionMap") tooltip("help.shader.standard.emissionMap")
 
 #ifdef YQLORA_VERTEX
 void main()

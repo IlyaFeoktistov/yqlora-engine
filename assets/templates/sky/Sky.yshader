@@ -4,28 +4,29 @@
 // Здесь - цвет от горизонта к зениту, земля ниже горизонта, диск солнца
 // сцены с мягким краем и ореол вокруг него. Материал с этим шейдером ставится в поле sky узла
 // Environment; поля блока Material видны в инспекторе материала (см.
-// docs/architecture/materials.md).
+// docs/architecture/materials.md). label и tooltip - подпись и подсказка
+// поля: ключ перевода редактора или сам текст, для своих полей пишите текст.
 #include <yqlora/sky.glsl>
 
 layout(set = 2, binding = 0, std140) uniform Material {
-    vec3 zenithColor;       //@ color default(0.25, 0.45, 0.85)
-    vec3 horizonColor;      //@ color default(0.75, 0.8, 0.9)
+    vec3 zenithColor;       //@ color default(0.25, 0.45, 0.85) label("shaderField.sky_template.zenithColor") tooltip("help.shader.sky_template.zenithColor")
+    vec3 horizonColor;      //@ color default(0.75, 0.8, 0.9) label("shaderField.sky_template.horizonColor") tooltip("help.shader.sky_template.horizonColor")
     // Земля ниже горизонта. Небо освещает сцену, поэтому светлая земля -
     // сильный свет снизу: предметы теряют объём, как в молоке.
-    vec3 groundColor;       //@ color default(0.3, 0.27, 0.22)
+    vec3 groundColor;       //@ color default(0.3, 0.27, 0.22) label("shaderField.sky_template.groundColor") tooltip("help.shader.sky_template.groundColor")
     // Яркость белого в нитах.
-    float luminance;        //@ default(8000)
+    float luminance;        //@ default(8000) label("shaderField.sky_template.luminance") tooltip("help.shader.sky_template.luminance")
     // Яркость ореола в его середине - доля яркости белой поверхности под солнцем.
-    float sunGlow;          //@ range(0, 1) default(0.2)
+    float sunGlow;          //@ range(0, 1) default(0.2) label("shaderField.sky_template.sunGlow") tooltip("help.shader.sky_template.sunGlow")
     // Чем больше, тем ореол уже.
-    float sunGlowFalloff;   //@ range(1, 256) default(16)
+    float sunGlowFalloff;   //@ range(1, 256) default(16) label("shaderField.sky_template.sunGlowFalloff") tooltip("help.shader.sky_template.sunGlowFalloff")
     // Яркость диска: 1 - физически, освещённость от солнца на телесный угол диска.
-    float sunDiscIntensity; //@ range(0, 10) default(1)
+    float sunDiscIntensity; //@ range(0, 10) default(1) label("shaderField.sky_template.sunDiscIntensity") tooltip("help.shader.sky_template.sunDiscIntensity")
     // Видимый угловой размер диска в градусах; 0 - как у света
     // (angularDiameter у DirectionalLight3D). Только вид: тени - от света.
-    float sunDiscSize;      //@ range(0, 20) default(3.5)
+    float sunDiscSize;      //@ range(0, 20) default(3.5) label("shaderField.sky_template.sunDiscSize") tooltip("help.shader.sky_template.sunDiscSize")
     // Ширина мягкого края за диском в его радиусах; 0 - резкий край.
-    float sunDiscSoftness;  //@ range(0, 4) default(0.6)
+    float sunDiscSoftness;  //@ range(0, 4) default(0.6) label("shaderField.sky_template.sunDiscSoftness") tooltip("help.shader.sky_template.sunDiscSoftness")
 } material;
 
 const float kPi = 3.14159265358979;

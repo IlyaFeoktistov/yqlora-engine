@@ -175,17 +175,19 @@ TEST_CASE("Shader data: a tooltip annotation gives the field and the texture the
     CHECK(hasError(build(shaderWith("    vec4 baseColor; //@ tooltip(1, 2)\n    float roughness;\n")), 4, "quotes"));
 }
 
-TEST_CASE("ResourceCache: every visible field of a built-in shader has a tooltip in every language")
+TEST_CASE("ResourceCache: every visible field of a built-in shader has a label and a tooltip in every language")
 {
     Localization en(YQLORA_LOCALES_DIR);
     REQUIRE(en.load("en"));
     Localization ru(YQLORA_LOCALES_DIR);
     REQUIRE(ru.load("ru"));
-    const auto check = [&](const std::string& name, const std::string& tooltip) {
+    const auto check = [&](const std::string& name, const std::string& label, const std::string& tooltip) {
         CAPTURE(name);
-        REQUIRE_FALSE(tooltip.empty());
-        CHECK(en.has(tooltip));
-        CHECK(ru.translate(tooltip) != en.translate(tooltip));
+        for (const std::string& key : {label, tooltip}) {
+            REQUIRE_FALSE(key.empty());
+            CHECK(en.has(key));
+            CHECK(ru.translate(key) != en.translate(key));
+        }
     };
     ResourceCache cache;
     for (const ResourceId id : {
@@ -198,12 +200,12 @@ TEST_CASE("ResourceCache: every visible field of a built-in shader has a tooltip
         REQUIRE(shader);
         for (const MaterialField& field : shader->fields) {
             if (!field.hidden) {
-                check(field.name, field.tooltip);
+                check(field.name, field.label, field.tooltip);
             }
         }
         for (const MaterialTexture& texture : shader->textures) {
             if (!texture.hidden) {
-                check(texture.name, texture.tooltip);
+                check(texture.name, texture.label, texture.tooltip);
             }
         }
     }
@@ -253,6 +255,14 @@ TEST_CASE("Shader data: the shader template compiles")
     REQUIRE(result.data);
     CHECK(result.data->findField("baseColor")->color);
     CHECK(result.data->findTexture("baseColorMap"));
+    // Подписи и подсказки шаблона - ключи перевода, они есть в файлах языков.
+    Localization ru(YQLORA_LOCALES_DIR);
+    REQUIRE(ru.load("ru"));
+    for (const MaterialField& field : result.data->fields) {
+        CAPTURE(field.name);
+        CHECK(ru.has(field.label));
+        CHECK(ru.has(field.tooltip));
+    }
 }
 
 TEST_CASE("ResourceCache: built-in shaders are there as resources")
@@ -417,4 +427,11 @@ TEST_CASE_FIXTURE(ProjectFixture, "ProjectFiles: the sky shader template compile
     CHECK(shader->findField("sunDiscIntensity"));
     CHECK(shader->findField("sunDiscSize"));
     CHECK(shader->findField("sunDiscSoftness"));
+    Localization ru(YQLORA_LOCALES_DIR);
+    REQUIRE(ru.load("ru"));
+    for (const MaterialField& field : shader->fields) {
+        CAPTURE(field.name);
+        CHECK(ru.has(field.label));
+        CHECK(ru.has(field.tooltip));
+    }
 }

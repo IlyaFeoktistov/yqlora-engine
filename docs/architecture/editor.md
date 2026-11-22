@@ -116,7 +116,9 @@ documents.
   is none. The widget `helpTooltip` wraps a long text to a readable width.
   Material fields take it from the shader: `//@ tooltip("key or text")`
   in the annotations, so a project's own shader describes its own fields;
-  the built-in shaders use keys `help.shader.<shader>.<field>`.
+  the built-in shaders and the templates of shaders label and describe
+  their fields with keys, `shaderField.<shader>.<field>` and
+  `help.shader.<shader>.<field>`, so they are in the person's language.
 - **Games** describe their script properties with `.tooltip("...")` (a
   key or a text) in the type builder; their properties are not required
   to have one.

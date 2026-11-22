@@ -5,13 +5,13 @@
 #include <yqlora/sky.glsl>
 
 layout(set = 2, binding = 0, std140) uniform Material {
-    vec3 skyColor;      //@ color default(0.35, 0.55, 0.85) tooltip("help.shader.gradient_sky.skyColor")
-    vec3 equatorColor;  //@ color default(0.7, 0.75, 0.8) tooltip("help.shader.gradient_sky.equatorColor")
-    vec3 groundColor;   //@ color default(0.3, 0.27, 0.22) tooltip("help.shader.gradient_sky.groundColor")
+    vec3 skyColor;      //@ color default(0.35, 0.55, 0.85) label("shaderField.gradient_sky.skyColor") tooltip("help.shader.gradient_sky.skyColor")
+    vec3 equatorColor;  //@ color default(0.7, 0.75, 0.8) label("shaderField.gradient_sky.equatorColor") tooltip("help.shader.gradient_sky.equatorColor")
+    vec3 groundColor;   //@ color default(0.3, 0.27, 0.22) label("shaderField.gradient_sky.groundColor") tooltip("help.shader.gradient_sky.groundColor")
     // Яркость белого в нитах.
-    float luminance;    //@ default(10000) tooltip("help.shader.gradient_sky.luminance")
+    float luminance;    //@ default(10000) label("shaderField.gradient_sky.luminance") tooltip("help.shader.gradient_sky.luminance")
     // Как быстро цвет уходит от горизонта: меньше 1 - широкая полоса горизонта.
-    float falloff;      //@ range(0.1, 4) default(0.5) tooltip("help.shader.gradient_sky.falloff")
+    float falloff;      //@ range(0.1, 4) default(0.5) label("shaderField.gradient_sky.falloff") tooltip("help.shader.gradient_sky.falloff")
 } material;
 
 vec3 sky(vec3 direction)

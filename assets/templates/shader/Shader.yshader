@@ -3,15 +3,17 @@
 // Освещённый шейдер: цвет и текстура, металличность и шероховатость.
 // Поля блока Material и текстуры набора 2 видны в инспекторе материала;
 // пометки //@ задают, как именно (см. docs/architecture/materials.md).
+// label и tooltip - подпись и подсказка поля: ключ перевода редактора или
+// сам текст, для своих полей пишите текст: label("Цвет") tooltip("...").
 #include <yqlora/standard.glsl>
 
 layout(set = 2, binding = 0, std140) uniform Material {
-    vec4 baseColor;  //@ color default(1, 1, 1, 1)
-    float metallic;  //@ range(0, 1) default(0)
-    float roughness; //@ range(0, 1) default(0.5) tooltip("0 - a mirror, 1 - matte like chalk")
+    vec4 baseColor;  //@ color default(1, 1, 1, 1) label("shaderField.surface_template.baseColor") tooltip("help.shader.surface_template.baseColor")
+    float metallic;  //@ range(0, 1) default(0) label("shaderField.surface_template.metallic") tooltip("help.shader.surface_template.metallic")
+    float roughness; //@ range(0, 1) default(0.5) label("shaderField.surface_template.roughness") tooltip("help.shader.surface_template.roughness")
 } material;
 
-layout(set = 2, binding = 1) uniform sampler2D baseColorMap; //@ default(white)
+layout(set = 2, binding = 1) uniform sampler2D baseColorMap; //@ default(white) label("shaderField.surface_template.baseColorMap") tooltip("help.shader.surface_template.baseColorMap")
 
 #ifdef YQLORA_VERTEX
 void main()
