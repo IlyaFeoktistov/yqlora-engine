@@ -7,25 +7,32 @@
     },
     "type": {
         "Node": {
-            "description": "Base node without a position: logic, scripts, grouping."
+            "description": "Base node without a position: logic, scripts, grouping.",
+            "name": "Node"
         },
         "Node3D": {
-            "description": "Empty object in 3D space: an anchor point for child nodes."
+            "description": "Empty object in 3D space: an anchor point for child nodes.",
+            "name": "3D node"
         },
         "Camera3D": {
-            "description": "Perspective camera. Cameras draw in order, the first one is the main."
+            "description": "Perspective camera. Cameras draw in order, the first one is the main.",
+            "name": "Camera"
         },
         "Light3D": {
-            "description": "Base of light sources: colour and intensity. Shines along the -Z axis of the node."
+            "description": "Base of light sources: colour and intensity. Shines along the -Z axis of the node.",
+            "name": "Light"
         },
         "DirectionalLight3D": {
-            "description": "Light from far away, the same across the scene, like the sun. Only the rotation matters."
+            "description": "Light from far away, the same across the scene, like the sun. Only the rotation matters.",
+            "name": "Directional light"
         },
         "PointLight3D": {
-            "description": "Light from a point in all directions; fades with distance and goes out at the range."
+            "description": "Light from a point in all directions; fades with distance and goes out at the range.",
+            "name": "Point light"
         },
         "SpotLight3D": {
-            "description": "A spot: a point light in a cone along -Z, with a soft edge between the inner and outer angle."
+            "description": "A spot: a point light in a cone along -Z, with a soft edge between the inner and outer angle.",
+            "name": "Spot light"
         },
         "Component": {
             "description": "Base of all components. A disabled component takes no part in the game."
@@ -34,7 +41,8 @@
             "description": "Base of all scene systems: physics, audio, rendering."
         },
         "Timer": {
-            "description": "Calls its onTimeout event after a delay, once or repeatedly; set up in the inspector."
+            "description": "Calls its onTimeout event after a delay, once or repeatedly; set up in the inspector.",
+            "name": "Timer"
         },
         "TimerSystem": {
             "description": "Timers of the scene: calls after a delay and repeated ones, on game time or real time."
@@ -46,10 +54,12 @@
             "description": "Keeps the cameras of the scene and their order of drawing; the first one is the main camera."
         },
         "Environment": {
-            "description": "The sky, the ambient light and the atmosphere of the scene. The first active one works."
+            "description": "The sky, the ambient light and the atmosphere of the scene. The first active one works.",
+            "name": "Environment"
         },
         "MeshRenderer": {
-            "description": "Draws a mesh at the position of its Node3D."
+            "description": "Draws a mesh at the position of its Node3D.",
+            "name": "Mesh renderer"
         },
         "Transform3D": {
             "description": "Position, rotation and scale relative to the parent node."
@@ -79,10 +89,12 @@
             "description": "Input actions and their bindings to keys and mouse buttons. Scripts ask for an action by name, not for a key."
         },
         "Script": {
-            "description": "Base of C++ scripts: game behaviour with the component lifecycle."
+            "description": "Base of C++ scripts: game behaviour with the component lifecycle.",
+            "name": "Script"
         },
         "PrefabPool": {
-            "description": "Instances of a prefab made ahead and kept disabled: hands out a ready one and takes it back, with no expanding on the fly. For objects that come and go often: bullets, shells, hit effects."
+            "description": "Instances of a prefab made ahead and kept disabled: hands out a ready one and takes it back, with no expanding on the fly. For objects that come and go often: bullets, shells, hit effects.",
+            "name": "Prefab pool"
         },
         "DebugDraw": {
             "description": "Debug drawing of the scene: lines and shapes over the world, by channel."
@@ -94,64 +106,84 @@
             "description": "Physics: gravity, solver iterations, the default physics material and which layers collide."
         },
         "CharacterController": {
-            "description": "A character the game moves: the capsule slides along walls, takes steps, keeps to the ground and rides platforms."
+            "description": "A character the game moves: the capsule slides along walls, takes steps, keeps to the ground and rides platforms.",
+            "name": "Character controller"
         },
         "Joint": {
-            "description": "A joint of the body of its node with another body or the world."
+            "description": "A joint of the body of its node with another body or the world.",
+            "name": "Joint"
         },
         "AxisJoint": {
-            "description": "A joint with an axis: limits, a limit spring and a motor."
+            "description": "A joint with an axis: limits, a limit spring and a motor.",
+            "name": "Joint with an axis"
         },
         "FixedJoint": {
-            "description": "A joint without movement: the bodies hold together as one."
+            "description": "A joint without movement: the bodies hold together as one.",
+            "name": "Fixed joint"
         },
         "PointJoint": {
-            "description": "One shared point, free rotation: chains, ropes, pendulums."
+            "description": "One shared point, free rotation: chains, ropes, pendulums.",
+            "name": "Point joint"
         },
         "HingeJoint": {
-            "description": "Rotation around an axis: doors, wheels, levers."
+            "description": "Rotation around an axis: doors, wheels, levers.",
+            "name": "Hinge"
         },
         "SliderJoint": {
-            "description": "Movement along an axis: drawers, pistons, lifts."
+            "description": "Movement along an axis: drawers, pistons, lifts.",
+            "name": "Slider"
         },
         "DistanceJoint": {
-            "description": "The distance between two points within limits, with a spring: ropes, rubber bands."
+            "description": "The distance between two points within limits, with a spring: ropes, rubber bands.",
+            "name": "Distance joint"
         },
         "ConeJoint": {
-            "description": "Swing within a cone, free twist: hangers, chain links."
+            "description": "Swing within a cone, free twist: hangers, chain links.",
+            "name": "Cone joint"
         },
         "SwingTwistJoint": {
-            "description": "Swing and twist within limits, with friction and a motor: ragdoll joints, tails."
+            "description": "Swing and twist within limits, with friction and a motor: ragdoll joints, tails.",
+            "name": "Swing and twist joint"
         },
         "SixDofJoint": {
-            "description": "The six axes of the node, each free, limited or locked."
+            "description": "The six axes of the node, each free, limited or locked.",
+            "name": "Six-axis joint"
         },
         "PhysicsChain": {
-            "description": "A long body that bends along its length: a snake, a worm, a tail, a tentacle. Links are capsules with muscles toward a target bend and a grip on the ground."
+            "description": "A long body that bends along its length: a snake, a worm, a tail, a tentacle. Links are capsules with muscles toward a target bend and a grip on the ground.",
+            "name": "Body chain"
         },
         "RigidBody": {
-            "description": "A rigid body: the node moves by forces and collisions, or is moved by code (kinematic), or stays put (static)."
+            "description": "A rigid body: the node moves by forces and collisions, or is moved by code (kinematic), or stays put (static).",
+            "name": "Rigid body"
         },
         "Collider": {
-            "description": "A shape for collisions on a node."
+            "description": "A shape for collisions on a node.",
+            "name": "Collider"
         },
         "BoxCollider": {
-            "description": "A box for collisions."
+            "description": "A box for collisions.",
+            "name": "Box collider"
         },
         "SphereCollider": {
-            "description": "A sphere for collisions."
+            "description": "A sphere for collisions.",
+            "name": "Sphere collider"
         },
         "CapsuleCollider": {
-            "description": "A capsule for collisions along Y: the usual shape of a player."
+            "description": "A capsule for collisions along Y: the usual shape of a player.",
+            "name": "Capsule collider"
         },
         "CylinderCollider": {
-            "description": "A cylinder for collisions along Y."
+            "description": "A cylinder for collisions along Y.",
+            "name": "Cylinder collider"
         },
         "ConvexCollider": {
-            "description": "The convex hull of a mesh for collisions: for moving bodies of a complex shape."
+            "description": "The convex hull of a mesh for collisions: for moving bodies of a complex shape.",
+            "name": "Convex collider"
         },
         "MeshCollider": {
-            "description": "The triangles of a mesh for collisions: floors, walls, terrain. Static and kinematic bodies only."
+            "description": "The triangles of a mesh for collisions: floors, walls, terrain. Static and kinematic bodies only.",
+            "name": "Mesh collider"
         }
     },
     "editor": {
@@ -233,8 +265,6 @@
         "inspector": {
             "nothing": "Select a node to see its properties",
             "addComponent": "Add component",
-            "scripts": "Scripts",
-            "noComponents": "No components to add yet",
             "none": "None",
             "missing": "Missing",
             "missingType": "The component type is not found: the game module is not built or the script was deleted. The component data is kept as is and comes back with the type.",
@@ -249,16 +279,16 @@
             "reset": "Reset value to default",
             "copy": "Copy value",
             "paste": "Paste value",
-            "resetPart": "Reset",
-            "copyPart": "Copy",
-            "pastePart": "Paste into",
+            "resetPart": "Reset {}",
+            "copyPart": "Copy {}",
+            "pastePart": "Paste into {}",
             "pressControl": "Press a key, a mouse or gamepad button...",
             "collider": {
                 "fit": "Fit to mesh",
                 "fitTooltip": "Size and centre from the meshes of this node and its children (without child bodies); the rotation is reset. A mesh collider takes the mesh of the node",
                 "nothingToFit": "No meshes on this node or its children to fit to"
             },
-            "element": "Element"
+            "element": "Element {}"
         },
         "viewport": {
             "cameraPreview": "Preview of the selected camera",
@@ -328,11 +358,6 @@
             "radius": "Link radius, m",
             "mass": "Mass of the whole chain, kg",
             "hint": "Links lie from the node back along its +Z; each segment node follows its link.",
-            "create": "Create"
-        },
-        "addNode": {
-            "title": "Add node",
-            "search": "Search",
             "create": "Create"
         },
         "common": {
@@ -405,7 +430,7 @@
             "projectVersionHint": "Version of the project file format. It changes only when the project is upgraded to a newer engine, never by hand.",
             "TimeSettings": "Time",
             "LayerSettings": "Layers",
-            "layerNodes": "node(s) in scenes",
+            "layerNodes": "{}: {} node(s) in scenes",
             "clearLayerTitle": "Clear layer name",
             "clearLayerQuestion": "These layers still have nodes:",
             "clearLayerKeeps": "The nodes stay on their layers, the layer just has no name.",
@@ -499,6 +524,21 @@
             "removeUnused": "Remove unused",
             "saveAs": "Save branch as prefab...",
             "saveAsTitle": "Save branch as prefab"
+        },
+        "typePicker": {
+            "componentTitle": "Add component",
+            "nodeTitle": "Add node",
+            "search": "Search by name or description",
+            "all": "All",
+            "recent": "Recent",
+            "add": "Add",
+            "noTypes": "Nothing found",
+            "wrongNode": "Only on nodes of type \"{}\"",
+            "alreadyAttached": "Already on this node",
+            "requirementUnavailable": "Needs the component \"{}\", which cannot be added to this node",
+            "goesOn": "Goes on: {}",
+            "addsWith": "Adds with it: {}",
+            "guide": "Open the guide"
         }
     },
     "projects": {
@@ -1105,5 +1145,13 @@
                 "panorama": "The picture of the sky in the equirectangular projection (2:1), preferably HDR."
             }
         }
+    },
+    "category": {
+        "Logic": "Logic",
+        "Rendering": "Rendering",
+        "Physics": "Physics",
+        "Colliders": "Colliders",
+        "Joints": "Joints",
+        "Scripts": "Scripts"
     }
 }

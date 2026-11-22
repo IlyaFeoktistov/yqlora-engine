@@ -9,19 +9,30 @@ namespace yqlora {
 
 namespace {
 
-// Ключ перевода: type.<имя типа>.description.
-constexpr std::string_view kDescriptionKeyPrefix = "type.";
+// Ключи перевода: type.<имя типа>.description и type.<имя типа>.name.
+constexpr std::string_view kTypeKeyPrefix = "type.";
 constexpr std::string_view kDescriptionKeySuffix = ".description";
+constexpr std::string_view kNameKeySuffix = ".name";
+
+std::string typeKey(const std::string& name, std::string_view suffix)
+{
+    std::string key;
+    key.reserve(kTypeKeyPrefix.size() + name.size() + suffix.size());
+    key.append(kTypeKeyPrefix).append(name).append(suffix);
+
+    return key;
+}
 
 } // namespace
 
 std::string TypeInfo::descriptionKey() const
 {
-    std::string key;
-    key.reserve(kDescriptionKeyPrefix.size() + m_name.size() + kDescriptionKeySuffix.size());
-    key.append(kDescriptionKeyPrefix).append(m_name).append(kDescriptionKeySuffix);
+    return typeKey(m_name, kDescriptionKeySuffix);
+}
 
-    return key;
+std::string TypeInfo::nameKey() const
+{
+    return typeKey(m_name, kNameKeySuffix);
 }
 
 std::unique_ptr<Node> TypeInfo::createNode() const

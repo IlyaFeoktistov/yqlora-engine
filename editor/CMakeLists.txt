@@ -39,7 +39,10 @@ add_library(yqlora_editor STATIC
     src/JointEditing.cpp
     src/Picking.cpp
     src/PointPick.cpp
+    src/GuideLink.cpp
     src/PropertyHelp.cpp
+    src/ScriptComment.cpp
+    src/TypeCatalog.cpp
     src/PropertyValues.cpp
     src/EditorSession.cpp
     src/EditorSettings.cpp
@@ -100,7 +103,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/core/EditorPanel.cpp
     ui/src/core/EditorActions.cpp
     ui/src/core/EditorHost.cpp
-    ui/src/dialogs/AddNodeDialog.cpp
+    ui/src/dialogs/TypePickerDialog.cpp
     ui/src/dialogs/BodyChainDialog.cpp
     ui/src/dialogs/ChainDialog.cpp
     ui/src/dialogs/UnsavedChangesDialog.cpp
@@ -132,7 +135,7 @@ add_library(yqlora_editor_ui STATIC
     ui/src/panels/ResourceInspector.cpp
     ui/src/panels/SceneTreePanel.cpp
     ui/src/panels/ViewportPanel.cpp
-    ui/src/style/NodeIcons.cpp
+    ui/src/style/TypeIcons.cpp
     ui/src/style/ResourceIcons.cpp
     ui/src/style/Theme.cpp
     ui/src/widgets/Checkbox.cpp

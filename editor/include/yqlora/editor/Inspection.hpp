@@ -42,10 +42,6 @@ struct Inspection {
     Node& node;
     const TypeInfo& type;
     std::vector<InspectedComponent> components;
-    // Что можно добавить (attachableTypes в ComponentRules.hpp), двумя
-    // группами: компоненты движка и скрипты (TypeInfo::isScript).
-    std::vector<const TypeInfo*> addable;
-    std::vector<const TypeInfo*> addableScripts;
     // nullopt, если узел не камера.
     std::optional<CameraRole> camera;
 };

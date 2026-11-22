@@ -279,7 +279,7 @@ void labeledListField(
         ImGui::TableNextColumn();
         ImGui::AlignTextToFramePadding();
         const bool named = i < labels.size() && !labels[i].empty();
-        const std::string label = named ? labels[i] : tr("editor.inspector.element") + " " + std::to_string(i);
+        const std::string label = named ? labels[i] : trFormat("editor.inspector.element", i);
         ImGui::TextUnformatted(label.c_str());
         ImGui::SetItemTooltip("%s", label.c_str());
         ImGui::TableNextColumn();
@@ -398,18 +398,18 @@ void componentMenuItems(
     const bool hasInitial = static_cast<std::size_t>(component) < initialComponents.size();
     const float initialNumber = hasInitial ? initialComponents[static_cast<std::size_t>(component)] : 0.0f;
 
-    const std::string reset = tr("editor.inspector.resetPart") + " " + name;
+    const std::string reset = trFormat("editor.inspector.resetPart", name);
     if (ImGui::MenuItem(reset.c_str(), nullptr, false, hasInitial && initialNumber != number)) {
         number = initialNumber;
         result.changed = true;
     }
-    const std::string copy = tr("editor.inspector.copyPart") + " " + name;
+    const std::string copy = trFormat("editor.inspector.copyPart", name);
     if (ImGui::MenuItem(copy.c_str())) {
         ImGui::SetClipboardText(numberToText(number).c_str());
     }
     const char* clipboard = ImGui::GetClipboardText();
     const auto pasted = clipboard ? numberFromText(clipboard) : std::nullopt;
-    const std::string paste = tr("editor.inspector.pastePart") + " " + name;
+    const std::string paste = trFormat("editor.inspector.pastePart", name);
     if (ImGui::MenuItem(paste.c_str(), nullptr, false, pasted.has_value())) {
         number = *pasted;
         result.changed = true;

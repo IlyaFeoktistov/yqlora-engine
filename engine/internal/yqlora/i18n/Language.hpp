@@ -26,12 +26,20 @@ public:
         return m_localization;
     }
 
+    // Английские тексты при любом выбранном языке: поиск в окнах редактора
+    // находит тип и по английскому слову.
+    const Localization& english() const
+    {
+        return m_english;
+    }
+
     // Переключает язык и запоминает выбор.
     bool set(std::string_view language);
 
 private:
     Settings m_settings;
     Localization m_localization;
+    Localization m_english;
 };
 
 } // namespace yqlora

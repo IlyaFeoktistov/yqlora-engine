@@ -88,6 +88,40 @@ public:
         return self();
     }
 
+    // Полка в окне выбора типа: .category("Physics/Joints"), см.
+    // TypeInfo::category. Наследники без своей стоят на ней же.
+    Self& category(std::string path)
+    {
+        m_info.m_category = std::move(path);
+
+        return self();
+    }
+
+    // Страница руководства о типе: .guide("physics"), см. TypeInfo::guidePage.
+    Self& guide(std::string page)
+    {
+        m_info.m_guidePage = std::move(page);
+
+        return self();
+    }
+
+    // Описание самим текстом, см. TypeInfo::description. Типы движка
+    // описываются переводом type.<имя>.description.
+    Self& description(std::string text)
+    {
+        m_info.m_description = std::move(text);
+
+        return self();
+    }
+
+    // Файл, в котором зарегистрирован тип скрипта, см. TypeInfo::sourceFile.
+    Self& sourceFile(std::string path)
+    {
+        m_info.m_sourceFile = std::move(path);
+
+        return self();
+    }
+
     // Тип переименован: файлы со старым именем читаются, пишется новое. Не
     // formerly: так в цепочке называется прежнее имя последнего свойства.
     Self& formerTypeName(std::string oldName)

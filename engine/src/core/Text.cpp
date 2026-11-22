@@ -1,6 +1,9 @@
 #include "yqlora/core/Text.hpp"
 
+#include <SDL3/SDL_stdinc.h>
+
 #include <algorithm>
+#include <string>
 
 namespace yqlora {
 
@@ -23,7 +26,10 @@ std::string toLowerAscii(std::string_view text)
 
 bool containsIgnoringCase(std::string_view text, std::string_view part)
 {
-    return !std::ranges::search(text, part, {}, lowerAscii, lowerAscii).empty() || part.empty();
+    // Свёртка регистра Unicode у SDL: "твёрд" находит "Твёрдое тело".
+    // TODO: две копии строк на вызов ради нуля в конце. Если фильтр лога на
+    // тысячах строк станет заметен - своя свёртка по string_view.
+    return part.empty() || SDL_strcasestr(std::string(text).c_str(), std::string(part).c_str()) != nullptr;
 }
 
 } // namespace yqlora

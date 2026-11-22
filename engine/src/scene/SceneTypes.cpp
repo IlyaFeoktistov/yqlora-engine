@@ -1,5 +1,6 @@
 #include "yqlora/scene/SceneTypes.hpp"
 
+#include "yqlora/reflection/TypeCategories.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/scene/ExecutionOrderSettings.hpp"
 #include "yqlora/scene/LayerSettings.hpp"
@@ -55,6 +56,7 @@ void registerSceneTypes(TypeRegistry& registry)
     registry.registerSystem<TransformSystem3D>();
     registry.registerSystem<TimerSystem>();
     registry.registerComponent<Timer>()
+        .category(std::string(categories::kLogic))
         .property("duration", &Timer::duration)
         .range(0.0f, kMaxTimerSeconds)
         .property("repeat", &Timer::repeat)
@@ -66,6 +68,8 @@ void registerSceneTypes(TypeRegistry& registry)
         .method("running", &Timer::running)
         .method("remaining", &Timer::remaining);
     registry.registerComponent<PrefabPool>()
+        .category(std::string(categories::kLogic))
+        .guide(std::string(guides::kPrefabs))
         .property("prefab", &PrefabPool::prefab)
         .property("size", &PrefabPool::size)
         .range(0, kMaxPoolSize)

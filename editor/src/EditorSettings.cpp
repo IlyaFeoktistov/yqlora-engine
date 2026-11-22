@@ -39,6 +39,7 @@ constexpr const char* kCodeEditorKey = "codeEditor";
 constexpr const char* kProgramKey = "program";
 constexpr const char* kArgumentsKey = "arguments";
 constexpr const char* kToolchainKey = "toolchain";
+constexpr const char* kRecentTypesKey = "recentTypes";
 
 // Список строк; иначе каналы остаются прежними.
 void readChannels(const nlohmann::json& json, const char* key, DebugChannels& channels)
@@ -109,6 +110,16 @@ void EditorSettings::load()
             }
         }
     }
+    if (const auto it = json->find(kRecentTypesKey); it != json->end() && it->is_object()) {
+        for (const auto& [project, types] : it->items()) {
+            std::vector<std::string>& list = recentTypes[project];
+            for (const nlohmann::json& type : types) {
+                if (type.is_string()) {
+                    list.push_back(type.get<std::string>());
+                }
+            }
+        }
+    }
     if (const auto it = json->find(kCodeEditorKey); it != json->end() && it->is_object()) {
         if (const auto value = it->find(kProgramKey); value != it->end() && value->is_string()) {
             codeEditor.program = fromUtf8(value->get<std::string>());
@@ -141,6 +152,7 @@ bool EditorSettings::save() const
         {kGameDebugChannelsKey, gameDebugChannels},
         {kSnapKey, snapJson},
         {kToolchainKey, overrides},
+        {kRecentTypesKey, recentTypes},
         {kCodeEditorKey,
          {
              {kProgramKey, toUtf8(codeEditor.program)},
@@ -152,6 +164,11 @@ bool EditorSettings::save() const
     }
 
     return writeJsonFile(m_file, json);
+}
+
+std::vector<std::string>& EditorSettings::recentTypesOf(const std::filesystem::path& project)
+{
+    return recentTypes[toUtf8(project.lexically_normal())];
 }
 
 DebugChannels viewerDebugChannels(const EditorSettings& settings)

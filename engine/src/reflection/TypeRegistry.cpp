@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <functional>
 #include <ranges>
 
 namespace yqlora {
@@ -117,6 +118,33 @@ std::size_t TypeRegistry::removeModule(std::string_view module)
     ++m_revision;
 
     return std::erase_if(m_types, inModule);
+}
+
+namespace {
+
+// Первое непустое значение по цепочке от типа к корню.
+template <typename Value>
+std::string_view inherited(const TypeRegistry& registry, const TypeInfo& type, Value value)
+{
+    for (const TypeInfo* t : registry.chain(type)) {
+        if (const std::string& own = std::invoke(value, *t); !own.empty()) {
+            return own;
+        }
+    }
+
+    return {};
+}
+
+} // namespace
+
+std::string_view categoryOf(const TypeRegistry& registry, const TypeInfo& type)
+{
+    return inherited(registry, type, &TypeInfo::category);
+}
+
+std::string_view guidePageOf(const TypeRegistry& registry, const TypeInfo& type)
+{
+    return inherited(registry, type, &TypeInfo::guidePage);
 }
 
 } // namespace yqlora

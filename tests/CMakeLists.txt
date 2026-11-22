@@ -21,6 +21,7 @@ add_executable(yqlora_tests
     test_prefab_editor.cpp
     test_script.cpp
     test_reflection.cpp
+    test_type_catalog.cpp
     test_serializer.cpp
     test_materials.cpp
     test_mesh.cpp
@@ -79,7 +80,7 @@ add_executable(yqlora_tests
     test_opengl.cpp
     RecordingDevice.cpp
 )
-target_link_libraries(yqlora_tests PRIVATE yqlora::internal yqlora::editor doctest::doctest stb_headers)
+target_link_libraries(yqlora_tests PRIVATE yqlora::internal yqlora::editor yqlora::editor_ui doctest::doctest stb_headers)
 target_compile_definitions(yqlora_tests PRIVATE
     YQLORA_LOCALES_DIR="${PROJECT_SOURCE_DIR}/assets/locales"
     YQLORA_SCRIPT_TEMPLATE_DIR="${PROJECT_SOURCE_DIR}/assets/templates/cpp-script"

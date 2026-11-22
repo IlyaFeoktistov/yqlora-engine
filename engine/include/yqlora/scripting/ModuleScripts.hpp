@@ -10,6 +10,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace yqlora {
@@ -42,6 +43,29 @@ inline std::vector<std::unique_ptr<ModuleScript>>& moduleScripts()
 template <std::derived_from<Script> T>
 class ScriptRegistration final : public detail::ModuleScript {
 public:
+    explicit ScriptRegistration(std::string sourceFile)
+        : m_sourceFile(std::move(sourceFile))
+    {
+    }
+
+    ScriptRegistration& description(std::string text)
+    {
+        m_rules.push_back([text = std::move(text)](ScriptBuilder<T>& builder) {
+            builder.description(text);
+        });
+
+        return *this;
+    }
+
+    ScriptRegistration& category(std::string path)
+    {
+        m_rules.push_back([path = std::move(path)](ScriptBuilder<T>& builder) {
+            builder.category(path);
+        });
+
+        return *this;
+    }
+
     ScriptRegistration& formerly(std::string oldName)
     {
         m_rules.push_back([oldName = std::move(oldName)](ScriptBuilder<T>& builder) {
@@ -117,20 +141,23 @@ public:
     void registerIn(ModuleRegistrar& registrar) const override
     {
         ScriptBuilder<T> builder = registrar.registerScript<T>();
+        builder.sourceFile(m_sourceFile);
         for (const auto& rule : m_rules) {
             rule(builder);
         }
     }
 
 private:
+    std::string m_sourceFile;
     std::vector<std::function<void(ScriptBuilder<T>&)>> m_rules;
 };
 
+// sourceFile - файл, в котором скрипт зарегистрирован (__FILE__).
 template <std::derived_from<Script> T>
-ScriptRegistration<T>& addModuleScript()
+ScriptRegistration<T>& addModuleScript(std::string sourceFile = {})
 {
     auto& scripts = detail::moduleScripts();
-    scripts.push_back(std::make_unique<ScriptRegistration<T>>());
+    scripts.push_back(std::make_unique<ScriptRegistration<T>>(std::move(sourceFile)));
 
     return static_cast<ScriptRegistration<T>&>(*scripts.back());
 }
@@ -158,11 +185,11 @@ inline void registerModuleScripts(ModuleRegistrar& registrar)
 //
 //   YQLORA_REGISTER_SCRIPT(Spinner).requiresNode<yqlora::Node3D>();
 //
-// Правила после него - как у ScriptBuilder: formerly, requiresNode,
-// requiresComponent, executionOrder, method, event. Входную функцию модуля
-// даёт SDK.
+// Правила после него - как у ScriptBuilder: description, category,
+// formerly, requiresNode, requiresComponent, executionOrder, method, event.
+// Входную функцию модуля даёт SDK.
 #define YQLORA_REGISTER_SCRIPT(Type)                                                                                   \
     [[maybe_unused]] static auto& YQLORA_DETAIL_CONCAT(                                                                \
         yqloraScriptRegistration,                                                                                      \
         __LINE__                                                                                                       \
-    ) = ::yqlora::addModuleScript<Type>()
+    ) = ::yqlora::addModuleScript<Type>(__FILE__)

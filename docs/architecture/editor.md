@@ -83,8 +83,8 @@ Status marks: see [README](README.md).
   vectors), `LayerFields`, `ChoiceFields` (enum, node, component type),
   `InputControlField`, `ResourceField`. `PropertyEditor` picks the field by
   the property type and hint and draws the row with its menu.
-- **Icons are tables**: of node types (`nodeIcon`) and of resource kinds
-  (`resourceIcon`); a new type or kind is a row. A point of the world on the
+- **Icons are tables**: of node and component types (`typeIcon`) and of
+  resource kinds (`resourceIcon`); a new type or kind is a row. A point of the world on the
   screen of a view is `projectToViewport`, for picking and for the gizmos.
 
 ## Descriptions of properties [done]
@@ -140,37 +140,56 @@ documents.
   material inspector, and a wrong argument is a compile error with the
   line.
 
-## Adding components and nodes [planned, after step 6]
+## Adding components and nodes [done]
 
-"Add component" and "Add node" open one picker, `TypePicker`, instead of a
-plain list of type names: a person finds what they need by what it does,
-not by knowing its name.
+"Add component" and "Add node" open one picker, `TypePickerDialog`,
+instead of a plain list of type names: a person finds what they need by
+what it does, not by knowing its name.
 
-- **Shelves**: types are grouped by category on the left (Rendering,
-  Physics, Physics > Joints, Cameras, Audio, Interface, Scripts of the
-  game, ...); the right side lists the types of the chosen shelf as rows
-  with an icon, the name in the person's language and a one-line
-  description. "All" and "Recent" (the last types added in this project)
-  are shelves too.
-- **The category and the icon are the type's**: `.category("Physics/Joints")`
-  in the type builder, the icon in the table of type icons (as node icons
-  are now). One place each; a new type sets them where it is registered.
-  Scripts of the game take their folder in the project as the category and
-  the script icon unless they set their own.
+- **Shelves**: types are grouped by category on the left (Logic,
+  Rendering, Physics, Physics > Colliders, Physics > Joints, Scripts and
+  the folders of scripts); the right side lists the types of the chosen
+  shelf, its nested shelves included, in name order, as rows with an icon,
+  the name in the person's language with the type name beside it (the
+  inspector and code use the type name) and the first line of the
+  description. "All" and "Recent" are shelves too. "Recent" keeps the last
+  `kRecentTypes` types added in this project, in the user's editor
+  settings (`EditorSettings::recentTypesOf`).
+- **The category, the guide page and the icon are the type's**:
+  `.category("Physics/Joints")` and `.guide("physics")` in the type
+  builder, inherited by subtypes without their own (`categoryOf`,
+  `guidePageOf`); the engine's paths and pages are constants in
+  `TypeCategories.hpp`, a part of a path is labelled by `category.<part>`.
+  The icon is a row of the one table of type icons (`TypeIcons.cpp`: nodes
+  and components; `typeIcon` takes the nearest base with a row), also
+  shown in component headers. A type's name in the person's language is
+  `type.<Type>.name`.
+- **Scripts of the game** stand on the shelf of the folder of their source
+  in the project under "Scripts", unless they set `.category`; their
+  description is `.description("...")` or the comment above their class
+  (see [scripts](scripting.md)).
 - **Details of the selected type** below the list: the full description,
-  what it adds with it (`requiresComponent`), where it goes
-  (`requiresNode`), and a link to its page in the guide.
-- **Types that do not fit** the node are shown greyed with the reason
-  ("only on a Node3D", "already on this node", "needs a RigidBody above"),
-  not hidden: a person learns why instead of searching for a missing row.
-- **Search** over names and descriptions in the current language and in
-  English, typing goes to the search at once; arrows move, Enter adds,
-  Escape closes. A search shows matches from all shelves with their shelf.
-- One widget for components and nodes: the node picker shows the
-  inheritance tree as its shelves; the logic (shelves, filtering, reasons,
-  recent types) lives in the editor without ImGui and is tested.
+  the reason it does not fit, where it goes (`requiresNode`), what it adds
+  with it (`requiresComponent`), and a button that opens its page of the
+  guide in the browser (`guideUrl`, the page in the language of the
+  interface if it is translated).
+- **Types that do not fit** the node are shown greyed with the reason, not
+  hidden: `checkAttach` (engine, `ComponentRules.hpp`) gives the problem
+  from the same rules that decide whether a component can be added: only
+  on a node of a type, already on this node, or a required component that
+  cannot be added here.
+- **Search** over names, type names, descriptions and shelf labels in the
+  current language and in English (`Language::english`), ignoring case of
+  any letters (`containsIgnoringCase`); typing goes to the search at once,
+  arrows move, Enter adds, a double click adds, Escape closes. A search
+  shows matches from all shelves with their shelf.
+- **One widget for components and nodes**: the node picker shows the
+  inheritance tree as its shelves. The logic (shelves, lists, reasons,
+  search, recent types) is `TypeCatalog` in the editor without ImGui,
+  built once when the window opens and again when the game module is
+  reloaded.
 
-### AC.1 The type picker
+### AC.1 The type picker [done]
 
 - `.category` in the registry and categories of all engine types, icons of
   component types, `TypePicker` with shelves, details, reasons, search and

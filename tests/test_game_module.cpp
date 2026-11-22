@@ -7,9 +7,11 @@
 #include <yqlora/editor/Inspection.hpp>
 #include <yqlora/editor/ModuleCopies.hpp>
 #include <yqlora/editor/ProjectSetup.hpp>
+#include <yqlora/editor/TypeCatalog.hpp>
 #include <yqlora/input/Input.hpp>
 #include <yqlora/project/Project.hpp>
 #include <yqlora/reflection/ObjectAccess.hpp>
+#include <yqlora/reflection/TypeCategories.hpp>
 #include <yqlora/scene/MissingComponent.hpp>
 #include <yqlora/scene/Node3D.hpp>
 #include <yqlora/scene/Scene.hpp>
@@ -147,13 +149,14 @@ TEST_CASE_FIXTURE(Fixture, "EditorSession: the game library of the project loads
     const TypeInfo* type = registry.find(kScript);
     REQUIRE(type);
 
-    // Скрипты - своей группой в "Добавить компонент".
+    // Скрипт - на полке скриптов окна выбора: его исходник вне папки проекта.
     Node& root = *session.scene().root();
-    session.selection().select(root.id());
-    const auto inspection = inspect(session);
-    REQUIRE(inspection);
-    CHECK(std::ranges::find(inspection->addableScripts, type) != inspection->addableScripts.end());
-    CHECK(std::ranges::find(inspection->addable, type) == inspection->addable.end());
+    const editor::TypeCatalog catalog = editor::TypeCatalog::components(registry, root, created->directory(), nullptr);
+    const editor::TypeEntry* script = catalog.find(kScript);
+    REQUIRE(script);
+    CHECK(script->shelf == categories::kScripts);
+    CHECK(script->fit.problem == AttachProblem::None);
+    CHECK_FALSE(script->type->sourceFile().empty());
 
     // Один скрипт остаётся в сцене, второй снят и лежит в истории правок:
     // оба уничтожаются до выгрузки библиотеки.

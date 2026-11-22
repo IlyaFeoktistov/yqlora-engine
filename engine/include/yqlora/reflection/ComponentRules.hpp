@@ -2,7 +2,9 @@
 
 #include "yqlora/core/Export.hpp"
 
+#include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -43,6 +45,30 @@ YQLORA_API std::vector<const Component*> dependentsOf(
 
 // Компонент можно снять с узла: он не встроенный и не нужен другим (dependentsOf).
 YQLORA_API bool canDetach(const TypeRegistry& registry, const Node& node, const Component& component);
+
+// Почему компонент не добавить к узлу; None - можно (вместе с недостающими
+// обязательными).
+enum class AttachProblem : std::uint8_t {
+    None,
+    // Узел не того типа: компонент живёт только на AttachCheck::type.
+    WrongNode,
+    // Компонент ровно этого типа уже на узле, а несколько нельзя.
+    AlreadyAttached,
+    // Обязательный компонент AttachCheck::type не добавить: он не подходит
+    // узлу, не создаётся или не зарегистрирован.
+    RequirementUnavailable,
+};
+
+struct AttachCheck {
+    AttachProblem problem = AttachProblem::None;
+    // Нужный тип узла (WrongNode) или обязательный компонент
+    // (RequirementUnavailable); пусто у остальных.
+    std::string type;
+};
+
+// Можно ли добавить компонент типа type к node, а если нет - почему.
+// Окно выбора типа показывает неподходящий тип с этой причиной.
+YQLORA_API AttachCheck checkAttach(const TypeRegistry& registry, const TypeInfo& type, const Node& node);
 
 // Типы компонентов, которые можно добавить к node вместе с недостающими
 // обязательными, в порядке регистрации.

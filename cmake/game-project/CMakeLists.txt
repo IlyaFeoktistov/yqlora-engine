@@ -29,3 +29,10 @@ endforeach()
 yqlora_add_game_module(game ${sources})
 # Заголовки подключаются и рядом с файлом, и от корня проекта.
 target_include_directories(game PRIVATE ${project_dir})
+# __FILE__ - путь от папки проекта: по нему скрипт стоит на полке своей папки
+# (YQLORA_REGISTER_SCRIPT), а путь с машины разработчика не попадает в игру.
+# TODO: у MSVC такого флага нет, там __FILE__ остаётся полным путём (редактор
+# понимает и его, но путь попадёт в игру). Решить, когда появится сборка MSVC.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(game PRIVATE "-fmacro-prefix-map=${project_dir}/=")
+endif()

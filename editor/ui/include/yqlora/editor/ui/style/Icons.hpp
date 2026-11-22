@@ -35,6 +35,29 @@ inline constexpr const char* kPointLight3D = "\uE1C2";       // lightbulb
 inline constexpr const char* kSpotLight3D = "\uE0D3";        // flashlight
 inline constexpr const char* kEnvironment = "\uE216";        // cloud-sun
 
+// Типы компонентов: "Добавить компонент" и заголовки в инспекторе.
+inline constexpr const char* kComponent = "\uE257";        // scan
+inline constexpr const char* kTimer = "\uE1E0";            // timer
+inline constexpr const char* kPrefabPool = "\uE2D0";       // boxes
+inline constexpr const char* kMeshRenderer = "\uE524";     // cuboid
+inline constexpr const char* kRigidBody = "\uE530";        // weight
+inline constexpr const char* kCollider = "\uE1CB";         // box-select
+inline constexpr const char* kBoxCollider = "\uE061";      // box
+inline constexpr const char* kSphereCollider = "\uE076";   // circle
+inline constexpr const char* kCapsuleCollider = "\uE3BD";  // pill
+inline constexpr const char* kCylinderCollider = "\uE525"; // cylinder
+inline constexpr const char* kConvexCollider = "\uE242";   // gem
+inline constexpr const char* kMeshCollider = "\uE192";     // triangle
+inline constexpr const char* kCharacter = "\uE21E";        // person-standing
+inline constexpr const char* kJoint = "\uE102";            // link
+inline constexpr const char* kFixedJoint = "\uE10B";       // lock
+inline constexpr const char* kHingeJoint = "\uE3D6";       // door-open
+inline constexpr const char* kSliderJoint = "\uE1C6";      // move-horizontal
+inline constexpr const char* kDistanceJoint = "\uE14B";    // ruler
+inline constexpr const char* kConeJoint = "\uE523";        // cone
+inline constexpr const char* kPhysicsChain = "\uE5DA";     // worm
+inline constexpr const char* kScript = "\uE093";           // code
+
 // Файлы и действия.
 inline constexpr const char* kFolder = "\uE0D7";          // folder
 inline constexpr const char* kFolderOpen = "\uE247";      // folder-open

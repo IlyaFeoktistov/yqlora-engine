@@ -12,6 +12,7 @@
 #include "yqlora/physics/PhysicsWorld.hpp"
 #include "yqlora/physics/RigidBody.hpp"
 #include "yqlora/physics/SphereCollider.hpp"
+#include "yqlora/reflection/TypeCategories.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/render/MeshData.hpp"
 #include "yqlora/scene/Node3D.hpp"
@@ -26,6 +27,8 @@ void registerPhysicsTypes(TypeRegistry& registry)
     registry.registerSystem<PhysicsWorld>();
 
     registry.registerComponent<RigidBody>()
+        .category(std::string(categories::kPhysics))
+        .guide(std::string(guides::kPhysics))
         .requiresNode<Node3D>()
         .property("motion", &RigidBody::motion, &RigidBody::setMotion)
         .property("mass", &RigidBody::mass, &RigidBody::setMass)
@@ -57,6 +60,8 @@ void registerPhysicsTypes(TypeRegistry& registry)
 
     // Несколько коллайдеров на узле складываются в одно тело.
     registry.registerComponent<Collider>()
+        .category(std::string(categories::kColliders))
+        .guide(std::string(guides::kPhysics))
         .requiresNode<Node3D>()
         .allowMultiple()
         .property("center", &Collider::center, &Collider::setCenter)
@@ -90,6 +95,8 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .min(kMinColliderSize);
 
     registry.registerComponent<CharacterController>()
+        .category(std::string(categories::kPhysics))
+        .guide(std::string(guides::kPhysics))
         .requiresNode<Node3D>()
         .property("radius", &CharacterController::radius, &CharacterController::setRadius)
         .min(kMinCharacterSize)
@@ -126,6 +133,8 @@ void registerPhysicsTypes(TypeRegistry& registry)
 
     // Звено цепи держит скрепление с предыдущим звеном и со следующим.
     registry.registerComponent<Joint>()
+        .category(std::string(categories::kJoints))
+        .guide(std::string(guides::kPhysics))
         .requiresComponent<RigidBody>()
         .allowMultiple()
         .property("connectedBody", &Joint::connectedBody, &Joint::setConnectedBody)
@@ -203,6 +212,8 @@ void registerPhysicsTypes(TypeRegistry& registry)
         .property("linearSpring", &SixDofJoint::linearSpring, &SixDofJoint::setLinearSpring);
 
     registry.registerComponent<PhysicsChain>()
+        .category(std::string(categories::kPhysics))
+        .guide(std::string(guides::kPhysics))
         .requiresNode<Node3D>()
         .property("segments", &PhysicsChain::segments, &PhysicsChain::setSegments)
         .range(kMinChainSegments, kMaxChainSegments)

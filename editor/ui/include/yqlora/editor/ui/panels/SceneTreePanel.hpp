@@ -5,9 +5,9 @@
 #include <optional>
 
 #include "yqlora/editor/ui/core/EditorPanel.hpp"
-#include "yqlora/editor/ui/dialogs/AddNodeDialog.hpp"
 #include "yqlora/editor/ui/dialogs/BodyChainDialog.hpp"
 #include "yqlora/editor/ui/dialogs/ChainDialog.hpp"
+#include "yqlora/editor/ui/dialogs/TypePickerDialog.hpp"
 #include "yqlora/editor/ui/widgets/NameDialog.hpp"
 #include "yqlora/editor/ui/widgets/ReleaseClick.hpp"
 
@@ -46,7 +46,7 @@ private:
     void handleMove(EditorContext& context);
     void drawKeepWorldDialog(EditorContext& context);
 
-    AddNodeDialog m_addNode;
+    TypePickerDialog m_addNode;
     ChainDialog m_chain;
     BodyChainDialog m_bodyChain;
     // Что было выбрано в прошлом кадре: если выбор сменился не здесь,

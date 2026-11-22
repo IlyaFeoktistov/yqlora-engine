@@ -166,6 +166,17 @@ bool openWithSystem(const std::filesystem::path& path)
 #endif
 }
 
+bool openUrl(const std::string& url)
+{
+    if (!SDL_OpenURL(url.c_str())) {
+        log::error("Cannot open '{}': {}", url, SDL_GetError());
+
+        return false;
+    }
+
+    return true;
+}
+
 std::optional<std::filesystem::path> asciiPath(const std::filesystem::path& path)
 {
 #ifdef _WIN32

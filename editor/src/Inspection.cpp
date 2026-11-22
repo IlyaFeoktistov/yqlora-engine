@@ -49,13 +49,8 @@ std::optional<Inspection> inspect(EditorSession& session)
         .node = *node,
         .type = *type,
         .components = {},
-        .addable = {},
-        .addableScripts = {},
         .camera = cameraRole(session.scene(), *node),
     };
-    for (const TypeInfo* attachable : attachableTypes(registry, *node)) {
-        (attachable->isScript() ? result.addableScripts : result.addable).push_back(attachable);
-    }
     for (const auto& component : node->components()) {
         result.components.push_back({
             .component = *component,

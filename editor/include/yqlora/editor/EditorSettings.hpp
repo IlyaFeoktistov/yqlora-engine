@@ -7,7 +7,10 @@
 #include "yqlora/scene/Node.hpp"
 
 #include <filesystem>
+#include <map>
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace yqlora::editor {
 
@@ -45,6 +48,15 @@ public:
     ToolchainOverrides toolchain;
     // Где открываются файлы кода и места ошибок.
     CodeEditorSetting codeEditor;
+
+    // Последние добавленные типы узлов и компонентов по папкам проектов
+    // (полка "Недавние" окна выбора, см. rememberRecentType).
+    // TODO: ключ - путь проекта: перенесённый проект теряет список, а списки
+    // удалённых проектов копятся. Ключом мог бы стать постоянный ID проекта.
+    std::map<std::string, std::vector<std::string>> recentTypes;
+
+    // Недавние типы проекта в папке project; создаёт пустой список.
+    std::vector<std::string>& recentTypesOf(const std::filesystem::path& project);
 
 private:
     std::filesystem::path m_file;

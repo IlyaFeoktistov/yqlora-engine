@@ -276,10 +276,8 @@ TEST_CASE_FIXTURE(Fixture, "Inspection: what the inspector shows for the selecte
     CHECK(collider.removable);
     CHECK(collider.type == &type("TestBoxCollider"));
 
-    // Уже есть Body, второго не предложат.
-    CHECK(std::ranges::none_of(inspection->addable, [&](const TypeInfo* t) {
-        return t->name() == "Body";
-    }));
+    // Уже есть Body, второй не добавить.
+    CHECK(checkAttach(registry, type("Body"), *node).problem == AttachProblem::AlreadyAttached);
 
     // Заглушка компонента пропавшего типа видна под его именем, и её можно снять.
     node->addComponent(std::make_unique<MissingComponent>(nlohmann::json{{"type", "Gone"}}));

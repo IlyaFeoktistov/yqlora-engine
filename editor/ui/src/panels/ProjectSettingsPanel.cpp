@@ -115,8 +115,7 @@ bool ProjectSettingsPanel::askBeforeClearingLayers(
         if (usage.nodes == 0) {
             continue;
         }
-        question += before[static_cast<std::size_t>(layer)] + ": " + std::to_string(usage.nodes) + " "
-                    + tr("editor.settings.layerNodes") + " ";
+        question += trFormat("editor.settings.layerNodes", before[static_cast<std::size_t>(layer)], usage.nodes) + " ";
         for (std::size_t i = 0; i < usage.scenes.size(); ++i) {
             question += (i == 0 ? "" : ", ") + toUtf8(usage.scenes[i]);
         }

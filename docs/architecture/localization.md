@@ -33,6 +33,16 @@ Status marks: see [README](README.md).
 - `tr(key)` gives the text in the current language. A key missing in it is
   taken from English; a key missing everywhere comes back as the key itself,
   so a forgotten translation is seen, not an empty string.
+- `trFormat(key, values...)` puts values into the translation at its `{}`
+  (`std::format`): the translation decides where a value stands, so word
+  order can differ between languages; texts are never glued from pieces. A
+  translation with broken braces is shown as it is. A test checks that a
+  translation has as many `{` as its English text.
+- Types are shown by their type name everywhere; the type picker adds the
+  name in the person's language, `type.<Type>.name` (a test requires it for
+  every creatable node and component type).
+- `Language::english()` keeps the English texts whatever the language, so
+  searches in the editor also find English words.
 - A property without a `property.<name>` key is shown by its name with a
   capital letter, so a game type works before anyone translates it.
 - The language is chosen by the user (View -> Language), at first the first

@@ -2,8 +2,8 @@
 
 #include "yqlora/editor/ui/core/EditorContext.hpp"
 #include "yqlora/editor/ui/style/Icons.hpp"
-#include "yqlora/editor/ui/style/NodeIcons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
+#include "yqlora/editor/ui/style/TypeIcons.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
 #include "yqlora/editor/ui/widgets/PingFlash.hpp"
 
@@ -52,7 +52,7 @@ void SceneTreePanel::draw(EditorContext& context)
 
     if (beginWindow(context)) {
         if (ImGui::Button(icons::kAdd)) {
-            m_addNode.open(selection.selected());
+            m_addNode.openNodes(selection.selected());
         }
         ImGui::SetItemTooltip("%s", tr("editor.tree.addNode").c_str());
         ImGui::Separator();
@@ -84,7 +84,7 @@ void SceneTreePanel::draw(EditorContext& context)
                 ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems
             )) {
             if (ImGui::MenuItem(tr("editor.tree.addNode").c_str())) {
-                m_addNode.open(0);
+                m_addNode.openNodes(0);
             }
             if (ImGui::BeginMenu(tr("editor.tree.create").c_str())) {
                 if (ImGui::MenuItem(tr("editor.tree.createChain").c_str())) {
@@ -101,7 +101,7 @@ void SceneTreePanel::draw(EditorContext& context)
             m_deleteRequested = true;
         }
 
-        m_addNode.draw(session, context.registry);
+        m_addNode.draw(context);
         m_chain.draw(session);
         m_bodyChain.draw(session);
         drawKeepWorldDialog(context);
@@ -154,7 +154,7 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection, const Edit
             inactive ? ImVec4(color.x, color.y, color.z, ImGui::GetStyle().DisabledAlpha) : color
         );
     }
-    const char* icon = node.prefabInstance() ? icons::kPrefab : nodeIcon(node.typeName());
+    const char* icon = node.prefabInstance() ? icons::kPrefab : typeIcon(node.typeName());
     const bool open = ImGui::TreeNodeEx(id, flags, "%s  %s", icon, node.name().c_str());
     if (inactive || prefab) {
         ImGui::PopStyleColor();
@@ -175,7 +175,7 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection, const Edit
     // Тянут выбранный узел - тянется весь выбор (в поле-список узлов);
     // перенос в дереве берёт первый.
     if (node.parent()) {
-        const std::string label = std::string(nodeIcon(node.typeName())) + "  " + node.name();
+        const std::string label = std::string(typeIcon(node.typeName())) + "  " + node.name();
         // Сам узел первым, корня в списке нет: перенос корня невозможен.
         std::vector<NodeId> dragged{node.id()};
         if (selected) {
@@ -207,7 +207,7 @@ void SceneTreePanel::drawNode(const Node& node, Selection& selection, const Edit
             selection.select(node.id());
         }
         if (ImGui::MenuItem(tr("editor.tree.addChild").c_str())) {
-            m_addNode.open(node.id());
+            m_addNode.openNodes(node.id());
         }
         if (ImGui::MenuItem(tr("editor.tree.delete").c_str(), "Delete")) {
             m_deleteRequested = true;

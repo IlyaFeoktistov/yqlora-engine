@@ -203,4 +203,11 @@ private:
     std::uint64_t m_revision = 0;
 };
 
+// Полка типа в окне выбора: своя категория или ближайшего базового типа
+// (скрепления берут "Physics/Joints" у Joint). Пусто - без полки.
+YQLORA_API std::string_view categoryOf(const TypeRegistry& registry, const TypeInfo& type);
+
+// Страница руководства о типе: своя или ближайшего базового. Пусто - нет.
+YQLORA_API std::string_view guidePageOf(const TypeRegistry& registry, const TypeInfo& type);
+
 } // namespace yqlora

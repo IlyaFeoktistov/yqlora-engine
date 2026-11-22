@@ -77,6 +77,38 @@ public:
     // Ключ перевода с описанием типа для подсказки в редакторе.
     std::string descriptionKey() const;
 
+    // Ключ перевода с именем типа на языке человека: type.<имя>.name.
+    std::string nameKey() const;
+
+    // Полка в окне выбора типа: путь категорий через "/", "Physics/Joints".
+    // Только своя; пусто - полка базового типа, см. categoryOf.
+    const std::string& category() const
+    {
+        return m_category;
+    }
+
+    // Страница руководства о типе: docs/guide/<страница>.md. Только своя;
+    // пусто - страница базового типа, см. guidePageOf.
+    const std::string& guidePage() const
+    {
+        return m_guidePage;
+    }
+
+    // Описание самим текстом, заданное при регистрации (скрипт игры:
+    // .description("...")). Перевод type.<имя>.description важнее.
+    const std::string& description() const
+    {
+        return m_description;
+    }
+
+    // Файл исходника, в котором зарегистрирован тип скрипта (__FILE__ при
+    // сборке модуля игры): по его папке в проекте скрипт стоит на полке.
+    // Пусто у типов движка.
+    const std::string& sourceFile() const
+    {
+        return m_sourceFile;
+    }
+
     // Только свойства этого типа, без базовых. Все вместе: TypeRegistry::properties().
     std::span<const Property> ownProperties() const
     {
@@ -164,6 +196,10 @@ private:
     std::function<std::unique_ptr<SceneSystem>(Scene&)> m_createSystem;
     std::function<std::unique_ptr<SettingsSection>()> m_createSettings;
     std::string m_settingsFile;
+    std::string m_category;
+    std::string m_guidePage;
+    std::string m_sourceFile;
+    std::string m_description;
     std::vector<Property> m_properties;
     std::vector<Method> m_methods;
     std::vector<EventInfo> m_events;

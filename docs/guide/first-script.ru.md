@@ -71,6 +71,9 @@ void Spinner::onUpdate(float deltaSeconds)
   него: `requiresNode`, `requiresComponent`, `formerly`, `executionOrder`,
   и его методами и событиями (`method`, `event`, см. ниже). Никакой другой
   файл скрипты не перечисляет.
+- "Добавить компонент" показывает скрипт на полке его папки с описанием:
+  напишите комментарий `//` прямо над `class Spinner` или добавьте
+  `.description("Вращает узел вокруг Y")` после `YQLORA_REGISTER_SCRIPT`.
 - Вызовы жизненного цикла (`onStart`, `onUpdate`, ...) и их порядок описаны
   в [скриптах](../architecture/scripting.ru.md#контракт-жизненного-цикла).
 

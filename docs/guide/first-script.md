@@ -70,6 +70,9 @@ void Spinner::onUpdate(float deltaSeconds)
   after it: `requiresNode`, `requiresComponent`, `formerly`,
   `executionOrder`, and its methods and events (`method`, `event`, see
   below). No other file lists the scripts.
+- "Add component" shows the script on the shelf of its folder with a
+  description: write a `//` comment right above `class Spinner`, or add
+  `.description("Turns the node around Y")` after `YQLORA_REGISTER_SCRIPT`.
 - Lifecycle calls (`onStart`, `onUpdate`, ...) and their order are in
   [scripts](../architecture/scripting.md#lifecycle-contract).
 

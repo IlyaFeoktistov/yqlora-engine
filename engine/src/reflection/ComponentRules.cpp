@@ -21,16 +21,19 @@ std::vector<std::string_view> requirementsOf(const TypeRegistry& registry, const
     return result;
 }
 
-bool fitsNodeType(const TypeRegistry& registry, const TypeInfo& type, const Node& node)
+// Тип узла, которого требует type или его база и которому node не
+// подходит; пусто - узел подходит.
+std::string_view unfitNodeType(const TypeRegistry& registry, const TypeInfo& type, const Node& node)
 {
     const TypeInfo* nodeType = registry.find(node.typeName());
-    if (!nodeType) {
-        return false;
+    for (const TypeInfo* t : registry.chain(type)) {
+        const std::string& required = t->requiredNode();
+        if (!required.empty() && (!nodeType || !derivesFrom(registry, *nodeType, required))) {
+            return required;
+        }
     }
 
-    return std::ranges::all_of(registry.chain(type), [&](const TypeInfo* t) {
-        return t->requiredNode().empty() || derivesFrom(registry, *nodeType, t->requiredNode());
-    });
+    return nodeType ? std::string_view() : std::string_view(node.typeName());
 }
 
 // На node есть компонент типа required (или наследника), кроме except.
@@ -50,12 +53,14 @@ bool hasComponentOf(
 
 // adding - типы, которые уже решено добавить (и сам исходный тип): они
 // закрывают требования так же, как компоненты на узле, и обрывают циклы.
+// false - обязательный компонент unavailable не добавить.
 bool collectMissing(
     const TypeRegistry& registry,
     const TypeInfo& type,
     const Node& node,
     std::vector<const TypeInfo*>& adding,
-    std::vector<const TypeInfo*>& result
+    std::vector<const TypeInfo*>& result,
+    std::string_view& unavailable
 )
 {
     for (const std::string_view required : requirementsOf(registry, type)) {
@@ -69,10 +74,12 @@ bool collectMissing(
         const TypeInfo* requiredType = registry.find(required);
         if (!requiredType || requiredType->kind() != TypeKind::Component || !requiredType->creatable()
             || !canAttach(registry, *requiredType, node)) {
+            unavailable = required;
+
             return false;
         }
         adding.push_back(requiredType);
-        if (!collectMissing(registry, *requiredType, node, adding, result)) {
+        if (!collectMissing(registry, *requiredType, node, adding, result, unavailable)) {
             return false;
         }
         result.push_back(requiredType);
@@ -92,7 +99,7 @@ bool derivesFrom(const TypeRegistry& registry, const TypeInfo& type, std::string
 
 bool canAttach(const TypeRegistry& registry, const TypeInfo& type, const Node& node)
 {
-    if (type.kind() != TypeKind::Component || !fitsNodeType(registry, type, node)) {
+    if (type.kind() != TypeKind::Component || !unfitNodeType(registry, type, node).empty()) {
         return false;
     }
     const bool multiple = std::ranges::any_of(registry.chain(type), [](const TypeInfo* t) {
@@ -104,6 +111,24 @@ bool canAttach(const TypeRegistry& registry, const TypeInfo& type, const Node& n
            });
 }
 
+AttachCheck checkAttach(const TypeRegistry& registry, const TypeInfo& type, const Node& node)
+{
+    if (const std::string_view nodeType = unfitNodeType(registry, type, node); !nodeType.empty()) {
+        return {AttachProblem::WrongNode, std::string(nodeType)};
+    }
+    if (!canAttach(registry, type, node)) {
+        return {AttachProblem::AlreadyAttached, {}};
+    }
+    std::vector<const TypeInfo*> adding{&type};
+    std::vector<const TypeInfo*> missing;
+    std::string_view unavailable;
+    if (!collectMissing(registry, type, node, adding, missing, unavailable)) {
+        return {AttachProblem::RequirementUnavailable, std::string(unavailable)};
+    }
+
+    return {};
+}
+
 std::optional<std::vector<const TypeInfo*>> missingRequirements(
     const TypeRegistry& registry,
     const TypeInfo& type,
@@ -112,7 +137,8 @@ std::optional<std::vector<const TypeInfo*>> missingRequirements(
 {
     std::vector<const TypeInfo*> adding{&type};
     std::vector<const TypeInfo*> result;
-    if (!collectMissing(registry, type, node, adding, result)) {
+    std::string_view unavailable;
+    if (!collectMissing(registry, type, node, adding, result, unavailable)) {
         return std::nullopt;
     }
 
@@ -154,7 +180,8 @@ std::vector<const TypeInfo*> attachableTypes(const TypeRegistry& registry, const
 {
     std::vector<const TypeInfo*> result;
     for (const auto& type : registry.types()) {
-        if (type->creatable() && canAttach(registry, *type, node) && missingRequirements(registry, *type, node)) {
+        if (type->creatable() && type->kind() == TypeKind::Component
+            && checkAttach(registry, *type, node).problem == AttachProblem::None) {
             result.push_back(type.get());
         }
     }

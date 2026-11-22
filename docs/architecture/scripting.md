@@ -128,6 +128,14 @@ YQLORA_REGISTER_SCRIPT(Player).requiresNode<Node3D>();
   `executionOrder`) and the methods and events of the script (`method`,
   `event`, see [types](reflection.md#methods-done)); fields come from
   `YQLORA_FIELDS`.
+- **How the type picker shows a script**: `YQLORA_REGISTER_SCRIPT` records
+  the file it stands in (`__FILE__`; the game module is compiled with
+  `-fmacro-prefix-map`, so the path is from the project folder and the
+  developer's path does not reach the game). The script stands on the
+  shelf of that folder under "Scripts" unless `.category("...")` gives its
+  own. Its description is `.description("...")`, otherwise the `//` comment
+  right above `class Name` in the header next to that file (or in the file
+  itself); see [editor](editor.md#adding-components-and-nodes-done).
 - **The script API** (`node()`, `transform()`, `input()`, `time()`,
   `scene()`, finding nodes, the log) is a convenience over the engine
   context the component already has through its scene; `Script` owns no

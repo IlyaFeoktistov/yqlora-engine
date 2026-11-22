@@ -59,11 +59,11 @@ The rest of the MVP, in this order; each stage has its plan with phases
    CE.2), then the documents of the stage (SA.4, PF.6, EV.3, T.3, CE.3). See [scripting](scripting.md),
    [prefabs](prefabs.md), [events](events.md), [editor](editor.md).
 2. **Physics** (step 6) **[done]**: [physics](physics.md), the guide [physics](../guide/physics.md).
-3. **Descriptions and the type picker** (PD.1 **[done]**, AC.1): a tooltip with what a
+3. **Descriptions and the type picker** **[done]** (PD.1, AC.1): a tooltip with what a
    field does and its usual values, see
    [editor](editor.md#descriptions-of-properties-done); a
    window of components and nodes on shelves with icons and descriptions,
-   see [editor](editor.md#adding-components-and-nodes-planned-after-step-6).
+   see [editor](editor.md#adding-components-and-nodes-done).
 4. **Cameras** (after step 6): [cameras](cameras.md).
 5. **Blockout** (after cameras): [blockout](blockout.md).
 6. **The game interface** (step 8): [game interface](ui.md).

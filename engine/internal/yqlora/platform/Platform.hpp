@@ -37,6 +37,9 @@ YQLORA_API std::vector<std::string> preferredLanguages();
 // (папку - файловым менеджером). false, если не вышло.
 YQLORA_API bool openWithSystem(const std::filesystem::path& path);
 
+// Открывает адрес (https://...) браузером системы. false, если не вышло.
+YQLORA_API bool openUrl(const std::string& url);
+
 // Путь к существующему файлу или папке, который понимают программы без
 // поддержки Unicode в путях (Ninja на Windows). На Windows - сам path, если в
 // нём только ASCII, иначе его короткий вариант (8.3); nullopt, если том

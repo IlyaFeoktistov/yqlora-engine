@@ -17,6 +17,8 @@ TEST_CASE("Text: ASCII lowercase leaves other bytes as they are")
     CHECK(containsIgnoringCase("PointLight3D", "light3"));
     CHECK(containsIgnoringCase("anything", ""));
     CHECK_FALSE(containsIgnoringCase("Camera3D", "light"));
+    CHECK(containsIgnoringCase("Твёрдое тело", "твёрд"));
+    CHECK(containsIgnoringCase("Скрепление", "СКРЕП"));
 }
 
 TEST_CASE("Files: a file is written atomically and read back whole")

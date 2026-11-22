@@ -12,7 +12,9 @@ namespace yqlora {
 Language::Language(const std::filesystem::path& localesDirectory, const std::filesystem::path& settingsFile)
     : m_settings(settingsFile)
     , m_localization(localesDirectory)
+    , m_english(localesDirectory)
 {
+    m_english.load(Localization::kFallbackLanguage);
     m_settings.load();
     log::info("Settings: {}", toUtf8(settingsFile));
     Localization::setActive(&m_localization);

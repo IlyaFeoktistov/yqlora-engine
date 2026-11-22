@@ -2,6 +2,12 @@
 
 #include <yqlora/i18n/Localization.hpp>
 
+#include <nlohmann/json.hpp>
+
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -42,4 +48,55 @@ TEST_CASE("Localization: pickLanguage matches system locales")
     CHECK(Localization::pickLanguage(std::vector<std::string>{"de", "ru-RU", "en"}, available) == "ru");
     CHECK(Localization::pickLanguage(std::vector<std::string>{"de"}, available) == "en");
     CHECK(Localization::pickLanguage(std::vector<std::string>{}, available) == "en");
+}
+
+namespace {
+
+// Строки файла языка по ключам через точку.
+void flatten(const nlohmann::json& json, const std::string& prefix, std::map<std::string, std::string>& out)
+{
+    for (const auto& [key, value] : json.items()) {
+        const std::string path = prefix.empty() ? key : prefix + "." + key;
+        if (value.is_object()) {
+            flatten(value, path, out);
+        } else if (value.is_string()) {
+            out[path] = value.get<std::string>();
+        }
+    }
+}
+
+std::map<std::string, std::string> localeStrings(const std::string& language)
+{
+    std::ifstream file(std::filesystem::path(YQLORA_LOCALES_DIR) / (language + ".json"));
+    std::map<std::string, std::string> strings;
+    flatten(nlohmann::json::parse(file), {}, strings);
+
+    return strings;
+}
+
+} // namespace
+
+TEST_CASE("Localization: a translation keeps the places for values of the English text")
+{
+    const auto en = localeStrings("en");
+    const auto ru = localeStrings("ru");
+    for (const auto& [key, text] : en) {
+        const auto translated = ru.find(key);
+        if (translated == ru.end()) {
+            continue;
+        }
+        CAPTURE(key);
+        CHECK(std::ranges::count(translated->second, '{') == std::ranges::count(text, '{'));
+    }
+}
+
+TEST_CASE("Localization: trFormat puts the values where the translation says")
+{
+    Localization loc(YQLORA_LOCALES_DIR);
+    REQUIRE(loc.load("ru"));
+    Localization::setActive(&loc);
+    CHECK(trFormat("editor.typePicker.wrongNode", "Node3D") == "Только на узлах типа \"Node3D\"");
+    // Ключа нет - текст как есть, подставлять некуда.
+    CHECK(trFormat("no.such.key", 1) == "no.such.key");
+    Localization::setActive(nullptr);
 }

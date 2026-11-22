@@ -1,6 +1,7 @@
 #pragma once
 
 #include "yqlora/editor/ui/core/EditorPanel.hpp"
+#include "yqlora/editor/ui/dialogs/TypePickerDialog.hpp"
 #include "yqlora/editor/ui/panels/ResourceInspector.hpp"
 
 #include "yqlora/scene/NodeId.hpp"
@@ -59,6 +60,7 @@ private:
     void runPrefabAction(EditorContext& context);
 
     ResourceInspector m_resource;
+    TypePickerDialog m_typePicker;
     std::optional<PrefabAction> m_prefabAction;
 };
 

@@ -1,6 +1,6 @@
 #include "yqlora/editor/ui/widgets/ReferenceField.hpp"
 
-#include "yqlora/editor/ui/style/NodeIcons.hpp"
+#include "yqlora/editor/ui/style/TypeIcons.hpp"
 #include "yqlora/editor/ui/widgets/DragDrop.hpp"
 #include "yqlora/editor/ui/widgets/ReferenceButton.hpp"
 
@@ -54,7 +54,7 @@ bool nodeField(const Property& property, NodeRef& value, const PropertyEditorCon
     const std::string typeName = nodeType.empty() ? std::string(Node::staticTypeName()) : nodeType;
     const Node* target = context.scene.find(value);
     const std::string name = target ? nodePath(*target) : emptyLabel(typeName);
-    const char* icon = nodeIcon(target ? target->typeName() : std::string_view(typeName));
+    const char* icon = typeIcon(target ? target->typeName() : std::string_view(typeName));
     bool changed = false;
 
     const ReferenceClick click = referenceButton(std::string(icon) + "  " + name, name);
@@ -83,7 +83,7 @@ bool nodeField(const Property& property, NodeRef& value, const PropertyEditorCon
             if (node->id() == value.id) {
                 current = static_cast<int>(labels.size());
             }
-            labels.push_back(std::string(nodeIcon(node->typeName())) + "  " + nodePath(*node));
+            labels.push_back(std::string(typeIcon(node->typeName())) + "  " + nodePath(*node));
         }
         const int chosen = drawChoiceList(labels, current, search);
         if (chosen == ChoiceList::kNone || chosen >= 0) {

@@ -6,6 +6,7 @@
 
 #include "yqlora/editor/ui/style/Icons.hpp"
 #include "yqlora/editor/ui/style/Theme.hpp"
+#include "yqlora/editor/ui/style/TypeIcons.hpp"
 
 #include "yqlora/editor/ColliderEditing.hpp"
 #include "yqlora/editor/EditorSession.hpp"
@@ -161,7 +162,9 @@ bool drawComponent(
     const bool marked = added || (prefab && prefab->overrides.componentOverridden(node, inspected.component));
     // Без крестика компонент, который снять нельзя.
     bool keep = true;
-    const std::string header = inspected.typeName + "###component";
+    // Значок типа, как в окне выбора; у заглушки пропавшего типа - значок компонента.
+    const char* icon = inspected.type ? typeIcon(widgets.registry, *inspected.type) : icons::kComponent;
+    const std::string header = std::string(icon) + "  " + inspected.typeName + "###component";
     if (marked) {
         ImGui::PushStyleColor(ImGuiCol_Text, toImVec4(widgets.colors.prefabOverride));
     }
@@ -227,41 +230,13 @@ void drawCameraRole(EditorSession& session, const Inspection& inspection)
     ImGui::SetItemTooltip("%s", tr("editor.inspector.camera.rule").c_str());
 }
 
-void drawAddableTypes(EditorSession& session, Node& node, const std::vector<const TypeInfo*>& types)
+// Все компоненты, подходящие и нет, предлагает окно выбора типа.
+void drawAddComponent(const Inspection& inspection, TypePickerDialog& picker)
 {
-    for (const TypeInfo* type : types) {
-        if (ImGui::Selectable(type->name().c_str())) {
-            session.editing().addComponent(node, *type);
-        }
-        // У скриптов игры описания в переводах нет: ключ без перевода не показываем.
-        const std::string key = type->descriptionKey();
-        if (const std::string description = tr(key); description != key) {
-            ImGui::SetItemTooltip("%s", description.c_str());
-        }
-    }
-}
-
-void drawAddComponent(EditorSession& session, const Inspection& inspection)
-{
-    const bool any = !inspection.addable.empty() || !inspection.addableScripts.empty();
-
     ImGui::Spacing();
-    ImGui::BeginDisabled(!any);
-    if (ImGui::Button(tr("editor.inspector.addComponent").c_str(), ImVec2(-FLT_MIN, 0.0f))) {
-        ImGui::OpenPopup("AddComponent");
-    }
-    ImGui::EndDisabled();
-    if (!any) {
-        ImGui::SetItemTooltip("%s", tr("editor.inspector.noComponents").c_str());
-    }
-
-    if (ImGui::BeginPopup("AddComponent")) {
-        drawAddableTypes(session, inspection.node, inspection.addable);
-        if (!inspection.addableScripts.empty()) {
-            ImGui::SeparatorText(tr("editor.inspector.scripts").c_str());
-            drawAddableTypes(session, inspection.node, inspection.addableScripts);
-        }
-        ImGui::EndPopup();
+    const std::string label = std::string(icons::kAdd) + " " + tr("editor.inspector.addComponent");
+    if (ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 0.0f))) {
+        picker.openComponents(inspection.node.id());
     }
 }
 
@@ -430,7 +405,8 @@ void InspectorPanel::draw(EditorContext& context)
         session.editing().removeComponent(node, *toRemove);
     }
 
-    drawAddComponent(session, *inspection);
+    drawAddComponent(*inspection, m_typePicker);
+    m_typePicker.draw(context);
     ImGui::End();
     context.mouseWrapping = context.mouseWrapping || dragging;
     runPrefabAction(context);

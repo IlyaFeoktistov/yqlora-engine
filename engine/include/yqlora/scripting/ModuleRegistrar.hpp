@@ -57,6 +57,38 @@ public:
     {
     }
 
+    // Что делает скрипт, для окна выбора компонента: "Ходит между точками".
+    // Без него описание - комментарий над классом в заголовке скрипта.
+    ScriptBuilder& description(std::string text)
+    {
+        if (m_builder) {
+            m_builder->description(std::move(text));
+        }
+
+        return *this;
+    }
+
+    // Своя полка в окне выбора: .category("Enemies"). Без неё - полка папки
+    // исходника в проекте.
+    ScriptBuilder& category(std::string path)
+    {
+        if (m_builder) {
+            m_builder->category(std::move(path));
+        }
+
+        return *this;
+    }
+
+    // Файл исходника, см. TypeInfo::sourceFile; ставит YQLORA_REGISTER_SCRIPT.
+    ScriptBuilder& sourceFile(std::string path)
+    {
+        if (m_builder) {
+            m_builder->sourceFile(std::move(path));
+        }
+
+        return *this;
+    }
+
     // Класс переименован: файлы со старым именем типа читаются, пишется новое.
     ScriptBuilder& formerly(std::string oldName)
     {

@@ -1,6 +1,7 @@
 #include "yqlora/render/RenderTypes.hpp"
 
 #include "yqlora/material/MaterialData.hpp"
+#include "yqlora/reflection/TypeCategories.hpp"
 #include "yqlora/reflection/TypeRegistry.hpp"
 #include "yqlora/render/Camera3D.hpp"
 #include "yqlora/render/DirectionalLight3D.hpp"
@@ -86,6 +87,7 @@ void registerRenderTypes(TypeRegistry& registry)
         );
 
     registry.registerNode<Environment>()
+        .guide(std::string(guides::kShaderMaterialSky))
         .property("sky", &Environment::sky)
         .resource(MaterialData::kResourceKind, uses::kSkyMaterial)
         .property("ambientSource", &Environment::ambientSource)
@@ -114,6 +116,8 @@ void registerRenderTypes(TypeRegistry& registry)
         .property("atmosphere", &Environment::atmosphere);
 
     registry.registerComponent<MeshRenderer>()
+        .category(std::string(categories::kRendering))
+        .guide(std::string(guides::kImportModel))
         .requiresNode<Node3D>()
         .property("mesh", &MeshRenderer::mesh, &MeshRenderer::setMesh)
         .resource(MeshData::kResourceKind)
