@@ -610,9 +610,11 @@ that shadow maps do not give.
   file is written when the edit ends (the widget is released) and at most
   twice a second during a long drag, atomically.
 - "Create resource" also gets **Sky shader** (from the template
-  `assets/templates/sky`: a colour from the horizon to the zenith, the sun
-  disc with a soft edge, `sunDiscSize` and `sunDiscSoftness` as in
-  `Physical`, and a glow around it).
+  `assets/templates/sky`: a colour from the horizon to the zenith, a dark
+  ground below the horizon (the sky lights the scene, and a bright lower
+  half would light everything from below, flat as in milk), the sun disc
+  with a soft edge, `sunDiscSize` and `sunDiscSoftness` as in `Physical`,
+  and a glow around it).
 - **The preview** has its own render target, camera, sphere, sun and a
   default environment (the sky, its light and reflections); nothing of it
   enters the scene, and its light does not light the scene. A sky material
